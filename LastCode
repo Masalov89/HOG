@@ -126,7 +126,6 @@ const locationMap = {
             }
         }
     }
-    
 };
 
 const locationPaths = {
@@ -188,7 +187,7 @@ class NavigationUtils {
             navigationZone.on('pointerdown', () => {
                 scene.cameras.main.fadeOut(1000);
                 scene.time.delayedCall(1000, () => {
-                    scene.scene.start('MainScene', {
+                    scene.scene.start('GameScene', {
                         location: neighbor,
                         history: [...(scene.locationHistory || []), currentLocation]
                     });
@@ -535,35 +534,40 @@ class InventoryScene extends Phaser.Scene {
     }
 }
 
-class CombinedScene extends Phaser.Scene { 
+class GameScene extends Phaser.Scene { 
     constructor() {
-        super({ key: 'CombinedScene' }); // Инициализация сцены с ключом 'CombinedScene'
+        super({ key: 'GameScene' });
 
         this.state = { // Инициализация состояния игры
             remainingObjects: [], // Список оставшихся для поиска предметов
             foundObjects: [],     // Список найденных предметов
             hintAvailable: true,  // Флаг доступности подсказки
-            idleTime: 0,          // Счетчик времени бездействия
+            idleTime: 0,         // Счетчик времени бездействия
             selectedDigits: ["0", "0", "0", "0"], // Текущий код сейфа
             ringFound: false,     // Флаг нахождения кольца
-            inventory: []         // Инвентарь
+            inventory: []         // Поле inventory
         };
 
-        this.location = 'front-house'; // Текущая локация
-        this.locationHistory = []; // История посещенных локаций
-        this.popupGroup = null; // Группа для всплывающих окон
-        this.codeInputGroup = null; // Группа для ввода кода сейфа
-        this.ringObject = null; // Объект кольца
-        this.inventory = null; // Инвентарь
-        this.itemTextObjects = []; // Текстовые объекты предметов
-        this.textBackground = null; // Фон для текста
+        // Свойства для навигации (из FreeRoamScene)
+        this.location = 'front-house';
+        this.locationHistory = [];
+
+        // Общие свойства
+        this.popupGroup = null;      // Группа для всплывающих окон
+        this.codeInputGroup = null;  // Группа для ввода кода сейфа
+        this.ringObject = null;      // Объект кольца
+        this.inventory = null;       // Поле для системы инвентаря
+        this.itemTextObjects = [];   // Массив текстовых объектов
+        this.textBackground = null;  // Фон для текста
     }
 
-    init(data) { // Инициализация сцены с переданными данными
-        this.location = data.location || 'front-house'; // Установка текущей локации
-        this.locationHistory = data.history || []; // Инициализация истории локаций
+    init(data) {
+        // Объединенная инициализация из обоих классов
+        this.location = data.location || 'front-house';
+        this.locationHistory = data.history || [];
         
-        if (data.gameState) { // Восстановление состояния игры
+        // Восстанавливаем состояние
+        if (data.gameState) {
             this.state = {
                 ...this.state,
                 foundObjects: data.gameState.foundObjects || [],
@@ -574,79 +578,81 @@ class CombinedScene extends Phaser.Scene {
         }
     }
 
-    preload() { // Предзагрузка ресурсов
-        this.load.image('front-house', 'front-house.jpg'); // Изображение фасада дома
-        this.load.image('hall', 'hall.jpg'); // Изображение холла
-        this.load.image('leftroom', 'leftroom.jpg'); // Изображение левой комнаты
-        this.load.image('rightroom', 'rightroom.jpg'); // Изображение правой комнаты
-        this.load.image('new-location', 'new-location.jpg'); // Изображение новой локации
-        
-        this.load.image('hint-button', 'path/to/hint-button.png'); // Изображение кнопки подсказки
-        this.load.image('other-button', 'path/to/other-button.png'); // Изображение другой кнопки
-        
-        const assets = [ // Массив всех игровых ресурсов для загрузки
-            { key: 'background', path: 'leftroom.jpg' }, // Фон комнаты
-            { key: 'object1', path: 'plate.png' }, // Тарелка
-            { key: 'object2', path: 'candle.png' }, // Свеча
-            { key: 'object3', path: 'art.png' }, // Картина
-            { key: 'object4', path: 'tea.png' }, // Сервиз
-            { key: 'object5', path: 'list1.png' }, // Скомканный лист
-            { key: 'object6', path: 'safe.png' }, // Сейф
-            { key: 'object7', path: 'sheet.png' }, // Лист
-            { key: 'list2', path: 'list2.png' }, // Развернутый лист
-            { key: 'close', path: 'close.png' }, // Кнопка закрытия
-            { key: 'opensafe', path: 'opensafe.png' }, // Открытый сейф
-            { key: 'object8', path: 'ring.png' }, // Кольцо
-            { key: 'arrow', path: 'arrow.png' } // Стрелка
+    preload() { 
+        // Проверка и загрузка основных фоновых изображений
+        if (!this.textures.exists('front-house')) {
+            this.load.image('front-house', 'front-house.jpg');
+        }
+        if (!this.textures.exists('hall')) {
+            this.load.image('hall', 'hall.jpg');
+        }
+        if (!this.textures.exists('leftroom')) {
+            this.load.image('leftroom', 'leftroom.jpg');
+        }
+        if (!this.textures.exists('rightroom')) {
+            this.load.image('rightroom', 'rightroom.jpg');
+        }
+        //if (!this.textures.exists('new-location')) {
+        //    this.load.image('new-location', 'new-location.jpg');
+        //}
+    
+        // Массив всех игровых ресурсов для загрузки
+        const assets = [
+            { key: 'background', path: 'leftroom.jpg' },     // Фон комнаты
+            { key: 'object1', path: 'plate.png' },       // Тарелка
+            { key: 'object2', path: 'candle.png' },      // Свеча
+            { key: 'object3', path: 'art.png' },         // Картина
+            { key: 'object4', path: 'tea.png' },         // Сервиз
+            { key: 'object5', path: 'list1.png' },       // Скомканный лист
+            { key: 'object6', path: 'safe.png' },        // Сейф
+            { key: 'object7', path: 'sheet.png' },       // Лист
+            { key: 'list2', path: 'list2.png' },         // Развернутый лист
+            { key: 'close', path: 'close.png' },         // Кнопка закрытия
+            { key: 'opensafe', path: 'opensafe.png' },   // Открытый сейф
+            { key: 'object8', path: 'ring.png' },        // Кольцо
+            { key: 'arrow', path: 'arrow.png' }          // Стрелка
         ];
     
-        assets.forEach(({ key, path }) => { // Загрузка всех ресурсов
-            if (!this.textures.exists(key)) { // Проверка существования ресурса
-                this.load.image(key, path); // Загрузка ресурса
+        // Загрузка всех ресурсов, если они еще не загружены
+        assets.forEach(({ key, path }) => {
+            if (!this.textures.exists(key)) {
+                this.load.image(key, path);
             }
         });
     
-        this.load.on('loaderror', (file) => { // Обработчик ошибок загрузки
+        // Обработчик ошибок загрузки
+        this.load.on('loaderror', (file) => {
             console.error('Ошибка загрузки ресурса:', file.src);
         });
     
-        this.load.on('complete', () => { // Обработчик завершения загрузки
+        // Обработчик завершения загрузки
+        this.load.on('complete', () => {
             console.log('Загрузка всех ресурсов завершена');
         });
     }
 
-    create() { // Создание сцены
-        this.cameras.main.fadeIn(1000); // Плавное появление сцены
-        this.createBackground(); // Создание фона
-        this.createObjects(); // Создание объектов
-        this.createUI(); // Создание пользовательского интерфейса
-        this.setupIdleTimer(); // Настройка таймера бездействия
+    create() {
+        this.cameras.main.fadeIn(1000);
+        this.createBackground();
+
+        // Создаем объекты только в определенной локации
+        if (this.location === 'leftroom') {
+            this.createObjects();
+            this.createUI();
+        }
     
-        NavigationUtils.createNavigationZones(this); // Создание зон навигации
+        NavigationUtils.createNavigationZones(this);
+        this.setupIdleTimer();
     
-        if (!this.scene.isActive('InventoryScene')) { // Запуск сцены инвентаря
+        if (!this.scene.isActive('InventoryScene')) {
             this.scene.launch('InventoryScene');
             this.scene.bringToTop('InventoryScene');
         }
-
-        // Создание кнопки подсказки
-        const hintButton = this.add.sprite(GAME_CONFIG.width - 100, 50, 'hint-button').setInteractive(); 
-        hintButton.on('pointerdown', () => { // Обработчик нажатия кнопки подсказки
-            if (this.state.hintAvailable) {
-                this.useHint();
-            }
-        });
-
-        // Создание других кнопок
-        const otherButton = this.add.sprite(GAME_CONFIG.width - 100, 150, 'other-button').setInteractive();
-        otherButton.on('pointerdown', () => { // Обработчик нажатия другой кнопки
-            console.log('Другая кнопка нажата!');
-        });
     }
 
-    createBackground() { // Создание фона
+    createBackground() {
         const backgroundKey = locationMap[this.location].image;
-        if (this.textures.exists(backgroundKey)) { // Проверка существования изображения
+        if (this.textures.exists(backgroundKey)) {
             this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, backgroundKey)
                 .setDisplaySize(1920, 1080);
         } else {
@@ -654,8 +660,8 @@ class CombinedScene extends Phaser.Scene {
         }
     }
 
-    createObjects() { // Создание объектов
-        const objects = [ // Список объектов
+    createObjects() {
+        const objects = [
             { key: 'object1', x: 502, y: 206, name: 'Тарелка' },
             { key: 'object2', x: 175, y: 306, name: 'Череп-свеча' },
             { key: 'object3', x: 354, y: 106, name: 'Картина' },
@@ -673,26 +679,31 @@ class CombinedScene extends Phaser.Scene {
             }
         ];
     
-        if (!this.state.remainingObjects || this.state.remainingObjects.length === 0) { // Инициализация remainingObjects
+        // Инициализируем remainingObjects, включая скрытые предметы
+        if (!this.state.remainingObjects || this.state.remainingObjects.length === 0) {
             this.state.remainingObjects = objects;
         }
     
-        this.state.remainingObjects.forEach(obj => { // Создание объектов
-            if (!obj.hidden && !this.state.foundObjects.includes(obj.name)) { // Проверка видимости и найденности объекта
-                this.createGameObject(obj); // Создание объекта
+        // Создаем только видимые объекты, которые еще не были найдены
+        this.state.remainingObjects.forEach(obj => {
+            // Проверяем, не был ли предмет уже найден и не является ли он скрытым
+            if (!obj.hidden && !this.state.foundObjects.includes(obj.name)) {
+                this.createGameObject(obj);
             }
         });
     
-        if (!this.state.ringFound) { // Создание сейфа, если кольцо не найдено
+        // Создаем сейф, только если кольцо еще не найдено
+        if (!this.state.ringFound) {
             this.createSafe();
         }
     }
 
     createGameObject(objData) { // Создание отдельного игрового объекта
-        const object = this.add.sprite(objData.x, objData.y, objData.key) // Создание интерактивного спрайта с заданными параметрами
+        const object = this.add.sprite(objData.x, objData.y, objData.key)
             .setInteractive()
             .setName(objData.name)
             .on('pointerdown', () => this.handleObjectClick(object));
+
         return object;
     }
 
@@ -705,39 +716,44 @@ class CombinedScene extends Phaser.Scene {
         });
     }
 
-    createUI() { // Создание пользовательского интерфейса
-        const padding = 5; // Отступ от верхнего края
+    createUI() {
+        // Отступ от верхнего края
+        const padding = 5;
         
-        this.textBackground = this.add.rectangle( // Фон текста
-            GAME_CONFIG.width / 2,
-            padding + 10,
-            320,
-            200,
-            0x000000,
-            0.8
-        ).setOrigin(0.5, 0);
-        this.textBackground.setDepth(-1);
+        // 1. Создаем фон сначала
+        this.textBackground = this.add.rectangle(
+            GAME_CONFIG.width / 2,    // центрируем по горизонтали
+            padding + 10,             // небольшой отступ сверху
+            320,                      // ширина фона
+            200,                      // начальная высота фона
+            0x000000,                // черный цвет
+            0.8                      // прозрачность 80%
+        ).setOrigin(0.5, 0);         // привязка к верхнему краю
+        this.textBackground.setDepth(-1); // фон под текстом
     
-        this.itemList = this.add.text( // Текстовый контейнер
-            GAME_CONFIG.width / 2,
-            padding + 20,
-            '',
+        // 2. Создаем текстовый контейнер
+        this.itemList = this.add.text(
+            GAME_CONFIG.width / 2,    // центрируем по горизонтали
+            padding + 20,             // отступ от верха + 20 пикселей для читаемости
+            '',                       // пустой текст изначально
             {
                 fontSize: '13px',
                 fill: '#ffffff',
                 padding: { x: 15, y: 5 },
-                align: 'left',
-                fixedWidth: 300,
-                fixedHeight: 180,
-                backgroundColor: null
+                align: 'left',        // выравнивание по левому краю
+                fixedWidth: 300,      // фиксированная ширина
+                fixedHeight: 180,     // фиксированная высота
+                backgroundColor: null  // убираем фон у текста
             }
-        ).setOrigin(0.5, 0);
+        ).setOrigin(0.5, 0);         // центрирование по горизонтали
     
-        const itemsPerColumn = Math.ceil(this.state.remainingObjects.length / 2); // Предметы на колонку
-        const leftColumnItems = this.state.remainingObjects.slice(0, itemsPerColumn); 
+        // Разделяем предметы на две колонки
+        const itemsPerColumn = Math.ceil(this.state.remainingObjects.length / 2);
+        const leftColumnItems = this.state.remainingObjects.slice(0, itemsPerColumn);
         const rightColumnItems = this.state.remainingObjects.slice(itemsPerColumn);
     
-        const leftColumn = leftColumnItems.map(obj => { // Левая колонка предметов
+        // Создаем массивы для обеих колонок с учетом цвета
+        const leftColumn = leftColumnItems.map(obj => {
             const color = (obj.hidden && !obj.available) ? '#ff0000' : '#ffffff';
             return { 
                 text: obj.name, 
@@ -745,20 +761,22 @@ class CombinedScene extends Phaser.Scene {
             };
         });
         
-        const rightColumn = rightColumnItems.map(obj => { // Правая колонка предметов
+        const rightColumn = rightColumnItems.map(obj => {
             const color = (obj.hidden && !obj.available) ? '#ff0000' : '#ffffff';
             return { 
                 text: obj.name, 
                 color: color 
             };
         });
-    
-        const maxLength = Math.max( // Максимальная длина имени предмета
+
+        // Находим максимальную длину имени предмета для выравнивания колонок
+        const maxLength = Math.max(
             ...leftColumn.map(item => item.text.length),
             ...rightColumn.map(item => item.text.length)
         );
     
-        let formattedText = ''; // Форматированный текст
+        // Формируем текст для списка
+        let formattedText = '';
         leftColumn.forEach((leftItem, index) => {
             const rightItem = rightColumn[index] || { text: '', color: '#ffffff' };
             formattedText += leftItem.text.padEnd(maxLength + 5);
@@ -770,21 +788,31 @@ class CombinedScene extends Phaser.Scene {
             }
         });
     
-        this.itemList.setText(formattedText); // Установка текста в контейнер
-        this.updateItemList(); // Обновление списка предметов
-        this.createHintButton(); // Создание кнопки подсказки
+        // Устанавливаем текст в контейнер
+        this.itemList.setText(formattedText);
+    
+        // Обновляем список предметов
+        this.updateItemList();
+        
+        // Создаем кнопку подсказки
+        this.createHintButton();
     
         return this.itemList;
     }
 
-    createHintButton() { // Создание кнопки подсказки
-        const padding = 5; // Отступ
-        const buttonWidth = 100; // Ширина кнопки
-        const buttonHeight = 35; // Высота кнопки
-        const buttonX = GAME_CONFIG.width - (buttonWidth / 2) - padding; // Координата X кнопки
-        const buttonY = (buttonHeight / 2) + padding; // Координата Y кнопки
+    createHintButton() {
+        // Уменьшаем отступ и размер кнопки
+        const padding = 5; // Уменьшаем отступ до 10 пикселей
+        const buttonWidth = 100; // Делаем кнопку чуть уже
+        const buttonHeight = 35; // И чуть ниже
+        
+        // Вычисляем координату X (максимально близко к правому краю)
+        const buttonX = GAME_CONFIG.width - (buttonWidth / 2) - padding;
+        // Y координата - минимальный отступ сверху
+        const buttonY = (buttonHeight / 2) + padding;
     
-        this.hintButton = this.add.rectangle( // Фон кнопки
+        // Создаем фон кнопки
+        this.hintButton = this.add.rectangle(
             buttonX,
             buttonY,
             buttonWidth,
@@ -792,31 +820,34 @@ class CombinedScene extends Phaser.Scene {
             GAME_CONFIG.colors.background
         ).setInteractive();
         
-        this.hintText = this.add.text( // Текст кнопки
+        // Добавляем текст, немного уменьшаем шрифт
+        this.hintText = this.add.text(
             buttonX,
             buttonY,
             'Подсказка',
             {
-                fontSize: '18px',
+                fontSize: '18px', // Уменьшаем размер шрифта
                 fill: '#fff'
             }
         ).setOrigin(0.5);
     
-        this.hintButton.on('pointerdown', () => { // Обработчик нажатия кнопки
+        // Обработчик нажатия остается тем же
+        this.hintButton.on('pointerdown', () => {
             if (this.state.hintAvailable) {
                 this.useHint();
             }
         });
     }
 
-    handleObjectClick(object) { // Обработчик клика по объекту
+    handleObjectClick(object) {
         if (!object || object.isAnimating) {
             return;
         }
     
         object.isAnimating = true;
     
-        this.handleDependentObjects(object.name); // Обработка зависимых объектов
+        // Добавляем обработку зависимых предметов
+        this.handleDependentObjects(object.name);
     
         switch (object.name) {
             case 'Сейф':
@@ -836,29 +867,31 @@ class CombinedScene extends Phaser.Scene {
         }
     }
     
-    handleDependentObjects(parentObjectName) { // Обработка зависимых объектов
+    handleDependentObjects(parentObjectName) {
         this.state.remainingObjects.forEach(obj => {
             if (obj.dependsOn === parentObjectName) {
-                this.updateItemList(); // Обновление списка предметов
+                this.updateItemList(); // Обновляем список предметов
                 console.log(`Предмет ${obj.name} стал доступен после взаимодействия с ${parentObjectName}`);
             }
         });
     }
 
-    animateObjectDisappearance(object) { // Анимация исчезновения объекта
+    animateObjectDisappearance(object) {
         if (!object || !object.scene) {
             return;
         }
     
-        object.setTint(GAME_CONFIG.colors.success); // Установка цвета успешного действия
+        object.setTint(GAME_CONFIG.colors.success);
     
-        this.tweens.add({ // Анимация увеличения
+        // Анимация увеличения
+        this.tweens.add({
             targets: object,
             scale: 1.5,
             duration: 350,
             ease: 'Power1',
             onComplete: () => {
-                this.tweens.add({ // Анимация исчезновения
+                // Анимация исчезновения
+                this.tweens.add({
                     targets: object,
                     alpha: 0,
                     duration: 350,
@@ -882,12 +915,12 @@ class CombinedScene extends Phaser.Scene {
             }
         });
     
-        this.state.idleTime = 0; // Сброс таймера бездействия
+        this.state.idleTime = 0;
         this.hintButton.clearTint();
         this.hintText.setStyle({ fill: '#fff' });
     }
     
-    showPopup(object, imageKey, addToInventory = false) { // Показ всплывающего окна
+    showPopup(object, imageKey, addToInventory = false) {
         if (this.popupGroup) {
             this.closePopup();
         }
@@ -915,6 +948,7 @@ class CombinedScene extends Phaser.Scene {
             }
         });
     
+        // Добавляем обработчик для сброса флага при закрытии попапа
         popupBackground.on('pointerdown', () => {
             if (object) {
                 object.isAnimating = false;
@@ -923,37 +957,38 @@ class CombinedScene extends Phaser.Scene {
         });
     }
 
-    reopenPopup(scene) { // Повторное открытие попапа
+    reopenPopup(scene) { // Повторное открытие попапа (например, для просмотра предмета из инвентаря)
         if (!scene) return;
 
         this.popupGroup = scene.add.group();
 
-        let popupBackground = scene.add.rectangle(350, 241, 700, 482, 0x000000, 0.5);
+        let popupBackground = scene.add.rectangle(350, 241, 700, 482, 0x000000, 0.5); // Создание затемненного фона
         this.popupGroup.add(popupBackground);
 
-        let popupImage = scene.add.image(350, 241, 'list2').setInteractive();
+        let popupImage = scene.add.image(350, 241, 'list2').setInteractive(); // Добавление изображения
         popupImage.setScale(0.8, 0.8);
         this.popupGroup.add(popupImage);
 
-        popupImage.on('pointerdown', () => this.closePopup());
+        popupImage.on('pointerdown', () => this.closePopup()); // Обработчик закрытия
     }
 
-    closePopup() { // Закрытие всплывающего окна
+    closePopup() { // Закрытие всплывающего окна 
         if (this.popupGroup) {
-            this.popupGroup.getChildren().forEach(child => child.removeAllListeners());
+            this.popupGroup.getChildren().forEach(child => child.removeAllListeners()); // Удаление всех обработчиков событий и очистка группы
             this.popupGroup.clear(true, true);
             this.popupGroup = null;
         }
     }
 
+
     addToInventory(itemName) { // Добавление предмета в инвентарь
         if (!this.state.inventory.includes(itemName)) {
-            this.state.inventory.push(itemName);
+            this.state.inventory.push(itemName); // Добавление предмета в массив инвентаря
 
-            const inventoryTextContent = this.state.inventory.map(item => `[${item}]`).join(' ');
+            const inventoryTextContent = this.state.inventory.map(item => `[${item}]`).join(' '); // Обновление отображения инвентаря
             this.inventoryText.setText(inventoryTextContent);
 
-            this.inventoryText.removeAllListeners('pointerdown');
+            this.inventoryText.removeAllListeners('pointerdown'); // Добавление интерактивности для предметов в инвентаре
             this.inventoryText.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.inventoryText.width, this.inventoryText.height), Phaser.Geom.Rectangle.Contains);
             this.inventoryText.on('pointerdown', () => {
                 if (itemName === 'Развернутый лист') {
@@ -962,7 +997,7 @@ class CombinedScene extends Phaser.Scene {
             });
         }
 
-        this.state.idleTime = 0;
+        this.state.idleTime = 0; // Сброс таймера бездействия
         this.hintButton.clearTint();
         this.hintText.setStyle({ fill: '#fff' });
     }
@@ -1344,7 +1379,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [FreeRoamScene, MainScene, InventoryScene],
+    scene: [GameScene, InventoryScene],
     physics: {
         default: 'arcade',
         arcade: {
