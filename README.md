@@ -1,6 +1,6 @@
 const GAME_CONFIG = { 
-    width: window.innerWidth,  // Подгоняем ширину под экран
-    height: window.innerHeight, // Подгоняем высоту под экран
+    width: 1920,  // Фиксированная ширина Full HD
+    height: 1080, // Фиксированная высота Full HD
     idleLimit: 30,              // Лимит времени бездействия (в секундах) перед показом подсказки
     safeCode: ["4", "2", "7", "9"], // Код для открытия сейфа
     colors: {                    // Цветовые константы для различных состояний
@@ -11,32 +11,122 @@ const GAME_CONFIG = {
     }
 };
 
-const locationMap = { // Определение карты локаций с настройками переходов
+// Добавляем обработчик клавиши F для переключения полноэкранного режима
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'f' || e.key === 'F') {
+        if (!document.fullscreenElement) {
+            // Если сейчас НЕ в полноэкранном режиме - включаем его
+            document.documentElement.requestFullscreen();
+        } else {
+            // Если сейчас В полноэкранном режиме - выключаем его
+            document.exitFullscreen();
+        }
+    }
+});
+
+const locationMap = { 
+    //'new-location': {
+    //    name: 'Новая Локация',
+    //    image: 'new-location',
+    //    neighbors: ['hall'],
+    //    transitions: {
+    //        'hall': {
+    //            points: [
+    //                { x: 300, y: 300 },
+    //                { x: 400, y: 300 },
+    //                { x: 400, y: 400 },
+    //                { x: 300, y: 400 }
+    //            ]
+    //        }
+    //    }
+    //}
+
     'front-house': { 
         name: 'Фасад дома', 
         image: 'front-house', 
         neighbors: ['hall'],
         transitions: {
-            'hall': { x: 350, y: 240, width: 60, height: 140 } // Правильные координаты для входной двери
+            'hall': {
+                // Массив из 4 точек, определяющих форму зоны
+                points: [
+                    { x: 925, y: 755 }, // верхняя левая точка
+                    { x: 985, y: 755 }, // верхняя правая точка
+                    { x: 985, y: 865 }, // нижняя правая точка
+                    { x: 925, y: 865 }  // нижняя левая точка
+                ]
+            }
         }
     },
     'hall': { 
         name: 'Холл', 
         image: 'hall', 
-        neighbors: ['front-house', 'room'],
+        neighbors: ['front-house', 'leftroom', 'rightroom'],
         transitions: {
-            'front-house': { x: 285, y: 450, width: 225, height: 60 }, // Выход на улицу
-            'room': { x: 475, y: 272, width: 70, height: 335 } // Дверь в комнату
+            'front-house': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'leftroom': {
+                points: [
+                    { x: 205, y: 360 },
+                    { x: 360, y: 415 },
+                    { x: 360, y: 970 },
+                    { x: 205, y: 1000 }
+                ]
+            },
+            'rightroom': {
+                points: [
+                    { x: 1680, y: 370 },
+                    { x: 1750, y: 290 },
+                    { x: 1750, y: 1025 },
+                    { x: 1680, y: 980 }
+                ]
+            },
+            //'new-location': {
+            //    points: [
+            //        { x: 500, y: 500 },
+            //        { x: 600, y: 500 },
+            //        { x: 600, y: 600 },
+            //        { x: 500, y: 600 }
+            //    ]
+            //}
         }
     },
-    'room': { 
-        name: 'Комната', 
-        image: 'room', 
+    'leftroom': { 
+        name: 'ЛеваяКомната', 
+        image: 'leftroom', 
         neighbors: ['hall'],
         transitions: {
-            'hall': { x: 670, y: 430, width: 60, height: 140 } // Дверь в холл
+            'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            }
+        }
+    },
+    'rightroom': { 
+        name: 'ПраваяКомната', 
+        image: 'rightroom', 
+        neighbors: ['hall'],
+        transitions: {
+            'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            }
         }
     }
+    
 };
 
 const locationPaths = {
@@ -46,63 +136,146 @@ const locationPaths = {
     },
     'hall': {
         backTo: ['front-house'], // возврат на улицу
-        forwardTo: ['room'] // можно идти в комнату
+        forwardTo: ['leftroom'] // можно идти в комнату
     },
-    'room': {
+    'leftroom': {
         backTo: ['hall'], // возврат в холл
         forwardTo: [] // дальше пути нет
-    }
+    },
+    'rightroom': {
+        backTo: ['hall'],
+        forwardTo: []
+    },
+    //'new-location?': {
+    //    backTo: ['hall?'],
+    //    forwardTo: [?]
+    //},
 };
 
-class FreeRoamScene extends Phaser.Scene { // Сцена входа в дом - первая сцена игры
-    constructor() {
-        super({ key: 'FreeRoamScene' }); // Инициализация сцены с уникальным ключом
-    }
+// Утилитный класс для общих методов
+class NavigationUtils {
+    static createNavigationZones(scene) {
+        const currentLocation = scene.location;
+        const neighbors = locationMap[currentLocation].neighbors;
+        const transitions = locationMap[currentLocation].transitions;
 
-    preload() { // Предварительная загрузка всех необходимых изображений
-        this.load.image('front-house', 'front-house.jpg'); // Загрузка изображения фасада дома
-        this.load.image('hall', 'hall.jpg');               // Загрузка изображения холла
-        this.load.image('room', 'room.jpg');               // Загрузка изображения комнаты
-    }
-
-    create() { // Создание элементов сцены
-        this.cameras.main.fadeIn(1000); // Плавное появление сцены за 1 секунду
-        this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'front-house'); // Добавление фонового изображения фасада дома
-        this.createNavigationZones(); // Используем общий механизм создания зон навигации
-
-        // Запускаем сцену инвентаря
-        if (!this.scene.isActive('InventoryScene')) {
-            this.scene.launch('InventoryScene');
-            this.scene.bringToTop('InventoryScene'); // Добавляем эту строку
-        }
-    }
-
-    createNavigationZones() {
-        const neighbors = locationMap['front-house'].neighbors;
-        const transitions = locationMap['front-house'].transitions;
-    
         neighbors.forEach(neighbor => {
             const zoneName = locationMap[neighbor].name;
             const transition = transitions[neighbor];
-    
-            const navigationZone = this.add.zone(
-                transition.x, 
-                transition.y, 
-                transition.width, 
-                transition.height
-            )
-            .setOrigin(0.5)
-            .setInteractive()
-            .on('pointerdown', () => {
-                this.cameras.main.fadeOut(1000);
-                this.time.delayedCall(1000, () => {
-                    this.scene.start('MainScene', { 
-                        location: neighbor, 
-                        history: ['front-house'] 
+            const points = transition.points;
+
+            // Создаем зону на основе полигона
+            const navigationZone = scene.add.zone(0, 0, 1, 1)
+                .setOrigin(0)
+                .setInteractive(new Phaser.Geom.Polygon(points), Phaser.Geom.Polygon.Contains);
+
+            // Рисуем видимую границу зоны (для отладки)
+            const graphics = scene.add.graphics();
+            graphics.lineStyle(2, 0xff0000);
+            graphics.beginPath();
+            graphics.moveTo(points[0].x, points[0].y);
+            
+            // Рисуем линии между точками
+            points.forEach((point, index) => {
+                const nextPoint = points[(index + 1) % points.length];
+                graphics.lineTo(nextPoint.x, nextPoint.y);
+            });
+            
+            graphics.closePath();
+            graphics.strokePath();
+
+            // Обработка кликов
+            navigationZone.on('pointerdown', () => {
+                scene.cameras.main.fadeOut(1000);
+                scene.time.delayedCall(1000, () => {
+                    scene.scene.start('MainScene', {
+                        location: neighbor,
+                        history: [...(scene.locationHistory || []), currentLocation]
                     });
                 });
             });
+
+            // Добавляем стрелки и текст для обратного направления
+            const isBackwardDirection = locationPaths[currentLocation].backTo.includes(neighbor);
+
+            if (isBackwardDirection) {
+                // Находим центр полигона для размещения стрелки и текста
+                const centerX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+                const centerY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+
+                const edgeThreshold = 100;
+                const distanceToLeft = centerX;
+                const distanceToRight = GAME_CONFIG.width - centerX;
+                const distanceToBottom = GAME_CONFIG.height - centerY;
+
+                const arrow = scene.add.sprite(centerX, centerY, 'arrow')
+                    .setDepth(1)
+                    .setScale(1);
+
+                let angle = 0;
+                let textOffsetY = -15;
+
+                if (distanceToLeft <= edgeThreshold) {
+                    angle = -90;
+                } else if (distanceToRight <= edgeThreshold) {
+                    angle = 90;
+                } else if (distanceToBottom <= edgeThreshold) {
+                    angle = 180;
+                }
+
+                arrow.setAngle(angle);
+
+                const text = scene.add.text(centerX, centerY + textOffsetY, zoneName, {
+                    fontSize: '12px',
+                    fill: '#ffd700',
+                    align: 'center'
+                }).setOrigin(0.5);
+
+                navigationZone
+                    .on('pointerover', () => {
+                        arrow.setTint(0xffff00);
+                        text.setTint(0xffff00);
+                    })
+                    .on('pointerout', () => {
+                        arrow.clearTint();
+                        text.clearTint();
+                    });
+            }
         });
+    }
+}
+
+class FreeRoamScene extends Phaser.Scene { 
+    constructor() {
+        super({ key: 'FreeRoamScene' });
+        this.location = 'front-house';
+    }
+
+    init(data) {
+        this.location = data.location || 'front-house';
+        this.locationHistory = data.history || [];
+    }
+
+    preload() {
+        this.load.image('front-house', 'front-house.jpg');
+        this.load.image('hall', 'hall.jpg');
+        this.load.image('leftroom', 'leftroom.jpg');
+        this.load.image('rightroom', 'rightroom.jpg');
+        //this.load.image('new-location', 'new-location.jpg'); // Новое изображение
+    }
+
+    create() {
+        this.cameras.main.fadeIn(1000);
+        
+        const location = this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'front-house')
+            .setDisplaySize(1920, 1080);
+            
+        NavigationUtils.createNavigationZones(this);
+    
+        if (!this.scene.isActive('InventoryScene')) {
+            this.scene.launch('InventoryScene');
+            this.scene.bringToTop('InventoryScene');
+        }
     }
 }
 
@@ -442,13 +615,16 @@ class MainScene extends Phaser.Scene {
         if (!this.textures.exists('hall')) {
             this.load.image('hall', 'hall.jpg');
         }
-        if (!this.textures.exists('room')) {
-            this.load.image('room', 'room.jpg');
+        if (!this.textures.exists('leftroom')) {
+            this.load.image('leftroom', 'leftroom.jpg');
+        }
+        if (!this.textures.exists('rightroom')) {
+            this.load.image('rightroom', 'rightroom.jpg');
         }
     
         // Массив всех игровых ресурсов для загрузки
         const assets = [
-            { key: 'background', path: 'room.jpg' },     // Фон комнаты
+            { key: 'background', path: 'leftroom.jpg' },     // Фон комнаты
             { key: 'object1', path: 'plate.png' },       // Тарелка
             { key: 'object2', path: 'candle.png' },      // Свеча
             { key: 'object3', path: 'art.png' },         // Картина
@@ -481,120 +657,32 @@ class MainScene extends Phaser.Scene {
         });
     }
 
-    create() { // Создание игровой сцены
-        this.cameras.main.fadeIn(1000); // Добавление эффекта плавного появления
-        this.createBackground(); // Создание основных элементов сцены
-        if (this.location === 'room') {
-            this.createObjects();    // Создание интерактивных объектов
-            this.createUI();         // Создание пользовательского интерфейса
+    create() {
+        this.cameras.main.fadeIn(1000);
+        this.createBackground();
+        if (this.location === 'leftroom') {
+            this.createObjects();
+            this.createUI();
         }
-
-        this.createNavigationZones(); // Создаем зоны навигации между локациями
-        this.setupIdleTimer();       // Настройка таймера бездействия
-
-        // Запускаем сцену инвентаря, если она еще не запущена
+    
+        NavigationUtils.createNavigationZones(this); // <-- Вот эта строка изменилась
+        this.setupIdleTimer();
+    
         if (!this.scene.isActive('InventoryScene')) {
             this.scene.launch('InventoryScene');
-            this.scene.bringToTop('InventoryScene'); // Добавляем эту строку
+            this.scene.bringToTop('InventoryScene');
         }
     }
 
-    createBackground() { // Создание фона в зависимости от текущей локации
-        const backgroundKey = locationMap[this.location].image;
-        if (this.textures.exists(backgroundKey)) {
-            this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, backgroundKey);
-        } else {
-            console.error(`Ошибка: Изображение для ${backgroundKey} не загружено`);
-        }
+    createBackground() {
+    const backgroundKey = locationMap[this.location].image;
+    if (this.textures.exists(backgroundKey)) {
+        this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, backgroundKey)
+            .setDisplaySize(1920, 1080);
+    } else {
+        console.error(`Ошибка: Изображение для ${backgroundKey} не загружено`);
     }
-
-    createNavigationZones() {
-        // Получаем данные о соседних локациях и переходах
-        const neighbors = locationMap[this.location].neighbors;
-        const transitions = locationMap[this.location].transitions;
-        const currentLocation = this.location;
-    
-        neighbors.forEach(neighbor => {
-            const zoneName = locationMap[neighbor].name;
-            const transition = transitions[neighbor];
-    
-            // Создаем зону перехода
-            const navigationZone = this.add.zone(
-                transition.x, 
-                transition.y, 
-                transition.width, 
-                transition.height
-            )
-            .setOrigin(0.5)
-            .setInteractive()
-            .on('pointerdown', () => {
-                this.cameras.main.fadeOut(1000);
-                this.time.delayedCall(1000, () => {
-                    this.scene.start('MainScene', {
-                        location: neighbor,
-                        history: [...this.locationHistory, this.location],
-                        gameState: {
-                            foundObjects: this.state.foundObjects,
-                            remainingObjects: this.state.remainingObjects,
-                            ringFound: this.state.ringFound,
-                            inventory: this.state.inventory
-                        }
-                    });
-                });
-            });
-    
-            // Проверяем, является ли переход возвратом назад
-            const isBackwardDirection = locationPaths[currentLocation].backTo.includes(neighbor);
-    
-            if (isBackwardDirection) {
-                // Отступ от края экрана для определения зоны
-                const edgeThreshold = 100;
-    
-                // Определяем, к какому краю экрана ближе всего зона перехода
-                const distanceToLeft = transition.x;
-                const distanceToRight = GAME_CONFIG.width - transition.x;
-                const distanceToBottom = GAME_CONFIG.height - transition.y;
-    
-                // Создаем спрайт стрелки
-                const arrow = this.add.sprite(transition.x, transition.y, 'arrow')
-                    .setDepth(1)
-                    .setScale(1);
-    
-                let angle = 0; // По умолчанию вверх
-                let textOffsetY = -15; // Смещение текста
-    
-                // Определяем направление стрелки
-                if (distanceToLeft <= edgeThreshold) {
-                    angle = -90; // Стрелка влево
-                } else if (distanceToRight <= edgeThreshold) {
-                    angle = 90;  // Стрелка вправо
-                } else if (distanceToBottom <= edgeThreshold) {
-                    angle = 180; // Стрелка вниз
-                }
-    
-                // Устанавливаем угол поворота стрелки
-                arrow.setAngle(angle);
-    
-                // Добавляем название локации
-                const text = this.add.text(transition.x, transition.y + textOffsetY, zoneName, {
-                    fontSize: '12px',
-                    fill: '#ffd700',
-                    align: 'center'
-                }).setOrigin(0.5);
-    
-                // Добавляем подсветку при наведении
-                navigationZone
-                    .on('pointerover', () => {
-                        arrow.setTint(0xffff00); // Желтая подсветка
-                        text.setTint(0xffff00);
-                    })
-                    .on('pointerout', () => {
-                        arrow.clearTint();
-                        text.clearTint();
-                    });
-            }
-        });
-    }
+}
 
     createObjects() {
         const objects = [
@@ -1308,7 +1396,13 @@ const config = {
     type: Phaser.AUTO,
     width: GAME_CONFIG.width,
     height: GAME_CONFIG.height,
-    scene: [FreeRoamScene, MainScene, InventoryScene], // Добавляем InventoryScene
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 1920,
+        height: 1080
+    },
+    scene: [FreeRoamScene, MainScene, InventoryScene],
     physics: {
         default: 'arcade',
         arcade: {
