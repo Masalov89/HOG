@@ -126,7 +126,6 @@ const locationMap = {
             }
         }
     }
-    
 };
 
 const locationPaths = {
@@ -188,7 +187,7 @@ class NavigationUtils {
             navigationZone.on('pointerdown', () => {
                 scene.cameras.main.fadeOut(1000);
                 scene.time.delayedCall(1000, () => {
-                    scene.scene.start('MainScene', {
+                    scene.scene.start('GameScene', {
                         location: neighbor,
                         history: [...(scene.locationHistory || []), currentLocation]
                     });
@@ -242,40 +241,6 @@ class NavigationUtils {
                     });
             }
         });
-    }
-}
-
-class FreeRoamScene extends Phaser.Scene { 
-    constructor() {
-        super({ key: 'FreeRoamScene' });
-        this.location = 'front-house';
-    }
-
-    init(data) {
-        this.location = data.location || 'front-house';
-        this.locationHistory = data.history || [];
-    }
-
-    preload() {
-        this.load.image('front-house', 'front-house.jpg');
-        this.load.image('hall', 'hall.jpg');
-        this.load.image('leftroom', 'leftroom.jpg');
-        this.load.image('rightroom', 'rightroom.jpg');
-        //this.load.image('new-location', 'new-location.jpg'); // Новое изображение
-    }
-
-    create() {
-        this.cameras.main.fadeIn(1000);
-        
-        const location = this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'front-house')
-            .setDisplaySize(1920, 1080);
-            
-        NavigationUtils.createNavigationZones(this);
-    
-        if (!this.scene.isActive('InventoryScene')) {
-            this.scene.launch('InventoryScene');
-            this.scene.bringToTop('InventoryScene');
-        }
     }
 }
 
@@ -569,9 +534,9 @@ class InventoryScene extends Phaser.Scene {
     }
 }
 
-class MainScene extends Phaser.Scene { 
+class GameScene extends Phaser.Scene { 
     constructor() {
-        super({ key: 'MainScene' });
+        super({ key: 'GameScene' });
 
         this.state = { // Инициализация состояния игры
             remainingObjects: [], // Список оставшихся для поиска предметов
@@ -580,20 +545,26 @@ class MainScene extends Phaser.Scene {
             idleTime: 0,         // Счетчик времени бездействия
             selectedDigits: ["0", "0", "0", "0"], // Текущий код сейфа
             ringFound: false,     // Флаг нахождения кольца
-            inventory: []         // Добавляем поле inventory
+            inventory: []         // Поле inventory
         };
 
+        // Свойства для навигации (из FreeRoamScene)
+        this.location = 'front-house';
+        this.locationHistory = [];
+
+        // Общие свойства
         this.popupGroup = null;      // Группа для всплывающих окон
         this.codeInputGroup = null;  // Группа для ввода кода сейфа
         this.ringObject = null;      // Объект кольца
-        this.inventory = null;       // Добавляем поле для системы инвентаря
-        this.itemTextObjects = []; // Добавляем это свойство
-        this.textBackground = null; // И это свойство
+        this.inventory = null;       // Поле для системы инвентаря
+        this.itemTextObjects = [];   // Массив текстовых объектов
+        this.textBackground = null;  // Фон для текста
     }
 
-    init(data) { // Инициализация сцены с переданными данными
-        this.location = data.location || 'front-house'; // Установка текущей локации
-        this.locationHistory = data.history || []; // Инициализация истории локаций
+    init(data) {
+        // Объединенная инициализация из обоих классов
+        this.location = data.location || 'front-house';
+        this.locationHistory = data.history || [];
         
         // Восстанавливаем состояние
         if (data.gameState) {
@@ -621,6 +592,13 @@ class MainScene extends Phaser.Scene {
         if (!this.textures.exists('rightroom')) {
             this.load.image('rightroom', 'rightroom.jpg');
         }
+        // Добавляем загрузку изображения для кнопки подсказки
+        if (!this.textures.exists('hint-button')) {
+        this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
+    }
+        //if (!this.textures.exists('new-location')) {
+        //    this.load.image('new-location', 'new-location.jpg');
+        //}
     
         // Массив всех игровых ресурсов для загрузки
         const assets = [
@@ -636,7 +614,7 @@ class MainScene extends Phaser.Scene {
             { key: 'close', path: 'close.png' },         // Кнопка закрытия
             { key: 'opensafe', path: 'opensafe.png' },   // Открытый сейф
             { key: 'object8', path: 'ring.png' },        // Кольцо
-            { key: 'arrow', path: 'arrow.png' }          // Добавляем стрелку
+            { key: 'arrow', path: 'arrow.png' }          // Стрелка
         ];
     
         // Загрузка всех ресурсов, если они еще не загружены
@@ -660,12 +638,14 @@ class MainScene extends Phaser.Scene {
     create() {
         this.cameras.main.fadeIn(1000);
         this.createBackground();
+
+        // Создаем объекты только в определенной локации
         if (this.location === 'leftroom') {
             this.createObjects();
             this.createUI();
         }
     
-        NavigationUtils.createNavigationZones(this); // <-- Вот эта строка изменилась
+        NavigationUtils.createNavigationZones(this);
         this.setupIdleTimer();
     
         if (!this.scene.isActive('InventoryScene')) {
@@ -675,14 +655,14 @@ class MainScene extends Phaser.Scene {
     }
 
     createBackground() {
-    const backgroundKey = locationMap[this.location].image;
-    if (this.textures.exists(backgroundKey)) {
-        this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, backgroundKey)
-            .setDisplaySize(1920, 1080);
-    } else {
-        console.error(`Ошибка: Изображение для ${backgroundKey} не загружено`);
+        const backgroundKey = locationMap[this.location].image;
+        if (this.textures.exists(backgroundKey)) {
+            this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, backgroundKey)
+                .setDisplaySize(1920, 1080);
+        } else {
+            console.error(`Ошибка: Изображение для ${backgroundKey} не загружено`);
+        }
     }
-}
 
     createObjects() {
         const objects = [
@@ -723,7 +703,7 @@ class MainScene extends Phaser.Scene {
     }
 
     createGameObject(objData) { // Создание отдельного игрового объекта
-        const object = this.add.sprite(objData.x, objData.y, objData.key) // Создание интерактивного спрайта с заданными параметрами
+        const object = this.add.sprite(objData.x, objData.y, objData.key)
             .setInteractive()
             .setName(objData.name)
             .on('pointerdown', () => this.handleObjectClick(object));
@@ -792,7 +772,7 @@ class MainScene extends Phaser.Scene {
                 color: color 
             };
         });
-    
+
         // Находим максимальную длину имени предмета для выравнивания колонок
         const maxLength = Math.max(
             ...leftColumn.map(item => item.text.length),
@@ -1003,6 +983,7 @@ class MainScene extends Phaser.Scene {
             this.popupGroup = null;
         }
     }
+
 
     addToInventory(itemName) { // Добавление предмета в инвентарь
         if (!this.state.inventory.includes(itemName)) {
@@ -1402,7 +1383,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [FreeRoamScene, MainScene, InventoryScene],
+    scene: [GameScene, InventoryScene],
     physics: {
         default: 'arcade',
         arcade: {
