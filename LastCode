@@ -592,6 +592,10 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('rightroom')) {
             this.load.image('rightroom', 'rightroom.jpg');
         }
+        // Добавляем загрузку изображения для кнопки подсказки
+        if (!this.textures.exists('hint-button')) {
+        this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
+    }
         //if (!this.textures.exists('new-location')) {
         //    this.load.image('new-location', 'new-location.jpg');
         //}
@@ -801,43 +805,32 @@ class GameScene extends Phaser.Scene {
     }
 
     createHintButton() {
-        // Уменьшаем отступ и размер кнопки
-        const padding = 5; // Уменьшаем отступ до 10 пикселей
-        const buttonWidth = 100; // Делаем кнопку чуть уже
-        const buttonHeight = 35; // И чуть ниже
-        
-        // Вычисляем координату X (максимально близко к правому краю)
-        const buttonX = GAME_CONFIG.width - (buttonWidth / 2) - padding;
-        // Y координата - минимальный отступ сверху
-        const buttonY = (buttonHeight / 2) + padding;
+    const padding = 5;
+    const buttonSize = 128;
     
-        // Создаем фон кнопки
-        this.hintButton = this.add.rectangle(
-            buttonX,
-            buttonY,
-            buttonWidth,
-            buttonHeight,
-            GAME_CONFIG.colors.background
-        ).setInteractive();
-        
-        // Добавляем текст, немного уменьшаем шрифт
-        this.hintText = this.add.text(
-            buttonX,
-            buttonY,
-            'Подсказка',
-            {
-                fontSize: '18px', // Уменьшаем размер шрифта
-                fill: '#fff'
-            }
-        ).setOrigin(0.5);
-    
-        // Обработчик нажатия остается тем же
-        this.hintButton.on('pointerdown', () => {
-            if (this.state.hintAvailable) {
-                this.useHint();
-            }
+    const buttonX = GAME_CONFIG.width - (buttonSize / 2) - padding;
+    const buttonY = (buttonSize / 2) + padding;
+
+    this.hintButton = this.add.sprite(
+        buttonX,
+        buttonY,
+        'hint-button'
+    )
+    .setInteractive()
+    .setDisplaySize(buttonSize, buttonSize);
+
+    // Добавляем эффект при наведении
+    this.hintButton
+        .on('pointerover', () => {
+            this.hintButton.setTint(0xffff00);  // Желтый оттенок при наведении
+        })
+        .on('pointerout', () => {
+            this.hintButton.clearTint();  // Убираем оттенок
+        })
+        .on('pointerdown', () => {
+            this.useHint();
         });
-    }
+}
 
     handleObjectClick(object) {
         if (!object || object.isAnimating) {
@@ -917,7 +910,6 @@ class GameScene extends Phaser.Scene {
     
         this.state.idleTime = 0;
         this.hintButton.clearTint();
-        this.hintText.setStyle({ fill: '#fff' });
     }
     
     showPopup(object, imageKey, addToInventory = false) {
@@ -999,7 +991,6 @@ class GameScene extends Phaser.Scene {
 
         this.state.idleTime = 0; // Сброс таймера бездействия
         this.hintButton.clearTint();
-        this.hintText.setStyle({ fill: '#fff' });
     }
 
     openSafe() { // Открытие интерфейса сейфа
@@ -1328,7 +1319,6 @@ class GameScene extends Phaser.Scene {
                 }, 10000);
                 this.state.idleTime = 0;
                 this.hintButton.clearTint();
-                this.hintText.setStyle({ fill: '#fff' });
             }
         }
     }
