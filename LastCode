@@ -135,7 +135,7 @@ const locationPaths = {
     },
     'hall': {
         backTo: ['front-house'], // возврат на улицу
-        forwardTo: ['leftroom'] // можно идти в комнату
+        forwardTo: ['leftroom', 'rightroom'] // можно идти в комнату одну из двух
     },
     'leftroom': {
         backTo: ['hall'], // возврат в холл
@@ -548,7 +548,7 @@ class GameScene extends Phaser.Scene {
             inventory: []         // Поле inventory
         };
 
-        // Свойства для навигации (из FreeRoamScene)
+        // Свойства для навигации
         this.location = 'front-house';
         this.locationHistory = [];
 
@@ -559,6 +559,10 @@ class GameScene extends Phaser.Scene {
         this.inventory = null;       // Поле для системы инвентаря
         this.itemTextObjects = [];   // Массив текстовых объектов
         this.textBackground = null;  // Фон для текста
+
+        // Добавляем эти две строки:
+        this.lastHintTime = 0;      // Время последней подсказки
+        this.hintCooldown = 15000;  // Задержка 15 секунд между подсказками
     }
 
     init(data) {
@@ -638,7 +642,10 @@ class GameScene extends Phaser.Scene {
     create() {
         this.cameras.main.fadeIn(1000);
         this.createBackground();
-
+    
+        // Создаем кнопку подсказки на всех локациях
+        this.createHintButton();  // <-- Добавляем эту строку здесь
+    
         // Создаем объекты только в определенной локации
         if (this.location === 'leftroom') {
             this.createObjects();
@@ -646,7 +653,6 @@ class GameScene extends Phaser.Scene {
         }
     
         NavigationUtils.createNavigationZones(this);
-        this.setupIdleTimer();
     
         if (!this.scene.isActive('InventoryScene')) {
             this.scene.launch('InventoryScene');
@@ -798,39 +804,106 @@ class GameScene extends Phaser.Scene {
         // Обновляем список предметов
         this.updateItemList();
         
-        // Создаем кнопку подсказки
-        this.createHintButton();
-    
         return this.itemList;
     }
 
     createHintButton() {
-    const padding = 5;
-    const buttonSize = 128;
+        const padding = 5;
+        const buttonSize = 128;
+        
+        const buttonX = GAME_CONFIG.width - (buttonSize / 2) - padding;
+        const buttonY = (buttonSize / 2) + padding;
     
-    const buttonX = GAME_CONFIG.width - (buttonSize / 2) - padding;
-    const buttonY = (buttonSize / 2) + padding;
-
-    this.hintButton = this.add.sprite(
-        buttonX,
-        buttonY,
-        'hint-button'
-    )
-    .setInteractive()
-    .setDisplaySize(buttonSize, buttonSize);
-
-    // Добавляем эффект при наведении
-    this.hintButton
-        .on('pointerover', () => {
-            this.hintButton.setTint(0xffff00);  // Желтый оттенок при наведении
-        })
-        .on('pointerout', () => {
-            this.hintButton.clearTint();  // Убираем оттенок
-        })
-        .on('pointerdown', () => {
-            this.useHint();
+        // Создаем основную кнопку
+        this.hintButton = this.add.sprite(
+            buttonX,
+            buttonY,
+            'hint-button'
+        )
+        .setInteractive()
+        .setDisplaySize(buttonSize, buttonSize);
+    
+        // Функция для создания синхронизированной анимации пульсации
+        const createPulseTween = () => {
+            const pulseDuration = 700; 
+    
+            // Объединенная пульсация размера и цвета
+            this.hintButtonTween = this.tweens.add({
+                targets: this.hintButton,
+                scale: { from: 0.92, to: 1.05 }, // Увеличили уменьшение с 0.98 до 0.92
+                duration: pulseDuration,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut',
+                onUpdate: (tween) => {
+                    const progress = (tween.getValue() - 0.92) / (1.05 - 0.92); // обновили нормализацию
+                    const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+                        Phaser.Display.Color.ValueToColor(0xFFFFFF),  // белый
+                        Phaser.Display.Color.ValueToColor(0xFFD700),  // золотой
+                        100,
+                        progress * 100
+                    );
+                    this.hintButton.setTint(Phaser.Display.Color.GetColor(color.r, color.g, color.b));
+                }
+            });
+        };
+    
+        // Обработчик клика с анимацией
+        this.hintButton.on('pointerdown', () => {
+            const currentTime = Date.now();
+            if (currentTime - this.lastHintTime >= this.hintCooldown) {
+                this.tweens.add({
+                    targets: this.hintButton,
+                    scale: 0.9,
+                    duration: 100,
+                    yoyo: true,
+                    onComplete: () => {
+                        this.useHint();
+                        this.hintButton.setAlpha(0.5);
+                        this.hintButton.clearTint();
+                        if (this.hintButtonTween) {
+                            this.hintButtonTween.stop();
+                            this.hintButtonTween = null;
+                        }
+                    }
+                });
+            } else {
+                this.tweens.add({
+                    targets: this.hintButton,
+                    angle: { from: -5, to: 5 },
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 2,
+                    onComplete: () => {
+                        this.hintButton.setAngle(0);
+                    }
+                });
+            }
         });
-}
+    
+        // Проверка доступности подсказки
+        this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                const currentTime = Date.now();
+                if (currentTime - this.lastHintTime >= this.hintCooldown) {
+                    this.hintButton.setAlpha(1);
+                    if (!this.hintButtonTween) {
+                        createPulseTween();
+                    }
+                }
+            },
+            loop: true
+        });
+    
+        // Начальное состояние
+        if (Date.now() - this.lastHintTime < this.hintCooldown) {
+            this.hintButton.setAlpha(0.5);
+            this.hintButton.clearTint();
+        } else {
+            createPulseTween();
+        }
+    }
 
     handleObjectClick(object) {
         if (!object || object.isAnimating) {
@@ -1289,22 +1362,48 @@ class GameScene extends Phaser.Scene {
         this.inventoryText.removeAllListeners('pointerdown');
     }
 
-    useHint() { // Использование подсказки
-        if (this.state.remainingObjects.length > 0) {
-            const randomIndex = Math.floor(Math.random() * this.state.remainingObjects.length); // Выбор случайного объекта для подсказки
-            const hintObject = this.state.remainingObjects[randomIndex];
+    useHint() {
+        const currentTime = Date.now();
+        
+        // Проверяем, прошло ли 30 секунд с последнего использования
+        if (currentTime - this.lastHintTime < this.hintCooldown) {
+            // Если не прошло 30 секунд, выходим
+            return;
+        }
+    
+        // Обновляем время последней подсказки
+        this.lastHintTime = currentTime;
+    
+        // Показываем подсказку в зависимости от локации
+        if (this.location === 'leftroom' && this.state.remainingObjects.length > 0) {
+            this.showObjectHint();
+        } else {
+            this.showNavigationHint();
+        }
+    }
+    
+    showObjectHint() {
+        // Фильтруем список, оставляя только ненайденные предметы
+        const availableObjects = this.state.remainingObjects.filter(obj => 
+            !this.state.foundObjects.includes(obj.name) && (!obj.hidden || obj.available)
+        );
+    
+        if (availableObjects.length > 0) {
+            // Выбираем один случайный предмет из доступных
+            const randomIndex = Math.floor(Math.random() * availableObjects.length);
+            const hintObject = availableObjects[randomIndex];
             const sprite = this.children.list.find(child => child.name === hintObject.name);
-
+    
             if (sprite) {
-                const graphics = this.add.graphics(); // Создание визуальной подсказки
-                graphics.lineStyle(2, 0xffffff, 1);
+                const graphics = this.add.graphics();
+                graphics.lineStyle(2, GAME_CONFIG.colors.hint, 1); // Используем золотой цвет
                 graphics.strokeRect(sprite.x - sprite.width / 2, sprite.y - sprite.height / 2, 
-                                 sprite.width, sprite.height);
-                graphics.fillStyle(0xffffff, 0.5);
+                                  sprite.width, sprite.height);
+                graphics.fillStyle(GAME_CONFIG.colors.hint, 0.3); // Полупрозрачная заливка
                 graphics.fillRect(sprite.x - sprite.width / 2, sprite.y - sprite.height / 2, 
-                                sprite.width, sprite.height);
-
-                this.tweens.add({ // Анимация исчезновения подсказки
+                                  sprite.width, sprite.height);
+    
+                this.tweens.add({
                     targets: graphics,
                     alpha: 0,
                     duration: 1000,
@@ -1312,30 +1411,62 @@ class GameScene extends Phaser.Scene {
                         graphics.destroy();
                     }
                 });
-
-                this.state.hintAvailable = false; // Установка таймера для следующей подсказки
-                setTimeout(() => {
-                    this.state.hintAvailable = true;
-                }, 10000);
-                this.state.idleTime = 0;
-                this.hintButton.clearTint();
             }
         }
     }
-
-    setupIdleTimer() { // Настройка таймера бездействия
-        this.time.addEvent({
-            delay: 1000,  // Проверка каждую секунду
-            callback: this.updateIdleTime,
-            callbackScope: this,
-            loop: true
-        });
-    }
-
-    updateIdleTime() { // Обновление времени бездействия
-        this.state.idleTime++;
-        if (this.state.idleTime >= GAME_CONFIG.idleLimit && this.state.hintAvailable) {
-            this.useHint();  // Автоматический показ подсказки при длительном бездействии
+    
+    showNavigationHint() {
+        // Получаем текущую локацию
+        const currentLocation = locationPaths[this.location];
+        let possibleDirections = [];
+        
+        // Собираем все возможные направления
+        if (currentLocation.forwardTo.length > 0) {
+            possibleDirections = possibleDirections.concat(currentLocation.forwardTo);
+        }
+        if (currentLocation.backTo.length > 0) {
+            possibleDirections = possibleDirections.concat(currentLocation.backTo);
+        }
+    
+        if (possibleDirections.length > 0) {
+            // Выбираем случайное направление
+            const randomDirection = possibleDirections[Math.floor(Math.random() * possibleDirections.length)];
+            
+            // Находим соответствующую зону перехода
+            const transition = locationMap[this.location].transitions[randomDirection];
+            
+            if (transition) {
+                const points = transition.points;
+                
+                // Создаем подсветку зоны перехода
+                const graphics = this.add.graphics();
+                graphics.lineStyle(2, GAME_CONFIG.colors.hint, 1);
+                graphics.beginPath();
+                graphics.moveTo(points[0].x, points[0].y);
+                
+                // Рисуем контур зоны
+                points.forEach((point, index) => {
+                    const nextPoint = points[(index + 1) % points.length];
+                    graphics.lineTo(nextPoint.x, nextPoint.y);
+                });
+                
+                graphics.closePath();
+                graphics.strokePath();
+                
+                // Добавляем полупрозрачную заливку
+                graphics.fillStyle(GAME_CONFIG.colors.hint, 0.3);
+                graphics.fillPath();
+    
+                // Анимация исчезновения
+                this.tweens.add({
+                    targets: graphics,
+                    alpha: 0,
+                    duration: 1000,
+                    onComplete: () => {
+                        graphics.destroy();
+                    }
+                });
+            }
         }
     }
 
