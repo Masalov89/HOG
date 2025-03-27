@@ -1,7 +1,7 @@
 const GAME_CONFIG = { 
     width: 1920,  // Фиксированная ширина Full HD
     height: 1080, // Фиксированная высота Full HD
-    idleLimit: 30,              // Лимит времени бездействия (в секундах) перед показом подсказки
+    idleLimit: 10,              // Лимит времени бездействия (в секундах) перед показом подсказки
     safeCode: ["4", "2", "7", "9"], // Код для открытия сейфа
     colors: {                    // Цветовые константы для различных состояний
         success: 0x00ff00,      // Зеленый цвет для успешных действий
@@ -10,6 +10,20 @@ const GAME_CONFIG = {
         background: 0x000000    // Черный цвет для фона
     }
 };
+
+// Инициализация уведомлений
+function requestNotificationPermission() {
+    if (window.Notification && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+// Вызываем функцию при загрузке страницы
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', requestNotificationPermission);
+} else {
+    requestNotificationPermission();
+}
 
 // Добавляем обработчик клавиши F для переключения полноэкранного режима
 document.addEventListener('keydown', function(e) {
@@ -135,7 +149,7 @@ const locationPaths = {
     },
     'hall': {
         backTo: ['front-house'], // возврат на улицу
-        forwardTo: ['leftroom'] // можно идти в комнату
+        forwardTo: ['leftroom', 'rightroom'] // можно идти в комнату одну из двух
     },
     'leftroom': {
         backTo: ['hall'], // возврат в холл
@@ -534,6 +548,373 @@ class InventoryScene extends Phaser.Scene {
     }
 }
 
+let globalEnergySystem = null;
+
+class EnergySystem {
+    constructor(scene) {
+        this.scene = scene;
+        
+        // Константы системы энергии
+        this.INITIAL_ENERGY = 200;           // Начальное количество энергии
+        this.MAX_ENERGY = 200;               // Максимальное количество энергии
+        this.REGENERATION_RATE = 1;          // Единиц энергии в минуту
+        this.REGENERATION_INTERVAL = 60000;  // Интервал регенерации в миллисекундах (1 минута)
+        
+        // Стоимость действий
+        this.COSTS = {
+            SEARCH_ITEM: 5,          // Поиск предмета
+            MISS_PENALTY: 10,        // Штраф за промах
+            USE_HINT: 10,           // Использование подсказки
+            PUZZLE: 20,             // Решение головоломки
+            GIVE_ITEM: 5            // Передача предмета
+        };
+
+        // Инициализация состояния
+        this.currentEnergy = this.loadEnergy();
+        this.missCount = 0;
+        this.lastUpdateTime = this.loadLastUpdateTime();
+
+        // Создание UI
+        this.createEnergyUI();
+        
+        // Запуск регенерации
+        this.startRegeneration();
+        // Изначально скрываем бар
+        this.hideEnergyBar();
+        this.hideTimer = null; // Добавим свойство для хранения таймера
+    }
+
+    createEnergyUI() {
+        // Оставляем существующий код для позиционирования иконки энергии
+        const hintPadding = 5;
+        const hintButtonSize = 128;
+        const hintButtonX = GAME_CONFIG.width - (hintButtonSize / 2) - hintPadding;
+        const energyIconSize = 64;
+        const spaceBetweenIcons = 30;
+        const energyIconX = hintButtonX - (hintButtonSize / 2) - spaceBetweenIcons - (energyIconSize / 2);
+        const energyIconY = (hintButtonSize / 2) + hintPadding;
+    
+        // Создаем иконку энергии (оставляем как есть)
+        this.energyIcon = this.scene.add.sprite(energyIconX, energyIconY, 'energy-icon')
+            .setInteractive()
+            .setDepth(100)
+            .setDisplaySize(energyIconSize, energyIconSize);
+    
+        // Создаем контейнер для бара в нижней части экрана
+        this.energyBar = this.scene.add.graphics()
+            .setDepth(100);
+    
+            this.energyText = this.scene.add.text(
+                GAME_CONFIG.width / 2,
+                GAME_CONFIG.height - 110 + 15, // Позиция Y будет обновляться в updateEnergyBar
+                '', 
+                {
+                    fontSize: '18px',
+                    fill: '#ffffff',
+                    fontWeight: 'bold'
+                }
+            )
+            .setDepth(101)  // Поверх бара
+            .setOrigin(0.5);  // Центрируем текст
+    
+        // Создаем кнопку для просмотра рекламы
+        this.adButton = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height - 70,
+            'Получить энергию за просмотр рекламы',
+            {
+                fontSize: '16px',
+                fill: '#00ff00',
+                backgroundColor: '#333333',
+                padding: { x: 15, y: 10 }
+            }
+        )
+        .setInteractive()
+        .setDepth(100)
+        .setOrigin(0.5)
+        .setVisible(false)
+        .on('pointerdown', () => this.showRewardedAd())
+        .on('pointerover', () => this.adButton.setStyle({ fill: '#ffffff' }))
+        .on('pointerout', () => this.adButton.setStyle({ fill: '#00ff00' }));
+    
+        // Скрываем бар изначально
+        this.hideEnergyBar();
+    
+        // Обработчик клика по иконке (оставляем как есть)
+        this.energyIcon.on('pointerdown', () => {
+            this.showEnergyBar();
+        });
+    }
+    
+    showEnergyBar() {
+        // Показываем элементы
+        if (this.energyBar) {
+            this.energyBar.visible = true;
+            this.updateEnergyBar();
+        }
+        if (this.energyText) {
+            this.energyText.visible = true;
+        }
+        if (this.adButton) {
+            this.adButton.visible = true;
+        }
+    
+        // Сначала очищаем существующий таймер, если он есть
+        if (this.hideTimer) {
+            this.scene.time.removeEvent(this.hideTimer);
+        }
+    
+        // Создаем новый таймер на 5 секунд
+        this.hideTimer = this.scene.time.delayedCall(5000, () => {
+            this.hideEnergyBar();
+        }, [], this);
+    }
+
+    hideEnergyBar() {
+        // Скрываем элементы
+        if (this.energyBar) {
+            this.energyBar.visible = false;
+        }
+        if (this.energyText) {
+            this.energyText.visible = false;
+        }
+        if (this.adButton) {
+            this.adButton.visible = false;
+        }
+
+        // Очищаем таймер
+        if (this.hideTimer) {
+            this.scene.time.removeEvent(this.hideTimer);
+            this.hideTimer = null;
+        }
+    }
+
+    updateEnergyBar() {
+        this.energyBar.clear();
+    
+        const barWidth = 300;
+        const barHeight = 30;
+        const barX = GAME_CONFIG.width / 2 - barWidth / 2;
+        const barY = GAME_CONFIG.height - 110;
+    
+        // Фон бара
+        this.energyBar.fillStyle(0x333333, 0.8);
+        this.energyBar.fillRoundedRect(barX, barY, barWidth, barHeight, 8);
+    
+        // Заполнение бара
+        const fillWidth = (this.currentEnergy / this.MAX_ENERGY) * barWidth;
+        this.energyBar.fillStyle(0x00ff00);
+        this.energyBar.fillRoundedRect(barX, barY, Math.min(fillWidth, barWidth), barHeight, 8);
+    
+        // Рамка бара
+        this.energyBar.lineStyle(2, 0xffffff, 0.3);
+        this.energyBar.strokeRoundedRect(barX, barY, barWidth, barHeight, 8);
+    
+        // Обновляем текст и размещаем его по центру бара
+        this.energyText.setPosition(
+            GAME_CONFIG.width / 2,  // по центру экрана
+            barY + (barHeight / 2)  // вертикально по центру бара
+        );
+        this.energyText.setText(`${this.currentEnergy}/${this.MAX_ENERGY}`);
+    }
+
+    hasEnough(amount) {
+        return this.currentEnergy >= amount;
+    }
+
+    spend(amount, action) {
+        if (!this.hasEnough(amount)) {
+            this.showNotEnoughEnergy();
+            return false;
+        }
+
+        this.currentEnergy = Math.max(0, this.currentEnergy - amount);
+        this.saveEnergy();
+        this.updateEnergyBar();
+        
+        // Если энергия заканчивается, показываем предупреждение
+        if (this.currentEnergy < 20) {
+            this.showLowEnergyWarning();
+        }
+
+        return true;
+    }
+
+    addEnergy(amount) {
+        console.log('addEnergy called with amount:', amount);
+        console.log('Current energy before:', this.currentEnergy);
+        
+        this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
+        
+        console.log('Current energy after:', this.currentEnergy);
+        
+        this.saveEnergy();
+        this.updateEnergyBar();
+        
+        // Добавляем проверку для сброса красной подсветки
+        if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
+            console.log('Energy >= 5, resetting warning');
+            this.resetEnergyWarning();
+        }
+        
+        if (this.currentEnergy >= this.MAX_ENERGY) {
+            console.log('Energy is full, sending notification');
+            this.sendFullEnergyNotification();
+        }
+    }
+
+    startRegeneration() {
+        // Восстанавливаем энергию, накопленную за время отсутствия
+        const now = Date.now();
+        const timePassed = now - this.lastUpdateTime;
+        const energyToAdd = Math.floor((timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE);
+        console.log('Initial restore - Time passed:', timePassed, 'ms');
+        console.log('Initial restore - Energy to add:', energyToAdd);
+        this.addEnergy(energyToAdd);
+    
+        // Запускаем регулярное восстановление
+        this.scene.time.addEvent({
+            delay: this.REGENERATION_INTERVAL,
+            callback: () => {
+                console.log('Timer tick at:', new Date().toLocaleTimeString());
+                console.log('Adding energy:', this.REGENERATION_RATE);
+                console.log('Current energy before add:', this.currentEnergy);
+                this.addEnergy(this.REGENERATION_RATE);
+                this.lastUpdateTime = Date.now();
+                this.saveLastUpdateTime();
+            },
+            loop: true
+        });
+        console.log('Regeneration timer started with interval:', this.REGENERATION_INTERVAL, 'ms');
+    }
+
+    handleMiss() {
+        this.missCount++;
+        if (this.missCount >= 5) {
+            this.spend(this.COSTS.MISS_PENALTY, 'miss');
+            this.missCount = 0;
+            this.showFrozenScreen();
+        }
+    }
+
+    showFrozenScreen() {
+        const overlay = this.scene.add.rectangle(
+            0, 0, 
+            this.scene.game.config.width, 
+            this.scene.game.config.height,
+            0xffffff, 0.5
+        ).setOrigin(0);
+
+        this.scene.time.delayedCall(1000, () => {
+            overlay.destroy();
+        });
+    }
+
+    showNotEnoughEnergy() {
+        // Показываем сообщение о недостатке энергии
+        const text = this.scene.add.text(
+            this.scene.game.config.width / 2,
+            this.scene.game.config.height / 2,
+            'Недостаточно энергии!',
+            {
+                fontSize: '24px',
+                fill: '#ff0000',
+                backgroundColor: '#000000',
+                padding: { x: 20, y: 10 }
+            }
+        ).setOrigin(0.5);
+
+        this.scene.time.delayedCall(2000, () => {
+            text.destroy();
+        });
+    }
+
+    showLowEnergyWarning() {
+        // Проверяем, что энергии меньше стоимости минимального действия (SEARCH_ITEM = 5)
+        if (this.currentEnergy < this.COSTS.SEARCH_ITEM) {
+            // Красим иконку в красный
+            this.energyIcon.setTint(0xff0000);
+            // Если анимация мигания ещё не создана
+            if (!this.blinkTween) {
+                this.blinkTween = this.scene.tweens.add({
+                    targets: this.energyIcon,
+                    alpha: { from: 1, to: 0.5 }, // Мигание от полной видимости до половины
+                    duration: 500,
+                    yoyo: true, // Анимация будет идти туда-обратно
+                    repeat: -1  // Бесконечное повторение
+                });
+            }
+        }
+    }
+
+    resetEnergyWarning() {
+        // Убираем красный цвет с иконки
+        this.energyIcon.clearTint();
+        // Если есть анимация мигания - останавливаем её
+        if (this.blinkTween) {
+            this.blinkTween.stop();
+            this.blinkTween.remove();
+            this.blinkTween = null;
+        }
+        // Возвращаем полную видимость иконке
+        this.energyIcon.setAlpha(1);
+    }
+
+    sendFullEnergyNotification() {
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Энергия восстановлена!", {
+                body: "Ваша энергия полностью восстановлена!",
+                icon: "./UI/ApprovedUI/Energy.png"
+            });
+        }
+    }
+
+    // Методы сохранения/загрузки
+    saveEnergy() {
+        localStorage.setItem('energy', this.currentEnergy.toString());
+    }
+
+    loadEnergy() {
+        const saved = localStorage.getItem('energy');
+        return saved ? parseInt(saved) : this.INITIAL_ENERGY;
+    }
+
+    saveLastUpdateTime() {
+        localStorage.setItem('energyLastUpdate', this.lastUpdateTime.toString());
+    }
+
+    loadLastUpdateTime() {
+        const saved = localStorage.getItem('energyLastUpdate');
+        return saved ? parseInt(saved) : Date.now();
+    }
+    // Добавляем новый метод для показа рекламы
+    showRewardedAd() {
+    // Здесь будет ваша логика показа рекламы
+    const rewardAmount = 50; // количество энергии за просмотр рекламы
+    this.addEnergy(rewardAmount);
+    
+    // Показываем сообщение о получении награды
+    const rewardText = this.scene.add.text(
+        GAME_CONFIG.width / 2,
+        GAME_CONFIG.height / 2,
+        `+${rewardAmount} энергии!`,
+        {
+            fontSize: '32px',
+            fill: '#00ff00',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 10 }
+        }
+    )
+    .setOrigin(0.5)
+    .setDepth(200);
+
+    // Удаляем сообщение через 2 секунды
+    this.scene.time.delayedCall(2000, () => {
+        rewardText.destroy();
+    });
+    }
+}
+
 class GameScene extends Phaser.Scene { 
     constructor() {
         super({ key: 'GameScene' });
@@ -548,7 +929,7 @@ class GameScene extends Phaser.Scene {
             inventory: []         // Поле inventory
         };
 
-        // Свойства для навигации (из FreeRoamScene)
+        // Свойства для навигации
         this.location = 'front-house';
         this.locationHistory = [];
 
@@ -559,6 +940,123 @@ class GameScene extends Phaser.Scene {
         this.inventory = null;       // Поле для системы инвентаря
         this.itemTextObjects = [];   // Массив текстовых объектов
         this.textBackground = null;  // Фон для текста
+
+        // Добавляем эти две строки:
+        this.lastHintTime = 0;      // Время последней подсказки
+        this.hintCooldown = 10000;  // Задержка 10 секунд между подсказками
+        // Добавляем свойство для системы энергии
+        this.energySystem = null;
+    }
+
+    create() {
+        this.cameras.main.fadeIn(1000);
+        this.createBackground();
+    
+        // Инициализируем глобальную систему энергии
+        if (!globalEnergySystem) {
+            globalEnergySystem = new EnergySystem(this);
+        } else {
+            globalEnergySystem.scene = this;
+            globalEnergySystem.createEnergyUI();
+        }
+        this.energySystem = globalEnergySystem;
+    
+        // Создаем кнопку подсказки на всех локациях
+        this.createHintButton();
+    
+        // Добавляем обработчик кликов для промахов
+        this.input.on('pointerdown', (pointer) => {
+            if (!pointer.gameObject) {
+                this.energySystem.handleMiss();
+            }
+        });
+    
+        // Создаем объекты только в определенной локации
+        if (this.location === 'leftroom') {
+            this.createObjects();
+            this.createUI();
+        }
+    
+        NavigationUtils.createNavigationZones(this);
+    
+        if (!this.scene.isActive('InventoryScene')) {
+            this.scene.launch('InventoryScene');
+            this.scene.bringToTop('InventoryScene');
+        }
+    }
+
+    updateHintButtonState() {
+        // Проверяем, существует ли кнопка подсказки
+        if (this.hintButton) {
+            // Проверяем, достаточно ли энергии для использования подсказки (USE_HINT = 10)
+            if (this.energySystem.hasEnough(this.energySystem.COSTS.USE_HINT)) {
+                // Если энергии достаточно - кнопка активна
+                this.hintButton.clearTint();
+                this.hintButton.setInteractive();
+            } else {
+                // Если энергии недостаточно (9 и меньше) - кнопка неактивна
+                this.hintButton.setTint(0x666666); // Серый цвет
+                this.hintButton.disableInteractive(); // Отключаем интерактивность
+            }
+        }
+    }
+
+    handleObjectClick(object) {
+        if (!object || object.isAnimating) {
+            return;
+        }
+
+        // Проверяем достаточно ли энергии для действия
+        if (!this.energySystem.spend(this.energySystem.COSTS.SEARCH_ITEM, 'search')) {
+            return;
+        }
+
+        object.isAnimating = true;
+        
+        // Остальной код handleObjectClick без изменений
+        this.handleDependentObjects(object.name);
+
+        switch (object.name) {
+            case 'Сейф':
+                object.isAnimating = false;
+                this.openSafe();
+                break;
+            case 'Скомканный лист':
+                this.showPopup(object, 'list2', true);
+                break;
+            case 'Кольцо':
+                const inventoryScene = this.scene.get('InventoryScene');
+                inventoryScene.addItem('object8', 'Кольцо');
+                this.animateObjectDisappearance(object);
+                break;
+            default:
+                this.animateObjectDisappearance(object);
+        }
+    }
+
+    useHint() {
+        // Проверяем, достаточно ли энергии
+        if (!this.energySystem.spend(this.energySystem.COSTS.USE_HINT, 'hint')) {
+            return;
+        }
+    
+        const currentTime = Date.now();
+        
+        // Проверяем, прошло ли 30 секунд с последнего использования
+        if (currentTime - this.lastHintTime < this.hintCooldown) {
+            // Если не прошло 30 секунд, выходим
+            return;
+        }
+    
+        // Обновляем время последней подсказки
+        this.lastHintTime = currentTime;
+    
+        // Показываем подсказку в зависимости от локации
+        if (this.location === 'leftroom' && this.state.remainingObjects.length > 0) {
+            this.showObjectHint();
+        } else {
+            this.showNavigationHint();
+        }
     }
 
     init(data) {
@@ -592,14 +1090,16 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('rightroom')) {
             this.load.image('rightroom', 'rightroom.jpg');
         }
-        // Добавляем загрузку изображения для кнопки подсказки
         if (!this.textures.exists('hint-button')) {
         this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
-    }
+        }
+        if (!this.textures.exists('energy-icon')) {
+        this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
+        }
         //if (!this.textures.exists('new-location')) {
         //    this.load.image('new-location', 'new-location.jpg');
         //}
-    
+        
         // Массив всех игровых ресурсов для загрузки
         const assets = [
             { key: 'background', path: 'leftroom.jpg' },     // Фон комнаты
@@ -633,25 +1133,6 @@ class GameScene extends Phaser.Scene {
         this.load.on('complete', () => {
             console.log('Загрузка всех ресурсов завершена');
         });
-    }
-
-    create() {
-        this.cameras.main.fadeIn(1000);
-        this.createBackground();
-
-        // Создаем объекты только в определенной локации
-        if (this.location === 'leftroom') {
-            this.createObjects();
-            this.createUI();
-        }
-    
-        NavigationUtils.createNavigationZones(this);
-        this.setupIdleTimer();
-    
-        if (!this.scene.isActive('InventoryScene')) {
-            this.scene.launch('InventoryScene');
-            this.scene.bringToTop('InventoryScene');
-        }
     }
 
     createBackground() {
@@ -798,76 +1279,104 @@ class GameScene extends Phaser.Scene {
         // Обновляем список предметов
         this.updateItemList();
         
-        // Создаем кнопку подсказки
-        this.createHintButton();
-    
         return this.itemList;
     }
 
     createHintButton() {
-        // Уменьшаем отступ и размер кнопки
-        const padding = 5; // Уменьшаем отступ до 10 пикселей
-        const buttonWidth = 100; // Делаем кнопку чуть уже
-        const buttonHeight = 35; // И чуть ниже
+        const padding = 5;
+        const buttonSize = 128;
         
-        // Вычисляем координату X (максимально близко к правому краю)
-        const buttonX = GAME_CONFIG.width - (buttonWidth / 2) - padding;
-        // Y координата - минимальный отступ сверху
-        const buttonY = (buttonHeight / 2) + padding;
+        const buttonX = GAME_CONFIG.width - (buttonSize / 2) - padding;
+        const buttonY = (buttonSize / 2) + padding;
     
-        // Создаем фон кнопки
-        this.hintButton = this.add.rectangle(
+        // Создаем основную кнопку
+        this.hintButton = this.add.sprite(
             buttonX,
             buttonY,
-            buttonWidth,
-            buttonHeight,
-            GAME_CONFIG.colors.background
-        ).setInteractive();
-        
-        // Добавляем текст, немного уменьшаем шрифт
-        this.hintText = this.add.text(
-            buttonX,
-            buttonY,
-            'Подсказка',
-            {
-                fontSize: '18px', // Уменьшаем размер шрифта
-                fill: '#fff'
-            }
-        ).setOrigin(0.5);
+            'hint-button'
+        )
+        .setInteractive()
+        .setDisplaySize(buttonSize, buttonSize);
     
-        // Обработчик нажатия остается тем же
+        // Функция для создания синхронизированной анимации пульсации
+        const createPulseTween = () => {
+            const pulseDuration = 700; 
+    
+            // Объединенная пульсация размера и цвета
+            this.hintButtonTween = this.tweens.add({
+                targets: this.hintButton,
+                scale: { from: 0.92, to: 1.05 }, // Увеличили уменьшение с 0.98 до 0.92
+                duration: pulseDuration,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut',
+                onUpdate: (tween) => {
+                    const progress = (tween.getValue() - 0.92) / (1.05 - 0.92); // обновили нормализацию
+                    const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+                        Phaser.Display.Color.ValueToColor(0xFFFFFF),  // белый
+                        Phaser.Display.Color.ValueToColor(0xFFD700),  // золотой
+                        100,
+                        progress * 100
+                    );
+                    this.hintButton.setTint(Phaser.Display.Color.GetColor(color.r, color.g, color.b));
+                }
+            });
+        };
+    
+        // Обработчик клика с анимацией
         this.hintButton.on('pointerdown', () => {
-            if (this.state.hintAvailable) {
-                this.useHint();
+            const currentTime = Date.now();
+            if (currentTime - this.lastHintTime >= this.hintCooldown) {
+                this.tweens.add({
+                    targets: this.hintButton,
+                    scale: 0.9,
+                    duration: 100,
+                    yoyo: true,
+                    onComplete: () => {
+                        this.useHint();
+                        this.hintButton.setAlpha(0.5);
+                        this.hintButton.clearTint();
+                        if (this.hintButtonTween) {
+                            this.hintButtonTween.stop();
+                            this.hintButtonTween = null;
+                        }
+                    }
+                });
+            } else {
+                this.tweens.add({
+                    targets: this.hintButton,
+                    angle: { from: -5, to: 5 },
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 2,
+                    onComplete: () => {
+                        this.hintButton.setAngle(0);
+                    }
+                });
             }
         });
-    }
-
-    handleObjectClick(object) {
-        if (!object || object.isAnimating) {
-            return;
-        }
     
-        object.isAnimating = true;
+        // Проверка доступности подсказки
+        this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                const currentTime = Date.now();
+                if (currentTime - this.lastHintTime >= this.hintCooldown) {
+                    this.hintButton.setAlpha(1);
+                    if (!this.hintButtonTween) {
+                        createPulseTween();
+                    }
+                }
+            },
+            loop: true
+        });
     
-        // Добавляем обработку зависимых предметов
-        this.handleDependentObjects(object.name);
-    
-        switch (object.name) {
-            case 'Сейф':
-                object.isAnimating = false;
-                this.openSafe();
-                break;
-            case 'Скомканный лист':
-                this.showPopup(object, 'list2', true);
-                break;
-            case 'Кольцо':
-                const inventoryScene = this.scene.get('InventoryScene');
-                inventoryScene.addItem('object8', 'Кольцо');
-                this.animateObjectDisappearance(object);
-                break;
-            default:
-                this.animateObjectDisappearance(object);
+        // Начальное состояние
+        if (Date.now() - this.lastHintTime < this.hintCooldown) {
+            this.hintButton.setAlpha(0.5);
+            this.hintButton.clearTint();
+        } else {
+            createPulseTween();
         }
     }
     
@@ -921,7 +1430,6 @@ class GameScene extends Phaser.Scene {
     
         this.state.idleTime = 0;
         this.hintButton.clearTint();
-        this.hintText.setStyle({ fill: '#fff' });
     }
     
     showPopup(object, imageKey, addToInventory = false) {
@@ -1003,7 +1511,6 @@ class GameScene extends Phaser.Scene {
 
         this.state.idleTime = 0; // Сброс таймера бездействия
         this.hintButton.clearTint();
-        this.hintText.setStyle({ fill: '#fff' });
     }
 
     openSafe() { // Открытие интерфейса сейфа
@@ -1301,23 +1808,29 @@ class GameScene extends Phaser.Scene {
         this.inventoryText.setText(inventoryTextContent);
         this.inventoryText.removeAllListeners('pointerdown');
     }
-
-    useHint() { // Использование подсказки
-        if (this.state.remainingObjects.length > 0) {
-            const randomIndex = Math.floor(Math.random() * this.state.remainingObjects.length); // Выбор случайного объекта для подсказки
-            const hintObject = this.state.remainingObjects[randomIndex];
+    
+    showObjectHint() {
+        // Фильтруем список, оставляя только ненайденные предметы
+        const availableObjects = this.state.remainingObjects.filter(obj => 
+            !this.state.foundObjects.includes(obj.name) && (!obj.hidden || obj.available)
+        );
+    
+        if (availableObjects.length > 0) {
+            // Выбираем один случайный предмет из доступных
+            const randomIndex = Math.floor(Math.random() * availableObjects.length);
+            const hintObject = availableObjects[randomIndex];
             const sprite = this.children.list.find(child => child.name === hintObject.name);
-
+    
             if (sprite) {
-                const graphics = this.add.graphics(); // Создание визуальной подсказки
-                graphics.lineStyle(2, 0xffffff, 1);
+                const graphics = this.add.graphics();
+                graphics.lineStyle(2, GAME_CONFIG.colors.hint, 1); // Используем золотой цвет
                 graphics.strokeRect(sprite.x - sprite.width / 2, sprite.y - sprite.height / 2, 
-                                 sprite.width, sprite.height);
-                graphics.fillStyle(0xffffff, 0.5);
+                                  sprite.width, sprite.height);
+                graphics.fillStyle(GAME_CONFIG.colors.hint, 0.3); // Полупрозрачная заливка
                 graphics.fillRect(sprite.x - sprite.width / 2, sprite.y - sprite.height / 2, 
-                                sprite.width, sprite.height);
-
-                this.tweens.add({ // Анимация исчезновения подсказки
+                                  sprite.width, sprite.height);
+    
+                this.tweens.add({
                     targets: graphics,
                     alpha: 0,
                     duration: 1000,
@@ -1325,31 +1838,62 @@ class GameScene extends Phaser.Scene {
                         graphics.destroy();
                     }
                 });
-
-                this.state.hintAvailable = false; // Установка таймера для следующей подсказки
-                setTimeout(() => {
-                    this.state.hintAvailable = true;
-                }, 10000);
-                this.state.idleTime = 0;
-                this.hintButton.clearTint();
-                this.hintText.setStyle({ fill: '#fff' });
             }
         }
     }
-
-    setupIdleTimer() { // Настройка таймера бездействия
-        this.time.addEvent({
-            delay: 1000,  // Проверка каждую секунду
-            callback: this.updateIdleTime,
-            callbackScope: this,
-            loop: true
-        });
-    }
-
-    updateIdleTime() { // Обновление времени бездействия
-        this.state.idleTime++;
-        if (this.state.idleTime >= GAME_CONFIG.idleLimit && this.state.hintAvailable) {
-            this.useHint();  // Автоматический показ подсказки при длительном бездействии
+    
+    showNavigationHint() {
+        // Получаем текущую локацию
+        const currentLocation = locationPaths[this.location];
+        let possibleDirections = [];
+        
+        // Собираем все возможные направления
+        if (currentLocation.forwardTo.length > 0) {
+            possibleDirections = possibleDirections.concat(currentLocation.forwardTo);
+        }
+        if (currentLocation.backTo.length > 0) {
+            possibleDirections = possibleDirections.concat(currentLocation.backTo);
+        }
+    
+        if (possibleDirections.length > 0) {
+            // Выбираем случайное направление
+            const randomDirection = possibleDirections[Math.floor(Math.random() * possibleDirections.length)];
+            
+            // Находим соответствующую зону перехода
+            const transition = locationMap[this.location].transitions[randomDirection];
+            
+            if (transition) {
+                const points = transition.points;
+                
+                // Создаем подсветку зоны перехода
+                const graphics = this.add.graphics();
+                graphics.lineStyle(2, GAME_CONFIG.colors.hint, 1);
+                graphics.beginPath();
+                graphics.moveTo(points[0].x, points[0].y);
+                
+                // Рисуем контур зоны
+                points.forEach((point, index) => {
+                    const nextPoint = points[(index + 1) % points.length];
+                    graphics.lineTo(nextPoint.x, nextPoint.y);
+                });
+                
+                graphics.closePath();
+                graphics.strokePath();
+                
+                // Добавляем полупрозрачную заливку
+                graphics.fillStyle(GAME_CONFIG.colors.hint, 0.3);
+                graphics.fillPath();
+    
+                // Анимация исчезновения
+                this.tweens.add({
+                    targets: graphics,
+                    alpha: 0,
+                    duration: 1000,
+                    onComplete: () => {
+                        graphics.destroy();
+                    }
+                });
+            }
         }
     }
 
