@@ -934,8 +934,14 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.fadeIn(1000);
         this.createBackground();
     
-        // Инициализируем систему энергии
-        this.energySystem = new EnergySystem(this);
+        // Инициализируем глобальную систему энергии
+        if (!globalEnergySystem) {
+            globalEnergySystem = new EnergySystem(this);
+        } else {
+            globalEnergySystem.scene = this;
+            globalEnergySystem.createEnergyUI();
+        }
+        this.energySystem = globalEnergySystem;
     
         // Создаем кнопку подсказки на всех локациях
         this.createHintButton();
