@@ -11,6 +11,20 @@ const GAME_CONFIG = {
     }
 };
 
+// Инициализация уведомлений
+function requestNotificationPermission() {
+    if (window.Notification && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+// Вызываем функцию при загрузке страницы
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', requestNotificationPermission);
+} else {
+    requestNotificationPermission();
+}
+
 // Добавляем обработчик клавиши F для переключения полноэкранного режима
 document.addEventListener('keydown', function(e) {
     if (e.key === 'f' || e.key === 'F') {
@@ -732,7 +746,7 @@ class EnergySystem {
         if ("Notification" in window && Notification.permission === "granted") {
             new Notification("Энергия восстановлена!", {
                 body: "Ваша энергия полностью восстановлена!",
-                icon: "/path/to/energy-icon.png"
+                icon: "./UI/ApprovedUI/Energy.png"
             });
         }
     }
