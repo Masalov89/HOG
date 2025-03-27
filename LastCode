@@ -548,6 +548,8 @@ class InventoryScene extends Phaser.Scene {
     }
 }
 
+let globalEnergySystem = null;
+
 class EnergySystem {
     constructor(scene) {
         this.scene = scene;
@@ -932,8 +934,13 @@ class GameScene extends Phaser.Scene {
         this.cameras.main.fadeIn(1000);
         this.createBackground();
     
-        // Инициализируем систему энергии
-        this.energySystem = new EnergySystem(this);
+        // Используем существующий экземпляр или создаем новый
+        if (!globalEnergySystem) {
+            globalEnergySystem = new EnergySystem(this);
+        } else {
+            globalEnergySystem.scene = this; // Обновляем ссылку на текущую сцену
+        }
+        this.energySystem = globalEnergySystem; // Присваиваем глобальный экземпляр
     
         // Создаем кнопку подсказки на всех локациях
         this.createHintButton();
