@@ -821,7 +821,7 @@ class GameScene extends Phaser.Scene {
             }
         });
     
-        // Остальной код create() без изменений
+        // Создаем объекты только в определенной локации
         if (this.location === 'leftroom') {
             this.createObjects();
             this.createUI();
@@ -956,27 +956,6 @@ class GameScene extends Phaser.Scene {
         this.load.on('complete', () => {
             console.log('Загрузка всех ресурсов завершена');
         });
-    }
-
-    create() {
-        this.cameras.main.fadeIn(1000);
-        this.createBackground();
-    
-        // Создаем кнопку подсказки на всех локациях
-        this.createHintButton();  // <-- Добавляем эту строку здесь
-    
-        // Создаем объекты только в определенной локации
-        if (this.location === 'leftroom') {
-            this.createObjects();
-            this.createUI();
-        }
-    
-        NavigationUtils.createNavigationZones(this);
-    
-        if (!this.scene.isActive('InventoryScene')) {
-            this.scene.launch('InventoryScene');
-            this.scene.bringToTop('InventoryScene');
-        }
     }
 
     createBackground() {
