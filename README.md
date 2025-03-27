@@ -552,13 +552,21 @@ let globalEnergySystem = null;
 
 class EnergySystem {
     constructor(scene) {
+        console.log('===== EnergySystem constructor starting =====');
         this.scene = scene;
         
         // Константы системы энергии
         this.INITIAL_ENERGY = 200;           // Начальное количество энергии
         this.MAX_ENERGY = 200;               // Максимальное количество энергии
         this.REGENERATION_RATE = 1;          // Единиц энергии в минуту
-        this.REGENERATION_INTERVAL = 60000;  // Интервал регенерации в миллисекундах (1 минута)
+        this.REGENERATION_INTERVAL = 10000;  // Временно установим 10 секунд для тестирования (было 60000)
+        
+        console.log('Energy system constants:', {
+            INITIAL_ENERGY: this.INITIAL_ENERGY,
+            MAX_ENERGY: this.MAX_ENERGY,
+            REGENERATION_RATE: this.REGENERATION_RATE,
+            REGENERATION_INTERVAL: this.REGENERATION_INTERVAL
+        });
         
         // Стоимость действий
         this.COSTS = {
@@ -568,20 +576,33 @@ class EnergySystem {
             PUZZLE: 20,             // Решение головоломки
             GIVE_ITEM: 5            // Передача предмета
         };
-
+    
+        console.log('Costs configured:', this.COSTS);
+    
         // Инициализация состояния
         this.currentEnergy = this.loadEnergy();
         this.missCount = 0;
         this.lastUpdateTime = this.loadLastUpdateTime();
-
+    
+        console.log('Initial state:', {
+            currentEnergy: this.currentEnergy,
+            missCount: this.missCount,
+            lastUpdateTime: this.lastUpdateTime
+        });
+    
         // Создание UI
         this.createEnergyUI();
         
         // Запуск регенерации
+        console.log('About to start regeneration...');
         this.startRegeneration();
+        console.log('Regeneration started');
+    
         // Изначально скрываем бар
         this.hideEnergyBar();
         this.hideTimer = null; // Добавим свойство для хранения таймера
+    
+        console.log('===== EnergySystem constructor completed =====');
     }
 
     createEnergyUI() {
@@ -764,19 +785,26 @@ class EnergySystem {
     }
 
     startRegeneration() {
+        console.log('===== startRegeneration called =====');
         // Восстанавливаем энергию, накопленную за время отсутствия
         const now = Date.now();
         const timePassed = now - this.lastUpdateTime;
         const energyToAdd = Math.floor((timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE);
-        console.log('Initial restore - Time passed:', timePassed, 'ms');
-        console.log('Initial restore - Energy to add:', energyToAdd);
+        console.log('Initial restore calculation:', {
+            now: now,
+            lastUpdateTime: this.lastUpdateTime,
+            timePassed: timePassed,
+            energyToAdd: energyToAdd
+        });
         this.addEnergy(energyToAdd);
     
         // Запускаем регулярное восстановление
+        console.log('Setting up regeneration timer with interval:', this.REGENERATION_INTERVAL);
         this.scene.time.addEvent({
             delay: this.REGENERATION_INTERVAL,
             callback: () => {
-                console.log('Timer tick at:', new Date().toLocaleTimeString());
+                console.log('===== Timer tick =====');
+                console.log('Time:', new Date().toLocaleTimeString());
                 console.log('Adding energy:', this.REGENERATION_RATE);
                 console.log('Current energy before add:', this.currentEnergy);
                 this.addEnergy(this.REGENERATION_RATE);
@@ -785,7 +813,6 @@ class EnergySystem {
             },
             loop: true
         });
-        console.log('Regeneration timer started with interval:', this.REGENERATION_INTERVAL, 'ms');
     }
 
     handleMiss() {
