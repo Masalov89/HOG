@@ -721,25 +721,39 @@ class EnergySystem {
             this.showNotEnoughEnergy();
             return false;
         }
-
+    
         this.currentEnergy = Math.max(0, this.currentEnergy - amount);
         this.saveEnergy();
         this.updateEnergyBar();
         
-        // Если энергия заканчивается, показываем предупреждение
-        if (this.currentEnergy < 20) {
+        // Проверяем уровень энергии для предупреждения (если < 5)
+        if (this.currentEnergy < this.COSTS.SEARCH_ITEM) {
             this.showLowEnergyWarning();
         }
-
+    
+        // Обновляем состояние кнопки подсказки
+        if (this.scene.updateHintButtonState) {
+            this.scene.updateHintButtonState();
+        }
+    
         return true;
     }
-
+    
     addEnergy(amount) {
         this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
         this.saveEnergy();
         this.updateEnergyBar();
         
-        // Если достигнут максимум, отправляем уведомление
+        // Если энергия стала >= 5, убираем предупреждение
+        if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
+            this.resetEnergyWarning();
+        }
+        
+        // Обновляем состояние кнопки подсказки
+        if (this.scene.updateHintButtonState) {
+            this.scene.updateHintButtonState();
+        }
+    
         if (this.currentEnergy >= this.MAX_ENERGY) {
             this.sendFullEnergyNotification();
         }
@@ -806,16 +820,34 @@ class EnergySystem {
     }
 
     showLowEnergyWarning() {
-        this.energyIcon.setTint(0xff0000);
-        if (!this.blinkTween) {
-            this.blinkTween = this.scene.tweens.add({
-                targets: this.energyIcon,
-                alpha: { from: 1, to: 0.5 },
-                duration: 500,
-                yoyo: true,
-                repeat: -1
-            });
+        // Проверяем, что энергии меньше стоимости минимального действия (SEARCH_ITEM = 5)
+        if (this.currentEnergy < this.COSTS.SEARCH_ITEM) {
+            // Красим иконку в красный
+            this.energyIcon.setTint(0xff0000);
+            // Если анимация мигания ещё не создана
+            if (!this.blinkTween) {
+                this.blinkTween = this.scene.tweens.add({
+                    targets: this.energyIcon,
+                    alpha: { from: 1, to: 0.5 }, // Мигание от полной видимости до половины
+                    duration: 500,
+                    yoyo: true, // Анимация будет идти туда-обратно
+                    repeat: -1  // Бесконечное повторение
+                });
+            }
         }
+    }
+
+    resetEnergyWarning() {
+        // Убираем красный цвет с иконки
+        this.energyIcon.clearTint();
+        // Если есть анимация мигания - останавливаем её
+        if (this.blinkTween) {
+            this.blinkTween.stop();
+            this.blinkTween.remove();
+            this.blinkTween = null;
+        }
+        // Возвращаем полную видимость иконке
+        this.energyIcon.setAlpha(1);
     }
 
     sendFullEnergyNotification() {
@@ -934,6 +966,22 @@ class GameScene extends Phaser.Scene {
         if (!this.scene.isActive('InventoryScene')) {
             this.scene.launch('InventoryScene');
             this.scene.bringToTop('InventoryScene');
+        }
+    }
+
+    updateHintButtonState() {
+        // Проверяем, существует ли кнопка подсказки
+        if (this.hintButton) {
+            // Проверяем, достаточно ли энергии для использования подсказки (USE_HINT = 10)
+            if (this.energySystem.hasEnough(this.energySystem.COSTS.USE_HINT)) {
+                // Если энергии достаточно - кнопка активна
+                this.hintButton.clearTint();
+                this.hintButton.setInteractive();
+            } else {
+                // Если энергии недостаточно (9 и меньше) - кнопка неактивна
+                this.hintButton.setTint(0x666666); // Серый цвет
+                this.hintButton.disableInteractive(); // Отключаем интерактивность
+            }
         }
     }
 
