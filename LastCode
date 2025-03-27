@@ -553,7 +553,7 @@ class EnergySystem {
         this.scene = scene;
         
         // Константы системы энергии
-        this.INITIAL_ENERGY = 500;           // Начальное количество энергии
+        this.INITIAL_ENERGY = 200;           // Начальное количество энергии
         this.MAX_ENERGY = 200;               // Максимальное количество энергии
         this.REGENERATION_RATE = 1;          // Единиц энергии в минуту
         this.REGENERATION_INTERVAL = 60000;  // Интервал регенерации в миллисекундах (1 минута)
