@@ -1,7 +1,7 @@
 const GAME_CONFIG = { 
     width: 1920,  // Фиксированная ширина Full HD
     height: 1080, // Фиксированная высота Full HD
-    idleLimit: 30,              // Лимит времени бездействия (в секундах) перед показом подсказки
+    idleLimit: 10,              // Лимит времени бездействия (в секундах) перед показом подсказки
     safeCode: ["4", "2", "7", "9"], // Код для открытия сейфа
     colors: {                    // Цветовые константы для различных состояний
         success: 0x00ff00,      // Зеленый цвет для успешных действий
@@ -713,7 +713,7 @@ class EnergySystem {
             GAME_CONFIG.width / 2,  // по центру экрана
             barY + (barHeight / 2)  // вертикально по центру бара
         );
-        this.energyText.setText(`${this.currentEnergy} из ${this.MAX_ENERGY}`);
+        this.energyText.setText(`${this.currentEnergy}/${this.MAX_ENERGY}`);
     }
 
     hasEnough(amount) {
@@ -923,7 +923,7 @@ class GameScene extends Phaser.Scene {
 
         // Добавляем эти две строки:
         this.lastHintTime = 0;      // Время последней подсказки
-        this.hintCooldown = 15000;  // Задержка 15 секунд между подсказками
+        this.hintCooldown = 10000;  // Задержка 10 секунд между подсказками
         // Добавляем свойство для системы энергии
         this.energySystem = null;
     }
