@@ -534,6 +534,229 @@ class InventoryScene extends Phaser.Scene {
     }
 }
 
+class EnergySystem {
+    constructor(scene) {
+        this.scene = scene;
+        
+        // Константы системы энергии
+        this.INITIAL_ENERGY = 500;           // Начальное количество энергии
+        this.MAX_ENERGY = 200;               // Максимальное количество энергии
+        this.REGENERATION_RATE = 1;          // Единиц энергии в минуту
+        this.REGENERATION_INTERVAL = 60000;  // Интервал регенерации в миллисекундах (1 минута)
+        
+        // Стоимость действий
+        this.COSTS = {
+            SEARCH_ITEM: 5,          // Поиск предмета
+            MISS_PENALTY: 10,        // Штраф за промах
+            USE_HINT: 10,           // Использование подсказки
+            PUZZLE: 20,             // Решение головоломки
+            GIVE_ITEM: 5            // Передача предмета
+        };
+
+        // Инициализация состояния
+        this.currentEnergy = this.loadEnergy();
+        this.missCount = 0;
+        this.lastUpdateTime = this.loadLastUpdateTime();
+
+        // Создание UI
+        this.createEnergyUI();
+        
+        // Запуск регенерации
+        this.startRegeneration();
+    }
+
+    createEnergyUI() {
+        // Создаем иконку молнии (энергии)
+        this.energyIcon = this.scene.add.sprite(50, 50, 'energy-icon')
+            .setInteractive()
+            .setDepth(100);
+
+        // Создаем прогресс-бар энергии (изначально скрытый)
+        this.energyBar = this.scene.add.graphics()
+            .setDepth(100);
+        
+        // Создаем текст для отображения значения энергии
+        this.energyText = this.scene.add.text(80, 40, '', {
+            fontSize: '16px',
+            fill: '#ffffff'
+        }).setDepth(100);
+
+        // Скрываем бар изначально
+        this.hideEnergyBar();
+
+        // Обработчик клика по иконке
+        this.energyIcon.on('pointerdown', () => {
+            this.showEnergyBar();
+        });
+    }
+
+    showEnergyBar() {
+        this.updateEnergyBar();
+        
+        // Показываем бар на 10 секунд
+        if (this.hideTimer) this.hideTimer.remove();
+        
+        this.hideTimer = this.scene.time.delayedCall(10000, () => {
+            this.hideEnergyBar();
+        });
+    }
+
+    hideEnergyBar() {
+        this.energyBar.clear();
+        this.energyText.setText('');
+    }
+
+    updateEnergyBar() {
+        this.energyBar.clear();
+
+        // Фон бара
+        this.energyBar.fillStyle(0x333333);
+        this.energyBar.fillRect(80, 45, 200, 20);
+
+        // Заполнение бара
+        const fillWidth = (this.currentEnergy / this.MAX_ENERGY) * 200;
+        this.energyBar.fillStyle(0x00ff00);
+        this.energyBar.fillRect(80, 45, Math.min(fillWidth, 200), 20);
+
+        // Обновляем текст
+        this.energyText.setText(`${this.currentEnergy}/${this.MAX_ENERGY}`);
+    }
+
+    hasEnough(amount) {
+        return this.currentEnergy >= amount;
+    }
+
+    spend(amount, action) {
+        if (!this.hasEnough(amount)) {
+            this.showNotEnoughEnergy();
+            return false;
+        }
+
+        this.currentEnergy = Math.max(0, this.currentEnergy - amount);
+        this.saveEnergy();
+        this.updateEnergyBar();
+        
+        // Если энергия заканчивается, показываем предупреждение
+        if (this.currentEnergy < 20) {
+            this.showLowEnergyWarning();
+        }
+
+        return true;
+    }
+
+    addEnergy(amount) {
+        this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
+        this.saveEnergy();
+        this.updateEnergyBar();
+        
+        // Если достигнут максимум, отправляем уведомление
+        if (this.currentEnergy >= this.MAX_ENERGY) {
+            this.sendFullEnergyNotification();
+        }
+    }
+
+    startRegeneration() {
+        // Восстанавливаем энергию, накопленную за время отсутствия
+        const now = Date.now();
+        const timePassed = now - this.lastUpdateTime;
+        const energyToAdd = Math.floor((timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE);
+        this.addEnergy(energyToAdd);
+
+        // Запускаем регулярное восстановление
+        this.scene.time.addEvent({
+            delay: this.REGENERATION_INTERVAL,
+            callback: () => {
+                this.addEnergy(this.REGENERATION_RATE);
+                this.lastUpdateTime = Date.now();
+                this.saveLastUpdateTime();
+            },
+            loop: true
+        });
+    }
+
+    handleMiss() {
+        this.missCount++;
+        if (this.missCount >= 5) {
+            this.spend(this.COSTS.MISS_PENALTY, 'miss');
+            this.missCount = 0;
+            this.showFrozenScreen();
+        }
+    }
+
+    showFrozenScreen() {
+        const overlay = this.scene.add.rectangle(
+            0, 0, 
+            this.scene.game.config.width, 
+            this.scene.game.config.height,
+            0xffffff, 0.5
+        ).setOrigin(0);
+
+        this.scene.time.delayedCall(1000, () => {
+            overlay.destroy();
+        });
+    }
+
+    showNotEnoughEnergy() {
+        // Показываем сообщение о недостатке энергии
+        const text = this.scene.add.text(
+            this.scene.game.config.width / 2,
+            this.scene.game.config.height / 2,
+            'Недостаточно энергии!',
+            {
+                fontSize: '24px',
+                fill: '#ff0000',
+                backgroundColor: '#000000',
+                padding: { x: 20, y: 10 }
+            }
+        ).setOrigin(0.5);
+
+        this.scene.time.delayedCall(2000, () => {
+            text.destroy();
+        });
+    }
+
+    showLowEnergyWarning() {
+        this.energyIcon.setTint(0xff0000);
+        if (!this.blinkTween) {
+            this.blinkTween = this.scene.tweens.add({
+                targets: this.energyIcon,
+                alpha: { from: 1, to: 0.5 },
+                duration: 500,
+                yoyo: true,
+                repeat: -1
+            });
+        }
+    }
+
+    sendFullEnergyNotification() {
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Энергия восстановлена!", {
+                body: "Ваша энергия полностью восстановлена!",
+                icon: "/path/to/energy-icon.png"
+            });
+        }
+    }
+
+    // Методы сохранения/загрузки
+    saveEnergy() {
+        localStorage.setItem('energy', this.currentEnergy.toString());
+    }
+
+    loadEnergy() {
+        const saved = localStorage.getItem('energy');
+        return saved ? parseInt(saved) : this.INITIAL_ENERGY;
+    }
+
+    saveLastUpdateTime() {
+        localStorage.setItem('energyLastUpdate', this.lastUpdateTime.toString());
+    }
+
+    loadLastUpdateTime() {
+        const saved = localStorage.getItem('energyLastUpdate');
+        return saved ? parseInt(saved) : Date.now();
+    }
+}
+
 class GameScene extends Phaser.Scene { 
     constructor() {
         super({ key: 'GameScene' });
@@ -596,14 +819,16 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('rightroom')) {
             this.load.image('rightroom', 'rightroom.jpg');
         }
-        // Добавляем загрузку изображения для кнопки подсказки
         if (!this.textures.exists('hint-button')) {
         this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
-    }
+        }
+        if (!this.textures.exists('energy-icon')) {
+        this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
+        }
         //if (!this.textures.exists('new-location')) {
         //    this.load.image('new-location', 'new-location.jpg');
         //}
-    
+        
         // Массив всех игровых ресурсов для загрузки
         const assets = [
             { key: 'background', path: 'leftroom.jpg' },     // Фон комнаты
