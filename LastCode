@@ -580,25 +580,62 @@ class EnergySystem {
     }
 
     createEnergyUI() {
-        // Создаем иконку молнии (энергии)
-        this.energyIcon = this.scene.add.sprite(50, 50, 'energy-icon')
+        // Оставляем существующий код для позиционирования иконки энергии
+        const hintPadding = 5;
+        const hintButtonSize = 128;
+        const hintButtonX = GAME_CONFIG.width - (hintButtonSize / 2) - hintPadding;
+        const energyIconSize = 64;
+        const spaceBetweenIcons = 30;
+        const energyIconX = hintButtonX - (hintButtonSize / 2) - spaceBetweenIcons - (energyIconSize / 2);
+        const energyIconY = (hintButtonSize / 2) + hintPadding;
+    
+        // Создаем иконку энергии (оставляем как есть)
+        this.energyIcon = this.scene.add.sprite(energyIconX, energyIconY, 'energy-icon')
             .setInteractive()
-            .setDepth(100);
-
-        // Создаем прогресс-бар энергии (изначально скрытый)
+            .setDepth(100)
+            .setDisplaySize(energyIconSize, energyIconSize);
+    
+        // Создаем контейнер для бара в нижней части экрана
         this.energyBar = this.scene.add.graphics()
             .setDepth(100);
-        
-        // Создаем текст для отображения значения энергии
-        this.energyText = this.scene.add.text(80, 40, '', {
-            fontSize: '16px',
-            fill: '#ffffff'
-        }).setDepth(100);
-
+    
+        // Создаем текст для значения энергии
+        this.energyText = this.scene.add.text(
+            GAME_CONFIG.width / 2,           // по центру экрана
+            GAME_CONFIG.height - 140,        // 140 пикселей от низа
+            '', 
+            {
+                fontSize: '16px',
+                fill: '#ffffff'
+            }
+        )
+        .setDepth(100)
+        .setOrigin(0.5);
+    
+        // Создаем кнопку для просмотра рекламы
+        this.adButton = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height - 70,
+            'Получить энергию за просмотр рекламы',
+            {
+                fontSize: '16px',
+                fill: '#00ff00',
+                backgroundColor: '#333333',
+                padding: { x: 15, y: 10 }
+            }
+        )
+        .setInteractive()
+        .setDepth(100)
+        .setOrigin(0.5)
+        .setVisible(false)
+        .on('pointerdown', () => this.showRewardedAd())
+        .on('pointerover', () => this.adButton.setStyle({ fill: '#ffffff' }))
+        .on('pointerout', () => this.adButton.setStyle({ fill: '#00ff00' }));
+    
         // Скрываем бар изначально
         this.hideEnergyBar();
-
-        // Обработчик клика по иконке
+    
+        // Обработчик клика по иконке (оставляем как есть)
         this.energyIcon.on('pointerdown', () => {
             this.showEnergyBar();
         });
@@ -606,6 +643,7 @@ class EnergySystem {
 
     showEnergyBar() {
         this.updateEnergyBar();
+        if (this.adButton) this.adButton.setVisible(true);
         
         // Показываем бар на 10 секунд
         if (this.hideTimer) this.hideTimer.remove();
@@ -618,20 +656,30 @@ class EnergySystem {
     hideEnergyBar() {
         this.energyBar.clear();
         this.energyText.setText('');
+        if (this.adButton) this.adButton.setVisible(false);
     }
 
     updateEnergyBar() {
         this.energyBar.clear();
-
+    
+        const barWidth = 300;
+        const barHeight = 30;
+        const barX = GAME_CONFIG.width / 2 - barWidth / 2;
+        const barY = GAME_CONFIG.height - 110;
+    
         // Фон бара
-        this.energyBar.fillStyle(0x333333);
-        this.energyBar.fillRect(80, 45, 200, 20);
-
+        this.energyBar.fillStyle(0x333333, 0.8);
+        this.energyBar.fillRoundedRect(barX, barY, barWidth, barHeight, 8);
+    
         // Заполнение бара
-        const fillWidth = (this.currentEnergy / this.MAX_ENERGY) * 200;
+        const fillWidth = (this.currentEnergy / this.MAX_ENERGY) * barWidth;
         this.energyBar.fillStyle(0x00ff00);
-        this.energyBar.fillRect(80, 45, Math.min(fillWidth, 200), 20);
-
+        this.energyBar.fillRoundedRect(barX, barY, Math.min(fillWidth, barWidth), barHeight, 8);
+    
+        // Рамка бара
+        this.energyBar.lineStyle(2, 0xffffff, 0.3);
+        this.energyBar.strokeRoundedRect(barX, barY, barWidth, barHeight, 8);
+    
         // Обновляем текст
         this.energyText.setText(`${this.currentEnergy}/${this.MAX_ENERGY}`);
     }
@@ -768,6 +816,32 @@ class EnergySystem {
     loadLastUpdateTime() {
         const saved = localStorage.getItem('energyLastUpdate');
         return saved ? parseInt(saved) : Date.now();
+    }
+    // Добавляем новый метод для показа рекламы
+    showRewardedAd() {
+    // Здесь будет ваша логика показа рекламы
+    const rewardAmount = 50; // количество энергии за просмотр рекламы
+    this.addEnergy(rewardAmount);
+    
+    // Показываем сообщение о получении награды
+    const rewardText = this.scene.add.text(
+        GAME_CONFIG.width / 2,
+        GAME_CONFIG.height / 2,
+        `+${rewardAmount} энергии!`,
+        {
+            fontSize: '32px',
+            fill: '#00ff00',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 10 }
+        }
+    )
+    .setOrigin(0.5)
+    .setDepth(200);
+
+    // Удаляем сообщение через 2 секунды
+    this.scene.time.delayedCall(2000, () => {
+        rewardText.destroy();
+    });
     }
 }
 
