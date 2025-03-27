@@ -577,6 +577,8 @@ class EnergySystem {
         
         // Запуск регенерации
         this.startRegeneration();
+        // Изначально скрываем бар
+        this.hideEnergyBar();
     }
 
     createEnergyUI() {
@@ -641,22 +643,32 @@ class EnergySystem {
         });
     }
 
-    showEnergyBar() {
-        this.updateEnergyBar();
-        if (this.adButton) this.adButton.setVisible(true);
-        
-        // Показываем бар на 10 секунд
-        if (this.hideTimer) this.hideTimer.remove();
-        
-        this.hideTimer = this.scene.time.delayedCall(10000, () => {
-            this.hideEnergyBar();
-        });
+        // Метод показа бара
+        showEnergyBar() {
+        if (this.energyBar) {
+        this.energyBar.visible = true;
+        }
+        if (this.energyText) {
+        this.energyText.visible = true;
+        }
+        if (this.adButton) {
+        this.adButton.visible = true;
+        }
+        // Запускаем таймер на скрытие
+        this.startHideTimer();
     }
 
-    hideEnergyBar() {
-        this.energyBar.clear();
-        this.energyText.setText('');
-        if (this.adButton) this.adButton.setVisible(false);
+        // Метод скрытия бара
+        hideEnergyBar() {
+        if (this.energyBar) {
+        this.energyBar.visible = false;
+        }
+        if (this.energyText) {
+        this.energyText.visible = false;
+        }
+        if (this.adButton) {
+        this.adButton.visible = false;
+        }
     }
 
     updateEnergyBar() {
