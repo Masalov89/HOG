@@ -721,39 +721,25 @@ class EnergySystem {
             this.showNotEnoughEnergy();
             return false;
         }
-    
+
         this.currentEnergy = Math.max(0, this.currentEnergy - amount);
         this.saveEnergy();
         this.updateEnergyBar();
         
-        // Проверяем уровень энергии для предупреждения (если < 5)
-        if (this.currentEnergy < this.COSTS.SEARCH_ITEM) {
+        // Если энергия заканчивается, показываем предупреждение
+        if (this.currentEnergy < 20) {
             this.showLowEnergyWarning();
         }
-    
-        // Обновляем состояние кнопки подсказки
-        if (this.scene.updateHintButtonState) {
-            this.scene.updateHintButtonState();
-        }
-    
+
         return true;
     }
-    
+
     addEnergy(amount) {
         this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
         this.saveEnergy();
         this.updateEnergyBar();
         
-        // Если энергия стала >= 5, убираем предупреждение
-        if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
-            this.resetEnergyWarning();
-        }
-        
-        // Обновляем состояние кнопки подсказки
-        if (this.scene.updateHintButtonState) {
-            this.scene.updateHintButtonState();
-        }
-    
+        // Если достигнут максимум, отправляем уведомление
         if (this.currentEnergy >= this.MAX_ENERGY) {
             this.sendFullEnergyNotification();
         }
