@@ -579,6 +579,7 @@ class EnergySystem {
         this.startRegeneration();
         // Изначально скрываем бар
         this.hideEnergyBar();
+        this.hideTimer = null; // Добавим свойство для хранения таймера
     }
 
     createEnergyUI() {
@@ -642,32 +643,46 @@ class EnergySystem {
             this.showEnergyBar();
         });
     }
-
-        // Метод показа бара
-        showEnergyBar() {
+    
+    showEnergyBar() {
+        // Показываем элементы
         if (this.energyBar) {
-        this.energyBar.visible = true;
+            this.energyBar.visible = true;
         }
         if (this.energyText) {
-        this.energyText.visible = true;
+            this.energyText.visible = true;
         }
         if (this.adButton) {
-        this.adButton.visible = true;
+            this.adButton.visible = true;
         }
-        // Запускаем таймер на скрытие
-        this.startHideTimer();
+
+        // Сначала очищаем существующий таймер, если он есть
+        if (this.hideTimer) {
+            this.scene.time.removeEvent(this.hideTimer);
+        }
+
+        // Создаем новый таймер на 5 секунд
+        this.hideTimer = this.scene.time.delayedCall(5000, () => {
+            this.hideEnergyBar();
+        }, [], this);
     }
 
-        // Метод скрытия бара
-        hideEnergyBar() {
+    hideEnergyBar() {
+        // Скрываем элементы
         if (this.energyBar) {
-        this.energyBar.visible = false;
+            this.energyBar.visible = false;
         }
         if (this.energyText) {
-        this.energyText.visible = false;
+            this.energyText.visible = false;
         }
         if (this.adButton) {
-        this.adButton.visible = false;
+            this.adButton.visible = false;
+        }
+
+        // Очищаем таймер
+        if (this.hideTimer) {
+            this.scene.time.removeEvent(this.hideTimer);
+            this.hideTimer = null;
         }
     }
 
