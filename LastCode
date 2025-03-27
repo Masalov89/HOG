@@ -602,18 +602,18 @@ class EnergySystem {
         this.energyBar = this.scene.add.graphics()
             .setDepth(100);
     
-        // Создаем текст для значения энергии
-        this.energyText = this.scene.add.text(
-            GAME_CONFIG.width / 2,           // по центру экрана
-            GAME_CONFIG.height - 140,        // 140 пикселей от низа
-            '', 
-            {
-                fontSize: '16px',
-                fill: '#ffffff'
-            }
-        )
-        .setDepth(100)
-        .setOrigin(0.5);
+            this.energyText = this.scene.add.text(
+                GAME_CONFIG.width / 2,
+                GAME_CONFIG.height - 110 + 15, // Позиция Y будет обновляться в updateEnergyBar
+                '', 
+                {
+                    fontSize: '18px',
+                    fill: '#ffffff',
+                    fontWeight: 'bold'
+                }
+            )
+            .setDepth(101)  // Поверх бара
+            .setOrigin(0.5);  // Центрируем текст
     
         // Создаем кнопку для просмотра рекламы
         this.adButton = this.scene.add.text(
@@ -708,8 +708,12 @@ class EnergySystem {
         this.energyBar.lineStyle(2, 0xffffff, 0.3);
         this.energyBar.strokeRoundedRect(barX, barY, barWidth, barHeight, 8);
     
-        // Обновляем текст
-        this.energyText.setText(`${this.currentEnergy}/${this.MAX_ENERGY}`);
+        // Обновляем текст и размещаем его по центру бара
+        this.energyText.setPosition(
+            GAME_CONFIG.width / 2,  // по центру экрана
+            barY + (barHeight / 2)  // вертикально по центру бара
+        );
+        this.energyText.setText(`${this.currentEnergy} из ${this.MAX_ENERGY}`);
     }
 
     hasEnough(amount) {
