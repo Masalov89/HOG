@@ -648,6 +648,7 @@ class EnergySystem {
         // Показываем элементы
         if (this.energyBar) {
             this.energyBar.visible = true;
+            this.updateEnergyBar();
         }
         if (this.energyText) {
             this.energyText.visible = true;
@@ -655,12 +656,12 @@ class EnergySystem {
         if (this.adButton) {
             this.adButton.visible = true;
         }
-
+    
         // Сначала очищаем существующий таймер, если он есть
         if (this.hideTimer) {
             this.scene.time.removeEvent(this.hideTimer);
         }
-
+    
         // Создаем новый таймер на 5 секунд
         this.hideTimer = this.scene.time.delayedCall(5000, () => {
             this.hideEnergyBar();
