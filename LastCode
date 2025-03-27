@@ -1314,34 +1314,6 @@ class GameScene extends Phaser.Scene {
             createPulseTween();
         }
     }
-
-    handleObjectClick(object) {
-        if (!object || object.isAnimating) {
-            return;
-        }
-    
-        object.isAnimating = true;
-    
-        // Добавляем обработку зависимых предметов
-        this.handleDependentObjects(object.name);
-    
-        switch (object.name) {
-            case 'Сейф':
-                object.isAnimating = false;
-                this.openSafe();
-                break;
-            case 'Скомканный лист':
-                this.showPopup(object, 'list2', true);
-                break;
-            case 'Кольцо':
-                const inventoryScene = this.scene.get('InventoryScene');
-                inventoryScene.addItem('object8', 'Кольцо');
-                this.animateObjectDisappearance(object);
-                break;
-            default:
-                this.animateObjectDisappearance(object);
-        }
-    }
     
     handleDependentObjects(parentObjectName) {
         this.state.remainingObjects.forEach(obj => {
