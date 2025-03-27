@@ -745,6 +745,11 @@ class EnergySystem {
         this.saveEnergy();
         this.updateEnergyBar();
         
+        // Добавляем эту проверку:
+        if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
+            this.resetEnergyWarning();
+        }
+        
         // Если достигнут максимум, отправляем уведомление
         if (this.currentEnergy >= this.MAX_ENERGY) {
             this.sendFullEnergyNotification();
