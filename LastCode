@@ -873,12 +873,23 @@ class GameScene extends Phaser.Scene {
         if (!this.energySystem.spend(this.energySystem.COSTS.USE_HINT, 'hint')) {
             return;
         }
-
+    
         const currentTime = Date.now();
-        if (currentTime - this.lastHintTime >= this.hintCooldown) {
-            // Существующий код useHint
-            this.lastHintTime = currentTime;
-            // ... остальной код метода
+        
+        // Проверяем, прошло ли 30 секунд с последнего использования
+        if (currentTime - this.lastHintTime < this.hintCooldown) {
+            // Если не прошло 30 секунд, выходим
+            return;
+        }
+    
+        // Обновляем время последней подсказки
+        this.lastHintTime = currentTime;
+    
+        // Показываем подсказку в зависимости от локации
+        if (this.location === 'leftroom' && this.state.remainingObjects.length > 0) {
+            this.showObjectHint();
+        } else {
+            this.showNavigationHint();
         }
     }
 
@@ -1658,26 +1669,6 @@ class GameScene extends Phaser.Scene {
         const inventoryTextContent = this.state.inventory.map(item => `[${item}]`).join(' ');
         this.inventoryText.setText(inventoryTextContent);
         this.inventoryText.removeAllListeners('pointerdown');
-    }
-
-    useHint() {
-        const currentTime = Date.now();
-        
-        // Проверяем, прошло ли 30 секунд с последнего использования
-        if (currentTime - this.lastHintTime < this.hintCooldown) {
-            // Если не прошло 30 секунд, выходим
-            return;
-        }
-    
-        // Обновляем время последней подсказки
-        this.lastHintTime = currentTime;
-    
-        // Показываем подсказку в зависимости от локации
-        if (this.location === 'leftroom' && this.state.remainingObjects.length > 0) {
-            this.showObjectHint();
-        } else {
-            this.showNavigationHint();
-        }
     }
     
     showObjectHint() {
