@@ -786,6 +786,86 @@ class GameScene extends Phaser.Scene {
         // Добавляем эти две строки:
         this.lastHintTime = 0;      // Время последней подсказки
         this.hintCooldown = 15000;  // Задержка 15 секунд между подсказками
+        // Добавляем свойство для системы энергии
+        this.energySystem = null;
+    }
+
+    create() {
+        this.cameras.main.fadeIn(1000);
+        this.createBackground();
+    
+        // Инициализируем систему энергии
+        this.energySystem = new EnergySystem(this);
+    
+        // Создаем кнопку подсказки на всех локациях
+        this.createHintButton();
+    
+        // Добавляем обработчик кликов для промахов
+        this.input.on('pointerdown', (pointer) => {
+            if (!pointer.gameObject) {
+                this.energySystem.handleMiss();
+            }
+        });
+    
+        // Остальной код create() без изменений
+        if (this.location === 'leftroom') {
+            this.createObjects();
+            this.createUI();
+        }
+    
+        NavigationUtils.createNavigationZones(this);
+    
+        if (!this.scene.isActive('InventoryScene')) {
+            this.scene.launch('InventoryScene');
+            this.scene.bringToTop('InventoryScene');
+        }
+    }
+
+    handleObjectClick(object) {
+        if (!object || object.isAnimating) {
+            return;
+        }
+
+        // Проверяем достаточно ли энергии для действия
+        if (!this.energySystem.spend(this.energySystem.COSTS.SEARCH_ITEM, 'search')) {
+            return;
+        }
+
+        object.isAnimating = true;
+        
+        // Остальной код handleObjectClick без изменений
+        this.handleDependentObjects(object.name);
+
+        switch (object.name) {
+            case 'Сейф':
+                object.isAnimating = false;
+                this.openSafe();
+                break;
+            case 'Скомканный лист':
+                this.showPopup(object, 'list2', true);
+                break;
+            case 'Кольцо':
+                const inventoryScene = this.scene.get('InventoryScene');
+                inventoryScene.addItem('object8', 'Кольцо');
+                this.animateObjectDisappearance(object);
+                break;
+            default:
+                this.animateObjectDisappearance(object);
+        }
+    }
+
+    useHint() {
+        // Проверяем, достаточно ли энергии
+        if (!this.energySystem.spend(this.energySystem.COSTS.USE_HINT, 'hint')) {
+            return;
+        }
+
+        const currentTime = Date.now();
+        if (currentTime - this.lastHintTime >= this.hintCooldown) {
+            // Существующий код useHint
+            this.lastHintTime = currentTime;
+            // ... остальной код метода
+        }
     }
 
     init(data) {
