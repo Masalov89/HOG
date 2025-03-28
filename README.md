@@ -552,67 +552,44 @@ let globalEnergySystem = null;
 
 class EnergySystem {
     constructor(scene) {
-        console.log('===== EnergySystem constructor starting =====');
         this.scene = scene;
         
         // Константы системы энергии
-        this.INITIAL_ENERGY = 200;           
-        this.MAX_ENERGY = 200;               
+        this.INITIAL_ENERGY = 200;
+        this.MAX_ENERGY = 200;
         this.REGENERATION_RATE = 1;          
-        this.REGENERATION_INTERVAL = 10000;  
-        
-        console.log('Energy system constants:', {
-            INITIAL_ENERGY: this.INITIAL_ENERGY,
-            MAX_ENERGY: this.MAX_ENERGY,
-            REGENERATION_RATE: this.REGENERATION_RATE,
-            REGENERATION_INTERVAL: this.REGENERATION_INTERVAL
-        });
+        this.REGENERATION_INTERVAL = 10000;  // 10 секунд
         
         // Стоимость действий
         this.COSTS = {
-            SEARCH_ITEM: 5,         
-            MISS_PENALTY: 10,        
-            USE_HINT: 10,           
-            PUZZLE: 20,             
-            GIVE_ITEM: 5            
+            SEARCH_ITEM: 5,
+            MISS_PENALTY: 10,
+            USE_HINT: 10,
+            PUZZLE: 20,
+            GIVE_ITEM: 5
         };
-    
-        console.log('Costs configured:', this.COSTS);
-    
-        // Инициализация состояния
+
+        // Загружаем текущее состояние
         this.currentEnergy = this.loadEnergy();
-        this.missCount = 0;
         this.lastUpdateTime = this.loadLastUpdateTime();
-    
-        console.log('Initial state:', {
-            currentEnergy: this.currentEnergy,
-            missCount: this.missCount,
-            lastUpdateTime: this.lastUpdateTime
-        });
-    
-        // Создание UI
+        
+        // Восстанавливаем накопленную энергию
+        this.updateEnergy();
+        
+        // Создаем UI
         this.createEnergyUI();
+    }
+
+    updateEnergy() {
+        const now = Date.now();
+        const timePassed = now - this.lastUpdateTime;
+        const energyToAdd = Math.floor(timePassed / this.REGENERATION_INTERVAL);
         
-        // Тестовый таймер (НОВЫЙ КОД)
-        console.log('Setting up test timer...');
-        this.testTimer = this.scene.time.addEvent({
-            delay: 5000, // 5 секунд
-            callback: () => {
-                console.log('Test timer tick at:', new Date().toLocaleTimeString());
-            },
-            loop: true
-        });
-        
-        // Запуск регенерации
-        console.log('About to start regeneration...');
-        this.startRegeneration();
-        console.log('Regeneration started');
-    
-        // Изначально скрываем бар
-        this.hideEnergyBar();
-        this.hideTimer = null;
-    
-        console.log('===== EnergySystem constructor completed =====');
+        if (energyToAdd > 0) {
+            this.addEnergy(energyToAdd);
+            this.lastUpdateTime = now - (timePassed % this.REGENERATION_INTERVAL);
+            this.saveLastUpdateTime();
+        }
     }
 
     createEnergyUI() {
@@ -750,50 +727,42 @@ class EnergySystem {
     }
 
     hasEnough(amount) {
+        this.updateEnergy(); // Обновляем перед проверкой
         return this.currentEnergy >= amount;
     }
 
     spend(amount, action) {
-        if (!this.hasEnough(amount)) {
+        this.updateEnergy(); // Обновляем перед тратой
+    
+        if (this.currentEnergy < amount) {
             this.showNotEnoughEnergy();
             return false;
         }
-
+    
         this.currentEnergy = Math.max(0, this.currentEnergy - amount);
         this.saveEnergy();
         this.updateEnergyBar();
         
-        // Если энергия заканчивается, показываем предупреждение
         if (this.currentEnergy < 20) {
             this.showLowEnergyWarning();
         }
-
+    
         return true;
     }
 
     addEnergy(amount) {
-        console.log('addEnergy called with amount:', amount);
-        console.log('Current energy before:', this.currentEnergy);
-        
         const oldEnergy = this.currentEnergy;
         this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
         
-        console.log('Current energy after:', this.currentEnergy);
-        
-        // Сохраняем и обновляем только если энергия изменилась
         if (oldEnergy !== this.currentEnergy) {
             this.saveEnergy();
             this.updateEnergyBar();
             
-            // Проверяем достаточность энергии для действий
             if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
-                console.log('Energy >= 5, resetting warning');
                 this.resetEnergyWarning();
             }
             
-            // Уведомляем о полной энергии только если она только что стала полной
             if (this.currentEnergy >= this.MAX_ENERGY && oldEnergy < this.MAX_ENERGY) {
-                console.log('Energy just became full, sending notification');
                 this.sendFullEnergyNotification();
             }
         }
