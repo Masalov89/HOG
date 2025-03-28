@@ -768,6 +768,49 @@ class EnergySystem {
         }
     }
 
+    startRegeneration() {
+        console.log('===== startRegeneration called =====');
+        // Восстанавливаем энергию, накопленную за время отсутствия
+        const now = Date.now();
+        const timePassed = now - this.lastUpdateTime;
+        const energyToAdd = Math.floor((timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE);
+        console.log('Initial restore calculation:', {
+            now: now,
+            lastUpdateTime: this.lastUpdateTime,
+            timePassed: timePassed,
+            energyToAdd: energyToAdd
+        });
+        this.addEnergy(energyToAdd);
+    
+        // Запускаем регулярное восстановление
+        console.log('Setting up regeneration timer with interval:', this.REGENERATION_INTERVAL);
+        
+        // Сохраняем таймер в свойство класса
+        this.regenerationTimer = this.scene.time.addEvent({
+            delay: this.REGENERATION_INTERVAL,
+            callback: () => {
+                console.log('===== Timer tick =====');
+                console.log('Time:', new Date().toLocaleTimeString());
+                
+                // Проверяем, нужно ли добавлять энергию
+                if (this.currentEnergy < this.MAX_ENERGY) {
+                    console.log('Adding energy:', this.REGENERATION_RATE);
+                    console.log('Current energy before add:', this.currentEnergy);
+                    this.addEnergy(this.REGENERATION_RATE);
+                    this.lastUpdateTime = Date.now();
+                    this.saveLastUpdateTime();
+                } else {
+                    console.log('Energy is already full, skipping regeneration');
+                }
+            },
+            callbackScope: this,
+            repeat: -1,
+            loop: true
+        });
+        
+        console.log('Regeneration timer created:', this.regenerationTimer);
+    }
+
     handleMiss() {
         this.missCount++;
         if (this.missCount >= 5) {
