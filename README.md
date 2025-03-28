@@ -823,6 +823,8 @@ class EnergySystem {
                 this.lastUpdateTime = Date.now();
                 this.saveLastUpdateTime();
             },
+            callbackScope: this,
+            repeat: -1,  // -1 означает бесконечное повторение
             loop: true
         });
         
