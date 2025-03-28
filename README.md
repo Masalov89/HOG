@@ -775,22 +775,27 @@ class EnergySystem {
         console.log('addEnergy called with amount:', amount);
         console.log('Current energy before:', this.currentEnergy);
         
+        const oldEnergy = this.currentEnergy;
         this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
         
         console.log('Current energy after:', this.currentEnergy);
         
-        this.saveEnergy();
-        this.updateEnergyBar();
-        
-        // Добавляем проверку для сброса красной подсветки
-        if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
-            console.log('Energy >= 5, resetting warning');
-            this.resetEnergyWarning();
-        }
-        
-        if (this.currentEnergy >= this.MAX_ENERGY) {
-            console.log('Energy is full, sending notification');
-            this.sendFullEnergyNotification();
+        // Сохраняем и обновляем только если энергия изменилась
+        if (oldEnergy !== this.currentEnergy) {
+            this.saveEnergy();
+            this.updateEnergyBar();
+            
+            // Проверяем достаточность энергии для действий
+            if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
+                console.log('Energy >= 5, resetting warning');
+                this.resetEnergyWarning();
+            }
+            
+            // Уведомляем о полной энергии только если она только что стала полной
+            if (this.currentEnergy >= this.MAX_ENERGY && oldEnergy < this.MAX_ENERGY) {
+                console.log('Energy just became full, sending notification');
+                this.sendFullEnergyNotification();
+            }
         }
     }
 
@@ -817,14 +822,20 @@ class EnergySystem {
             callback: () => {
                 console.log('===== Timer tick =====');
                 console.log('Time:', new Date().toLocaleTimeString());
-                console.log('Adding energy:', this.REGENERATION_RATE);
-                console.log('Current energy before add:', this.currentEnergy);
-                this.addEnergy(this.REGENERATION_RATE);
-                this.lastUpdateTime = Date.now();
-                this.saveLastUpdateTime();
+                
+                // Проверяем, нужно ли добавлять энергию
+                if (this.currentEnergy < this.MAX_ENERGY) {
+                    console.log('Adding energy:', this.REGENERATION_RATE);
+                    console.log('Current energy before add:', this.currentEnergy);
+                    this.addEnergy(this.REGENERATION_RATE);
+                    this.lastUpdateTime = Date.now();
+                    this.saveLastUpdateTime();
+                } else {
+                    console.log('Energy is already full, skipping regeneration');
+                }
             },
             callbackScope: this,
-            repeat: -1,  // -1 означает бесконечное повторение
+            repeat: -1,
             loop: true
         });
         
