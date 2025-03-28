@@ -556,10 +556,10 @@ class EnergySystem {
         this.scene = scene;
         
         // Константы системы энергии
-        this.INITIAL_ENERGY = 200;           // Начальное количество энергии
-        this.MAX_ENERGY = 200;               // Максимальное количество энергии
-        this.REGENERATION_RATE = 1;          // Единиц энергии в минуту
-        this.REGENERATION_INTERVAL = 10000;  // Временно установим 10 секунд для тестирования (было 60000)
+        this.INITIAL_ENERGY = 200;           
+        this.MAX_ENERGY = 200;               
+        this.REGENERATION_RATE = 1;          
+        this.REGENERATION_INTERVAL = 10000;  
         
         console.log('Energy system constants:', {
             INITIAL_ENERGY: this.INITIAL_ENERGY,
@@ -570,11 +570,11 @@ class EnergySystem {
         
         // Стоимость действий
         this.COSTS = {
-            SEARCH_ITEM: 5,          // Поиск предмета
-            MISS_PENALTY: 10,        // Штраф за промах
-            USE_HINT: 10,           // Использование подсказки
-            PUZZLE: 20,             // Решение головоломки
-            GIVE_ITEM: 5            // Передача предмета
+            SEARCH_ITEM: 5,         
+            MISS_PENALTY: 10,        
+            USE_HINT: 10,           
+            PUZZLE: 20,             
+            GIVE_ITEM: 5            
         };
     
         console.log('Costs configured:', this.COSTS);
@@ -593,6 +593,16 @@ class EnergySystem {
         // Создание UI
         this.createEnergyUI();
         
+        // Тестовый таймер (НОВЫЙ КОД)
+        console.log('Setting up test timer...');
+        this.testTimer = this.scene.time.addEvent({
+            delay: 5000, // 5 секунд
+            callback: () => {
+                console.log('Test timer tick at:', new Date().toLocaleTimeString());
+            },
+            loop: true
+        });
+        
         // Запуск регенерации
         console.log('About to start regeneration...');
         this.startRegeneration();
@@ -600,7 +610,7 @@ class EnergySystem {
     
         // Изначально скрываем бар
         this.hideEnergyBar();
-        this.hideTimer = null; // Добавим свойство для хранения таймера
+        this.hideTimer = null;
     
         console.log('===== EnergySystem constructor completed =====');
     }
@@ -800,7 +810,9 @@ class EnergySystem {
     
         // Запускаем регулярное восстановление
         console.log('Setting up regeneration timer with interval:', this.REGENERATION_INTERVAL);
-        this.scene.time.addEvent({
+        
+        // Сохраняем таймер в свойство класса
+        this.regenerationTimer = this.scene.time.addEvent({
             delay: this.REGENERATION_INTERVAL,
             callback: () => {
                 console.log('===== Timer tick =====');
@@ -813,6 +825,8 @@ class EnergySystem {
             },
             loop: true
         });
+        
+        console.log('Regeneration timer created:', this.regenerationTimer);
     }
 
     handleMiss() {
