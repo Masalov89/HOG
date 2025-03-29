@@ -1,3 +1,51 @@
+// Сцена загрузки идет первой
+class LoadingScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'LoadingScene' });
+    }
+
+    preload() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // Тонкая белая полоса (контейнер)
+        const progressBox = this.add.graphics();
+        progressBox.lineStyle(1, 0x333333);  // толщина 1px, цвет серый
+        progressBox.strokeRect(
+            width/2 - 500,     // x: центр - половина ширины
+            height/2 + 200,    // y: чуть ниже центра
+            1000,              // ширина 1000px
+            1                  // высота 1px
+        );
+
+        // Прогресс бар (заполнение)
+        const progressBar = this.add.graphics();
+        
+        // Следим за прогрессом загрузки
+        this.load.on('progress', (value) => {
+            progressBar.clear();
+            progressBar.fillStyle(0xffffff, 1);  // белый цвет
+            progressBar.fillRect(
+                width/2 - 500,     // те же координаты
+                height/2 + 200,
+                1000 * value,      // ширина зависит от прогресса (0-1)
+                1                  // высота 1px
+            );
+        });
+
+        // По завершении загрузки
+        this.load.on('complete', () => {
+            progressBar.destroy();
+            progressBox.destroy();
+            this.scene.start('GameScene');  // Переходим в игру
+        });
+
+        // Здесь загружаем все ресурсы игры
+        this.load.image('close', 'close.png');
+        // ... остальные ресурсы
+    }
+}
+
 const GAME_CONFIG = { 
     width: 1920,  // Фиксированная ширина Full HD
     height: 1080, // Фиксированная высота Full HD
@@ -655,10 +703,24 @@ class EnergySystem {
     }
     
     showEnergyBar() {
+        // Сначала обновляем текущее значение энергии
+        if (this.currentEnergy < this.MAX_ENERGY) {
+            const now = Date.now();
+            const timePassed = now - this.lastUpdateTime;
+            const energyToAdd = Math.floor(timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE;
+            
+            if (energyToAdd > 0) {
+                this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + energyToAdd);
+                this.lastUpdateTime = now - (timePassed % this.REGENERATION_INTERVAL);
+                this.saveEnergy();
+                this.saveLastUpdateTime();
+            }
+        }
+    
         // Показываем элементы
         if (this.energyBar) {
             this.energyBar.visible = true;
-            this.updateEnergyBar();
+            this.updateEnergyBar();  // Обновляем UI с актуальным значением
         }
         if (this.energyText) {
             this.energyText.visible = true;
@@ -667,7 +729,7 @@ class EnergySystem {
             this.adButton.visible = true;
         }
     
-        // Сначала очищаем существующий таймер, если он есть
+        // Очищаем существующий таймер, если он есть
         if (this.hideTimer) {
             this.scene.time.removeEvent(this.hideTimer);
         }
@@ -698,6 +760,11 @@ class EnergySystem {
     }
 
     updateEnergyBar() {
+        // Добавляем проверку
+        if (!this.energyBar) {
+            return;
+        }
+    
         this.energyBar.clear();
     
         const barWidth = 300;
@@ -1950,7 +2017,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [GameScene, InventoryScene],
+    scene: [LoadingScene, GameScene, InventoryScene], // Добавили LoadingScene первой
     physics: {
         default: 'arcade',
         arcade: {
