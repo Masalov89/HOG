@@ -1,4 +1,3 @@
-// Сцена загрузки идет первой
 class LoadingScene extends Phaser.Scene {
     constructor() {
         super({ key: 'LoadingScene' });
@@ -10,12 +9,12 @@ class LoadingScene extends Phaser.Scene {
 
         // Тонкая белая полоса (контейнер)
         const progressBox = this.add.graphics();
-        progressBox.lineStyle(1, 0x333333);  // толщина 1px, цвет серый
+        progressBox.lineStyle(1, 0x333333);
         progressBox.strokeRect(
-            width/2 - 500,     // x: центр - половина ширины
-            height/2 + 200,    // y: чуть ниже центра
-            1000,              // ширина 1000px
-            1                  // высота 1px
+            width/2 - 500,
+            height/2 + 200,
+            1000,
+            1
         );
 
         // Прогресс бар (заполнение)
@@ -24,12 +23,12 @@ class LoadingScene extends Phaser.Scene {
         // Следим за прогрессом загрузки
         this.load.on('progress', (value) => {
             progressBar.clear();
-            progressBar.fillStyle(0xffffff, 1);  // белый цвет
+            progressBar.fillStyle(0xffffff, 1);
             progressBar.fillRect(
-                width/2 - 500,     // те же координаты
+                width/2 - 500,
                 height/2 + 200,
-                1000 * value,      // ширина зависит от прогресса (0-1)
-                1                  // высота 1px
+                1000 * value,
+                1
             );
         });
 
@@ -37,12 +36,36 @@ class LoadingScene extends Phaser.Scene {
         this.load.on('complete', () => {
             progressBar.destroy();
             progressBox.destroy();
-            this.scene.start('GameScene');  // Переходим в игру
+            this.scene.start('GameScene');
         });
 
-        // Здесь загружаем все ресурсы игры
+        // Загрузка всех изображений
+        
+        // Основные фоновые изображения
+        this.load.image('front-house', 'front-house.jpg');
+        this.load.image('hall', 'hall.jpg');
+        this.load.image('leftroom', 'leftroom.jpg');
+        this.load.image('rightroom', 'rightroom.jpg');
+
+        // UI элементы
+        this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
+        this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
         this.load.image('close', 'close.png');
-        // ... остальные ресурсы
+        this.load.image('arrow', 'arrow.png');
+
+        // Объекты в комнате
+        this.load.image('object1', 'plate.png');
+        this.load.image('object2', 'candle.png');
+        this.load.image('object3', 'art.png');
+        this.load.image('object4', 'tea.png');
+        this.load.image('object5', 'list1.png');
+        this.load.image('object6', 'safe.png');
+        this.load.image('object7', 'sheet.png');
+        this.load.image('object8', 'ring.png');
+        
+        // Документы и специальные объекты
+        this.load.image('list2', 'list2.png');
+        this.load.image('opensafe', 'opensafe.png');
     }
 }
 
