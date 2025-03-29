@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Настройки viewport для мобильных устройств -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hidden Object Game</title>
+    <!-- Подключаем библиотеку Phaser -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <style>
+        /* Сбрасываем отступы и убираем прокрутку */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+        /* Контейнер для игры на весь экран */
+        #game-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        /* Растягиваем canvas на всю доступную область */
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Контейнер, где будет размещена игра -->
+    <div id="game-container"></div>
+    <!-- Подключаем наш файл с игрой -->
+    <script src="game.js"></script>
+</body>
+</html>
