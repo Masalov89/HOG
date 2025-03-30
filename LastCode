@@ -1,3 +1,92 @@
+class LoadingScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'LoadingScene' });
+    }
+
+    preload() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // Добавляем фоновую картинку для экрана загрузки
+        // Эту картинку нужно загрузить первой, до создания прогресс бара
+        this.load.image('loading-bg', 'loading-bg.jpg'); // Замените на путь к вашей картинке
+        this.load.on('complete', () => {
+            const bg = this.add.image(width/2, height/2, 'loading-bg');
+            bg.setDisplaySize(width, height); // Растягиваем на весь экран
+            this.startMainLoading(); // Запускаем основную загрузку
+        });
+        this.load.start(); // Запускаем загрузку фона
+    }
+
+    startMainLoading() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // Тонкая белая полоса (контейнер)
+        const progressBox = this.add.graphics();
+        progressBox.lineStyle(1, 0x333333);
+        progressBox.strokeRect(
+            width/2 - 500,
+            height/2 + 200,
+            1000,
+            1
+        );
+
+        // Прогресс бар (заполнение)
+        const progressBar = this.add.graphics();
+        
+        // Счетчик для искусственной задержки
+        let loadingProgress = 0;
+        
+        // Эмуляция медленной загрузки
+        const fakeLoading = () => {
+            loadingProgress += 0.01; // Уменьшите число для более медленной загрузки
+            progressBar.clear();
+            progressBar.fillStyle(0xffffff, 1);
+            progressBar.fillRect(
+                width/2 - 500,
+                height/2 + 200,
+                1000 * loadingProgress,
+                1
+            );
+            
+            if (loadingProgress < 1) {
+                setTimeout(fakeLoading, 50); // Увеличьте число для более медленной загрузки
+            } else {
+                // Когда загрузка завершена
+                setTimeout(() => {
+                    progressBar.destroy();
+                    progressBox.destroy();
+                    this.scene.start('GameScene');
+                }, 500);
+            }
+        };
+
+        // Загрузка всех ресурсов
+        this.load.image('front-house', 'front-house.jpg');
+        this.load.image('hall', 'hall.jpg');
+        this.load.image('leftroom', 'leftroom.jpg');
+        this.load.image('rightroom', 'rightroom.jpg');
+        this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
+        this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
+        this.load.image('object1', 'plate.png');
+        this.load.image('object2', 'candle.png');
+        this.load.image('object3', 'art.png');
+        this.load.image('object4', 'tea.png');
+        this.load.image('object5', 'list1.png');
+        this.load.image('object6', 'safe.png');
+        this.load.image('object7', 'sheet.png');
+        this.load.image('object8', 'ring.png');
+        this.load.image('close', 'close.png');
+        this.load.image('arrow', 'arrow.png');
+        this.load.image('list2', 'list2.png');
+        this.load.image('opensafe', 'opensafe.png');
+
+        // Запускаем эмуляцию медленной загрузки
+        fakeLoading();
+    }
+}
+
 const GAME_CONFIG = { 
     width: 1920,  // Фиксированная ширина Full HD
     height: 1080, // Фиксированная высота Full HD
@@ -1969,7 +2058,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [GameScene, InventoryScene],
+    scene: [LoadingScene, GameScene, InventoryScene], // Добавили LoadingScene первой
     physics: {
         default: 'arcade',
         arcade: {
