@@ -7,65 +7,116 @@ class LoadingScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Тонкая белая полоса (контейнер)
-        const progressBox = this.add.graphics();
-        progressBox.lineStyle(1, 0x333333);
-        progressBox.strokeRect(
-            width/2 - 500,
-            height/2 + 200,
-            1000,
-            1
-        );
+        // Загрузка фона экрана загрузки
+        this.load.image('loading-bg', 'loading-bg.jpg');
+        this.load.on('complete', () => {
+            const bg = this.add.image(width/2, height/2, 'loading-bg')
+                .setDisplaySize(width, height);
+            this.startMainLoading();
+        });
+        this.load.start();
+    }
 
-        // Прогресс бар (заполнение)
-        const progressBar = this.add.graphics();
+    startMainLoading() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // Создаем UI элементы загрузки
+        const progressUI = this.createProgressUI(width, height);
         
-        // Следим за прогрессом загрузки
-        this.load.on('progress', (value) => {
-            progressBar.clear();
-            progressBar.fillStyle(0xffffff, 1);
-            progressBar.fillRect(
+        // Определяем ресурсы для загрузки
+        const resources = {
+            locations: [
+                { key: 'front-house', path: 'front-house.jpg' },
+                { key: 'hall', path: 'hall.jpg' },
+                { key: 'leftroom', path: 'leftroom.jpg' },
+                { key: 'rightroom', path: 'rightroom.jpg' }
+            ],
+            ui: [
+                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
+                { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
+                { key: 'close', path: 'close.png' },
+                { key: 'arrow', path: 'arrow.png' }
+            ],
+            objects: [
+                { key: 'object1', path: 'plate.png' },
+                { key: 'object2', path: 'candle.png' },
+                { key: 'object3', path: 'art.png' },
+                { key: 'object4', path: 'tea.png' },
+                { key: 'object5', path: 'list1.png' },
+                { key: 'object6', path: 'safe.png' },
+                { key: 'object7', path: 'sheet.png' },
+                { key: 'object8', path: 'ring.png' }
+            ],
+            additional: [
+                { key: 'list2', path: 'list2.png' },
+                { key: 'opensafe', path: 'opensafe.png' }
+            ]
+        };
+
+        // Загружаем все ресурсы
+        this.loadAllResources(resources);
+
+        // Запускаем эмуляцию загрузки
+        this.startFakeLoading(progressUI);
+    }
+
+    createProgressUI(width, height) {
+        // Создаем контейнер прогресс-бара
+        const progressBox = this.add.graphics()
+            .lineStyle(1, 0x333333)
+            .strokeRect(
                 width/2 - 500,
                 height/2 + 200,
-                1000 * value,
+                1000,
                 1
             );
-        });
 
-        // По завершении загрузки
-        this.load.on('complete', () => {
+        // Создаем заполнение прогресс-бара
+        const progressBar = this.add.graphics();
+
+        return { progressBox, progressBar };
+    }
+
+    loadAllResources(resources) {
+        // Загружаем все типы ресурсов
+        Object.values(resources).flat().forEach(({ key, path }) => {
+            this.load.image(key, path);
+        });
+    }
+
+    startFakeLoading({ progressBox, progressBar }) {
+        let loadingProgress = 0;
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        const updateProgress = () => {
+            loadingProgress += 0.01;
+            progressBar.clear()
+                .fillStyle(0xffffff, 1)
+                .fillRect(
+                    width/2 - 500,
+                    height/2 + 200,
+                    1000 * loadingProgress,
+                    1
+                );
+
+            if (loadingProgress < 1) {
+                setTimeout(updateProgress, 50);
+            } else {
+                this.finishLoading({ progressBox, progressBar });
+            }
+        };
+
+        updateProgress();
+    }
+
+    finishLoading({ progressBox, progressBar }) {
+        setTimeout(() => {
             progressBar.destroy();
             progressBox.destroy();
             this.scene.start('GameScene');
-        });
-
-        // Загрузка всех изображений
-        
-        // Основные фоновые изображения
-        this.load.image('front-house', 'front-house.jpg');
-        this.load.image('hall', 'hall.jpg');
-        this.load.image('leftroom', 'leftroom.jpg');
-        this.load.image('rightroom', 'rightroom.jpg');
-
-        // UI элементы
-        this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
-        this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
-        this.load.image('close', 'close.png');
-        this.load.image('arrow', 'arrow.png');
-
-        // Объекты в комнате
-        this.load.image('object1', 'plate.png');
-        this.load.image('object2', 'candle.png');
-        this.load.image('object3', 'art.png');
-        this.load.image('object4', 'tea.png');
-        this.load.image('object5', 'list1.png');
-        this.load.image('object6', 'safe.png');
-        this.load.image('object7', 'sheet.png');
-        this.load.image('object8', 'ring.png');
-        
-        // Документы и специальные объекты
-        this.load.image('list2', 'list2.png');
-        this.load.image('opensafe', 'opensafe.png');
+        }, 500);
     }
 }
 
