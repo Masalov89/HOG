@@ -30,7 +30,9 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'front-house', path: 'front-house.jpg' },
                 { key: 'hall', path: 'hall.jpg' },
                 { key: 'leftroom', path: 'leftroom.jpg' },
-                { key: 'rightroom', path: 'rightroom.jpg' }
+                { key: 'rightroom', path: 'rightroom.jpg' },
+                { key: 'drawer', path: 'drawer.jpg' },
+                { key: 'wardrobe', path: 'wardrobe.jpg' }
             ],
             ui: [
                 { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
@@ -235,9 +237,32 @@ const locationMap = {
     'leftroom': { 
         name: 'ЛеваяКомната', 
         image: 'leftroom', 
-        neighbors: ['hall'],
+        neighbors: ['hall', 'wardrobe'],
         transitions: {
             'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'wardrobe': {
+                points: [
+                    { x: 1110, y: 370 },
+                    { x: 1225, y: 345 },
+                    { x: 1225, y: 560 },
+                    { x: 1110, y: 595 }
+                ]
+            }
+        }
+    },
+    'wardrobe': { 
+        name: 'Шкаф', 
+        image: 'wardrobe', 
+        neighbors: ['leftroom'],
+        transitions: {
+            'leftroom': {
                 points: [
                     { x: 635, y: 1025 },
                     { x: 1355, y: 1025 },
@@ -250,9 +275,34 @@ const locationMap = {
     'rightroom': { 
         name: 'ПраваяКомната', 
         image: 'rightroom', 
-        neighbors: ['hall'],
+        neighbors: ['hall', 'drawer'],
         transitions: {
             'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'drawer': {
+                points: [
+                    { x: 1625, y: 710 },
+                    { x: 1815, y: 730 },
+                    { x: 1815, y: 820 },
+                    { x: 1690, y: 800 },
+                    { x: 1670, y: 875 },
+                    { x: 1640, y: 870 },
+                ]
+            }
+        }
+    },
+    'drawer': { 
+        name: 'Комод', 
+        image: 'drawer', 
+        neighbors: ['rightroom'],
+        transitions: {
+            'rightroom': {
                 points: [
                     { x: 635, y: 1025 },
                     { x: 1355, y: 1025 },
@@ -278,8 +328,16 @@ const locationPaths = {
         forwardTo: [] // дальше пути нет
     },
     'rightroom': {
-        backTo: ['hall'],
-        forwardTo: []
+        backTo: ['hall'], // возврат в холл
+        forwardTo: ['drawer'] // можно перейти в комод
+    },
+    'drawer': {
+        backTo: ['rightroom'], // возврат в правую комнату
+        forwardTo: [] // дальше пути нет
+    },
+    'wardrobe': {
+        backTo: ['leftroom'], // возврат в левую комнату
+        forwardTo: [] // дальше пути нет
     },
     //'new-location?': {
     //    backTo: ['hall?'],
@@ -1253,6 +1311,12 @@ class GameScene extends Phaser.Scene {
         }
         if (!this.textures.exists('rightroom')) {
             this.load.image('rightroom', 'rightroom.jpg');
+        }
+        if (!this.textures.exists('drawer')) {
+            this.load.image('drawer', 'drawer.jpg');
+        }
+        if (!this.textures.exists('wardrobe')) {
+            this.load.image('wardrobe', 'wardrobe.jpg');
         }
         if (!this.textures.exists('hint-button')) {
         this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
