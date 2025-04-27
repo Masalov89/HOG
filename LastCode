@@ -7,83 +7,118 @@ class LoadingScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Добавляем фоновую картинку для экрана загрузки
-        // Эту картинку нужно загрузить первой, до создания прогресс бара
-        this.load.image('loading-bg', 'loading-bg.jpg'); // Замените на путь к вашей картинке
+        // Загрузка фона экрана загрузки
+        this.load.image('loading-bg', 'loading-bg.jpg');
         this.load.on('complete', () => {
-            const bg = this.add.image(width/2, height/2, 'loading-bg');
-            bg.setDisplaySize(width, height); // Растягиваем на весь экран
-            this.startMainLoading(); // Запускаем основную загрузку
+            const bg = this.add.image(width/2, height/2, 'loading-bg')
+                .setDisplaySize(width, height);
+            this.startMainLoading();
         });
-        this.load.start(); // Запускаем загрузку фона
+        this.load.start();
     }
 
     startMainLoading() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
-        // Тонкая белая полоса (контейнер)
-        const progressBox = this.add.graphics();
-        progressBox.lineStyle(1, 0x333333);
-        progressBox.strokeRect(
-            width/2 - 500,
-            height/2 + 200,
-            1000,
-            1
-        );
+        // Создаем UI элементы загрузки
+        const progressUI = this.createProgressUI(width, height);
+        
+        // Определяем ресурсы для загрузки
+        const resources = {
+            locations: [
+                { key: 'front-house', path: 'front-house.jpg' },
+                { key: 'hall', path: 'hall.jpg' },
+                { key: 'leftroom', path: 'leftroom.jpg' },
+                { key: 'rightroom', path: 'rightroom.jpg' },
+                { key: 'drawer', path: 'drawer.jpg' },
+                { key: 'wardrobe', path: 'wardrobe.jpg' }
+            ],
+            ui: [
+                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
+                { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
+                { key: 'close', path: 'close.png' },
+                { key: 'arrow', path: 'arrow.png' }
+            ],
+            objects: [
+                { key: 'object1', path: 'plate.png' },
+                { key: 'object2', path: 'candle.png' },
+                { key: 'object3', path: 'art.png' },
+                { key: 'object4', path: 'tea.png' },
+                { key: 'object5', path: 'list1.png' },
+                { key: 'object6', path: 'safe.png' },
+                { key: 'object7', path: 'sheet.png' },
+                { key: 'object8', path: 'ring.png' }
+            ],
+            additional: [
+                { key: 'list2', path: 'list2.png' },
+                { key: 'opensafe', path: 'opensafe.png' }
+            ]
+        };
 
-        // Прогресс бар (заполнение)
-        const progressBar = this.add.graphics();
-        
-        // Счетчик для искусственной задержки
-        let loadingProgress = 0;
-        
-        // Эмуляция медленной загрузки
-        const fakeLoading = () => {
-            loadingProgress += 0.01; // Уменьшите число для более медленной загрузки
-            progressBar.clear();
-            progressBar.fillStyle(0xffffff, 1);
-            progressBar.fillRect(
+        // Загружаем все ресурсы
+        this.loadAllResources(resources);
+
+        // Запускаем эмуляцию загрузки
+        this.startFakeLoading(progressUI);
+    }
+
+    createProgressUI(width, height) {
+        // Создаем контейнер прогресс-бара
+        const progressBox = this.add.graphics()
+            .lineStyle(1, 0x333333)
+            .strokeRect(
                 width/2 - 500,
                 height/2 + 200,
-                1000 * loadingProgress,
+                1000,
                 1
             );
-            
+
+        // Создаем заполнение прогресс-бара
+        const progressBar = this.add.graphics();
+
+        return { progressBox, progressBar };
+    }
+
+    loadAllResources(resources) {
+        // Загружаем все типы ресурсов
+        Object.values(resources).flat().forEach(({ key, path }) => {
+            this.load.image(key, path);
+        });
+    }
+
+    startFakeLoading({ progressBox, progressBar }) {
+        let loadingProgress = 0;
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        const updateProgress = () => {
+            loadingProgress += 0.01;
+            progressBar.clear()
+                .fillStyle(0xffffff, 1)
+                .fillRect(
+                    width/2 - 500,
+                    height/2 + 200,
+                    1000 * loadingProgress,
+                    1
+                );
+
             if (loadingProgress < 1) {
-                setTimeout(fakeLoading, 50); // Увеличьте число для более медленной загрузки
+                setTimeout(updateProgress, 50);
             } else {
-                // Когда загрузка завершена
-                setTimeout(() => {
-                    progressBar.destroy();
-                    progressBox.destroy();
-                    this.scene.start('GameScene');
-                }, 500);
+                this.finishLoading({ progressBox, progressBar });
             }
         };
 
-        // Загрузка всех ресурсов
-        this.load.image('front-house', 'front-house.jpg');
-        this.load.image('hall', 'hall.jpg');
-        this.load.image('leftroom', 'leftroom.jpg');
-        this.load.image('rightroom', 'rightroom.jpg');
-        this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
-        this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
-        this.load.image('object1', 'plate.png');
-        this.load.image('object2', 'candle.png');
-        this.load.image('object3', 'art.png');
-        this.load.image('object4', 'tea.png');
-        this.load.image('object5', 'list1.png');
-        this.load.image('object6', 'safe.png');
-        this.load.image('object7', 'sheet.png');
-        this.load.image('object8', 'ring.png');
-        this.load.image('close', 'close.png');
-        this.load.image('arrow', 'arrow.png');
-        this.load.image('list2', 'list2.png');
-        this.load.image('opensafe', 'opensafe.png');
+        updateProgress();
+    }
 
-        // Запускаем эмуляцию медленной загрузки
-        fakeLoading();
+    finishLoading({ progressBox, progressBar }) {
+        setTimeout(() => {
+            progressBar.destroy();
+            progressBox.destroy();
+            this.scene.start('GameScene');
+        }, 500);
     }
 }
 
@@ -202,9 +237,32 @@ const locationMap = {
     'leftroom': { 
         name: 'ЛеваяКомната', 
         image: 'leftroom', 
-        neighbors: ['hall'],
+        neighbors: ['hall', 'wardrobe'],
         transitions: {
             'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'wardrobe': {
+                points: [
+                    { x: 1110, y: 370 },
+                    { x: 1225, y: 345 },
+                    { x: 1225, y: 560 },
+                    { x: 1110, y: 595 }
+                ]
+            }
+        }
+    },
+    'wardrobe': { 
+        name: 'Шкаф', 
+        image: 'wardrobe', 
+        neighbors: ['leftroom'],
+        transitions: {
+            'leftroom': {
                 points: [
                     { x: 635, y: 1025 },
                     { x: 1355, y: 1025 },
@@ -217,9 +275,34 @@ const locationMap = {
     'rightroom': { 
         name: 'ПраваяКомната', 
         image: 'rightroom', 
-        neighbors: ['hall'],
+        neighbors: ['hall', 'drawer'],
         transitions: {
             'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'drawer': {
+                points: [
+                    { x: 1625, y: 710 },
+                    { x: 1815, y: 730 },
+                    { x: 1815, y: 820 },
+                    { x: 1690, y: 800 },
+                    { x: 1670, y: 875 },
+                    { x: 1640, y: 870 },
+                ]
+            }
+        }
+    },
+    'drawer': { 
+        name: 'Комод', 
+        image: 'drawer', 
+        neighbors: ['rightroom'],
+        transitions: {
+            'rightroom': {
                 points: [
                     { x: 635, y: 1025 },
                     { x: 1355, y: 1025 },
@@ -245,8 +328,16 @@ const locationPaths = {
         forwardTo: [] // дальше пути нет
     },
     'rightroom': {
-        backTo: ['hall'],
-        forwardTo: []
+        backTo: ['hall'], // возврат в холл
+        forwardTo: ['drawer'] // можно перейти в комод
+    },
+    'drawer': {
+        backTo: ['rightroom'], // возврат в правую комнату
+        forwardTo: [] // дальше пути нет
+    },
+    'wardrobe': {
+        backTo: ['leftroom'], // возврат в левую комнату
+        forwardTo: [] // дальше пути нет
     },
     //'new-location?': {
     //    backTo: ['hall?'],
@@ -682,16 +773,14 @@ class EnergySystem {
     }
 
     createEnergyUI() {
-        // Оставляем существующий код для позиционирования иконки энергии
-        const hintPadding = 5;
-        const hintButtonSize = 128;
-        const hintButtonX = GAME_CONFIG.width - (hintButtonSize / 2) - hintPadding;
-        const energyIconSize = 64;
-        const spaceBetweenIcons = 30;
-        const energyIconX = hintButtonX - (hintButtonSize / 2) - spaceBetweenIcons - (energyIconSize / 2);
-        const energyIconY = (hintButtonSize / 2) + hintPadding;
+        // Размер иконки энергии
+        const energyIconSize = 96;
+
+        // Новые координаты для кнопки энергии
+        const energyIconX = 1730;  // Позиция по оси X (левее или правее)
+        const energyIconY = 55;  // Позиция по оси Y (выше или ниже)
     
-        // Создаем иконку энергии (оставляем как есть)
+        // Создаем иконку энергии
         this.energyIcon = this.scene.add.sprite(energyIconX, energyIconY, 'energy-icon')
             .setInteractive()
             .setDepth(100)
@@ -1221,6 +1310,12 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('rightroom')) {
             this.load.image('rightroom', 'rightroom.jpg');
         }
+        if (!this.textures.exists('drawer')) {
+            this.load.image('drawer', 'drawer.jpg');
+        }
+        if (!this.textures.exists('wardrobe')) {
+            this.load.image('wardrobe', 'wardrobe.jpg');
+        }
         if (!this.textures.exists('hint-button')) {
         this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
         }
@@ -1414,20 +1509,20 @@ class GameScene extends Phaser.Scene {
     }
 
     createHintButton() {
-        const padding = 5;
         const buttonSize = 128;
-        
-        const buttonX = GAME_CONFIG.width - (buttonSize / 2) - padding;
-        const buttonY = (buttonSize / 2) + padding;
-    
+
+        // Простые фиксированные координаты для кнопки подсказки
+        const buttonX = 1845; // Позиция по X (лево-право)
+        const buttonY = 70; // Позиция по Y (верх-низ)
+
         // Создаем основную кнопку
         this.hintButton = this.add.sprite(
             buttonX,
             buttonY,
             'hint-button'
         )
-        .setInteractive()
-        .setDisplaySize(buttonSize, buttonSize);
+    .setInteractive() // Делаем кнопку кликабельной
+    .setDisplaySize(buttonSize, buttonSize); // Устанавливаем размер кнопки
     
         // Функция для создания синхронизированной анимации пульсации
         const createPulseTween = () => {
