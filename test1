@@ -7,6 +7,9 @@ class LoadingScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
+        // Загружаем PNG-фон для инвентаря
+        this.load.image('inventory-bg', './UI/ApprovedUI/inventory-bg.png');
+
         // Загрузка фона экрана загрузки
         this.load.image('loading-bg', 'loading-bg.jpg');
         this.load.on('complete', () => {
@@ -461,45 +464,34 @@ class InventorySystem {
     }
 
     createInventoryUI() {
-        const bgWidth = this.config.slotSize + this.config.padding * 2;
-        const bgHeight = (this.config.slotSize + this.config.padding) * this.config.slots + this.config.padding;
-
-        // Создаем контейнер для инвентаря
-        const background = this.scene.add.graphics();
-        
-        // Фон инвентаря
-        background.fillStyle(this.config.backgroundColor, 0.8); // Цвет фона с прозрачностью
-        background.fillRoundedRect(
-            this.config.startX - this.config.padding,
-            this.config.startY - this.config.padding,
-            bgWidth,
-            bgHeight,
-            8
+        const bgWidth = 300; // Ширина фона
+        const bgHeight = 400; // Высота фона
+    
+        // Простое положение инвентаря
+        const inventoryX = 100; // Левый край
+        const inventoryY = GAME_CONFIG.height - bgHeight - 50; // Над краем экрана с отступом
+    
+        // Добавляем PNG-фон
+        const background = this.scene.add.image(
+            inventoryX,
+            inventoryY,
+            'inventory-bg' // Ключ PNG-фона
         );
-
-        // Создаем слоты
+        background.setDisplaySize(bgWidth, bgHeight); // Размеры
+        background.setOrigin(0, 0); // Привязка к верхнему левому углу
+    
+        // Создаем слоты поверх фона
         for (let i = 0; i < this.config.slots; i++) {
-            const x = this.config.startX;
-            const y = this.config.startY + i * (this.config.slotSize + this.config.padding);
-
+            const x = inventoryX + 20; // Отступ внутри фона
+            const y = inventoryY + 20 + i * (this.config.slotSize + 10);
+    
             // Создаем слот
             const slot = this.scene.add.graphics();
-            
-            // Фон слота
             slot.fillStyle(this.config.slotColor, 1);
-            slot.fillRoundedRect(0, 0, this.config.slotSize, this.config.slotSize, 5);
-            
-            // Рамка слота
-            slot.lineStyle(1, 0xffffff, 0.3);
-            slot.strokeRoundedRect(0, 0, this.config.slotSize, this.config.slotSize, 5);
-            
-            // Добавляем блик
-            slot.lineStyle(1, 0xffffff, 0.3);
-            slot.lineBetween(2, 2, this.config.slotSize - 2, 2);
-
-            slot.x = x;
-            slot.y = y;
-
+            slot.fillRoundedRect(x, y, this.config.slotSize, this.config.slotSize, 5);
+            slot.lineStyle(1, this.config.borderColor, 0.8);
+            slot.strokeRoundedRect(x, y, this.config.slotSize, this.config.slotSize, 5);
+    
             this.slots.push({
                 graphics: slot,
                 item: null,
@@ -690,7 +682,8 @@ class InventoryScene extends Phaser.Scene {
         // Загружаем изображения, которые могут быть в инвентаре
         const assets = [
             { key: 'list2', path: 'list2.png' },
-            { key: 'object8', path: 'ring.png' }
+            { key: 'object8', path: 'ring.png' },
+            { key: 'inventory-bg', path: 'path/to/your/inventory-background.png' } // Добавляем PNG-фон
         ];
 
         assets.forEach(({ key, path }) => {
