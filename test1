@@ -773,16 +773,14 @@ class EnergySystem {
     }
 
     createEnergyUI() {
-        // Оставляем существующий код для позиционирования иконки энергии
-        const hintPadding = 5;
-        const hintButtonSize = 128;
-        const hintButtonX = GAME_CONFIG.width - (hintButtonSize / 2) - hintPadding;
-        const energyIconSize = 64;
-        const spaceBetweenIcons = 30;
-        const energyIconX = hintButtonX - (hintButtonSize / 2) - spaceBetweenIcons - (energyIconSize / 2);
-        const energyIconY = (hintButtonSize / 2) + hintPadding;
+        // Размер иконки энергии
+        const energyIconSize = 96;
+
+        // Новые координаты для кнопки энергии
+        const energyIconX = 1730;  // Позиция по оси X (левее или правее)
+        const energyIconY = 55;  // Позиция по оси Y (выше или ниже)
     
-        // Создаем иконку энергии (оставляем как есть)
+        // Создаем иконку энергии
         this.energyIcon = this.scene.add.sprite(energyIconX, energyIconY, 'energy-icon')
             .setInteractive()
             .setDepth(100)
@@ -1511,20 +1509,20 @@ class GameScene extends Phaser.Scene {
     }
 
     createHintButton() {
-        const padding = 5;
         const buttonSize = 128;
-        
-        const buttonX = GAME_CONFIG.width - (buttonSize / 2) - padding;
-        const buttonY = (buttonSize / 2) + padding;
-    
+
+        // Простые фиксированные координаты для кнопки подсказки
+        const buttonX = 1845; // Позиция по X (лево-право)
+        const buttonY = 70; // Позиция по Y (верх-низ)
+
         // Создаем основную кнопку
         this.hintButton = this.add.sprite(
             buttonX,
             buttonY,
             'hint-button'
         )
-        .setInteractive()
-        .setDisplaySize(buttonSize, buttonSize);
+    .setInteractive() // Делаем кнопку кликабельной
+    .setDisplaySize(buttonSize, buttonSize); // Устанавливаем размер кнопки
     
         // Функция для создания синхронизированной анимации пульсации
         const createPulseTween = () => {
