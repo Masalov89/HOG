@@ -7,6 +7,9 @@ class LoadingScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
+        // Загружаем PNG-фон для инвентаря
+        this.load.image('inventory-bg', './UI/ApprovedUI/inventory-bg.png');
+
         // Загрузка фона экрана загрузки
         this.load.image('loading-bg', 'loading-bg.jpg');
         this.load.on('complete', () => {
@@ -452,8 +455,6 @@ class InventorySystem {
             startX: 10, // Зазор в 10 пикселей от левого края
             // Центрирование по высоте экрана
             startY: (GAME_CONFIG.height - ((50 + 10) * 5 - 10)) / 2,
-            backgroundColor: 0x333333,
-            slotColor: 0x666666,
             borderColor: 0x888888
         };
 
@@ -461,131 +462,117 @@ class InventorySystem {
     }
 
     createInventoryUI() {
-        const bgWidth = this.config.slotSize + this.config.padding * 2;
-        const bgHeight = (this.config.slotSize + this.config.padding) * this.config.slots + this.config.padding;
-
-        // Создаем контейнер для инвентаря
-        const background = this.scene.add.graphics();
-        
-        // Фон инвентаря
-        background.fillStyle(this.config.backgroundColor, 0.8); // Цвет фона с прозрачностью
-        background.fillRoundedRect(
-            this.config.startX - this.config.padding,
-            this.config.startY - this.config.padding,
-            bgWidth,
-            bgHeight,
-            8
+        const bgWidth = 100; // Ширина фона после масштабирования
+        const bgHeight = 500; // Высота фона после масштабирования
+    
+        // Масштабирование
+        const scaleX = bgWidth / 249; // Масштаб по ширине
+        const scaleY = bgHeight / 1093; // Масштаб по высоте
+    
+        const inventoryX = 30; // Левый край
+        const inventoryY = 300; // Отступ сверху
+    
+        // Добавляем PNG-фон
+        const background = this.scene.add.image(
+            inventoryX,
+            inventoryY,
+            'inventory-bg' // Ключ PNG-фона
         );
-
-        // Создаем слоты
-        for (let i = 0; i < this.config.slots; i++) {
-            const x = this.config.startX;
-            const y = this.config.startY + i * (this.config.slotSize + this.config.padding);
-
-            // Создаем слот
+        background.setOrigin(0, 0); // Привязка к верхнему левому углу
+        background.setDisplaySize(bgWidth, bgHeight); // Устанавливаем масштаб
+        background.setDepth(1); // Фон ниже рамок и предметов
+    
+        // Центры зон для слотов (масштабируем)
+        const slotCenters = [
+            { x: 130, y: 190 },
+            { x: 130, y: 365 },
+            { x: 130, y: 540 },
+            { x: 130, y: 720 },
+            { x: 130, y: 890 }
+        ].map(center => ({
+            x: inventoryX + center.x * scaleX, // Учитываем масштаб и смещение
+            y: inventoryY + center.y * scaleY
+        }));
+    
+        // Размеры слотов (масштабируем)
+        const scaledSlotWidth = 175 * scaleX;
+        const scaledSlotHeight = 160 * scaleY;
+    
+        // Создаём слоты
+        slotCenters.forEach((center, i) => {
             const slot = this.scene.add.graphics();
-            
-            // Фон слота
-            slot.fillStyle(this.config.slotColor, 1);
-            slot.fillRoundedRect(0, 0, this.config.slotSize, this.config.slotSize, 5);
-            
-            // Рамка слота
-            slot.lineStyle(1, 0xffffff, 0.3);
-            slot.strokeRoundedRect(0, 0, this.config.slotSize, this.config.slotSize, 5);
-            
-            // Добавляем блик
-            slot.lineStyle(1, 0xffffff, 0.3);
-            slot.lineBetween(2, 2, this.config.slotSize - 2, 2);
-
-            slot.x = x;
-            slot.y = y;
-
+    
+            // Добавляем рамку
+            //slot.lineStyle(2, this.config.borderColor, 1); // Рамка с непрозрачностью 100%
+            //slot.strokeRoundedRect(
+                //center.x - scaledSlotWidth / 2, // Верхний левый угол
+                //center.y - scaledSlotHeight / 2,
+                //scaledSlotWidth,
+                //scaledSlotHeight,
+                //10 // Радиус скругления
+            //);
+            slot.setDepth(2); // Рамка выше фона
+    
             this.slots.push({
                 graphics: slot,
                 item: null,
-                index: i
+                index: i,
+                center: center // Центр слота
             });
-        }
+        });
     }
-
+    
     addItem(key, name) {
+        // Находим пустой слот
         const emptySlot = this.slots.find(slot => !slot.item);
         if (!emptySlot) return false;
     
         // Создание спрайта предмета
         const item = this.scene.add.sprite(
-            emptySlot.graphics.x + this.config.slotSize / 2,
-            emptySlot.graphics.y + this.config.slotSize / 2,
+            emptySlot.center.x, // Центр слота по X
+            emptySlot.center.y, // Центр слота по Y
             key
         );
-        
-        const scale = (this.config.slotSize * 0.8) / Math.max(item.width, item.height);
+    
+        // Масштабирование предмета
+        const scale = Math.min(
+            175 * (100 / 249) / item.width, // Прямое вычисление масштаба
+            160 * (500 / 1093) / item.height
+        ) * 0.9; // Масштаб предмета
         item.setScale(scale);
     
+        // Устанавливаем `depth` для предмета
+        item.setDepth(10); // Предмет выше фона
+    
+        // Остальная логика остаётся без изменений
         item.setInteractive({ draggable: true });
         this.scene.input.setDraggable(item);
-        
-        // Добавляем обработчик клика для просмотра предмета
+    
         item.on('pointerdown', (pointer, localX, localY, event) => {
-            // Предотвращаем начало перетаскивания
             event.stopPropagation();
-            
-            // Показываем предмет в полном размере
             this.showItemPopup(key, name);
         });
     
         item.on('dragstart', () => {
             item.setTint(0x999999);
-            item.setDepth(1000);
-        });
-    
-        item.on('drag', (pointer, dragX, dragY) => {
-            item.x = dragX;
-            item.y = dragY;
+            item.setDepth(20); // Временно поднимаем над другими объектами
         });
     
         item.on('dragend', (pointer) => {
             item.clearTint();
-            item.setDepth(0);
-    
-            const targetBounds = this.scene.character?.getBounds();
-            if (targetBounds && targetBounds.contains(pointer.x, pointer.y)) {
-                this.giveItemToCharacter(item, emptySlot);
-            } else {
-                item.x = emptySlot.graphics.x + this.config.slotSize / 2;
-                item.y = emptySlot.graphics.y + this.config.slotSize / 2;
-            }
+            item.setDepth(10); // Возвращаем стандартный `depth`
+            item.x = emptySlot.center.x;
+            item.y = emptySlot.center.y;
         });
     
-        item.on('pointerover', () => {
-            const tooltip = this.scene.add.text(
-                item.x,
-                item.y - 40,
-                name,
-                {
-                    fontSize: '14px',
-                    backgroundColor: '#000000',
-                    padding: { x: 5, y: 3 },
-                    fill: '#ffffff'
-                }
-            ).setDepth(1000).setOrigin(0.5);
-            item.tooltip = tooltip;
-        });
-    
-        item.on('pointerout', () => {
-            if (item.tooltip) {
-                item.tooltip.destroy();
-                item.tooltip = null;
-            }
-        });
-    
+        // Сохраняем предмет в слоте
         emptySlot.item = {
             sprite: item,
             name: name,
             key: key
         };
     
-        return true;
+        return true; // Успешное добавление предмета
     }
 
     showItemPopup(key, name) {
@@ -641,7 +628,7 @@ class InventorySystem {
     
         // Закрытие попапа по клику на фон или кнопку
         const closePopup = () => {
-            popupGroup.destroy(true);
+            popupGroup.clear(true, true); // Полное удаление всех объектов
         };
     
         background.on('pointerdown', closePopup);
@@ -690,7 +677,8 @@ class InventoryScene extends Phaser.Scene {
         // Загружаем изображения, которые могут быть в инвентаре
         const assets = [
             { key: 'list2', path: 'list2.png' },
-            { key: 'object8', path: 'ring.png' }
+            { key: 'object8', path: 'ring.png' },
+            { key: 'inventory-bg', path: 'path/to/your/inventory-background.png' } // Добавляем PNG-фон
         ];
 
         assets.forEach(({ key, path }) => {
