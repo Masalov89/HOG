@@ -576,10 +576,14 @@ class InventorySystem {
     }
 
     showItemPopup(key, name) {
-        // Создаем группу для попапа
-        const popupGroup = this.scene.add.group();
+        // Если попап уже открыт, не создаём новый
+        if (this.activePopup) return;
     
-        // Создаем затемненный фон
+        // Создаём группу для попапа
+        const popupGroup = this.scene.add.group();
+        this.activePopup = popupGroup; // Устанавливаем текущий активный попап
+    
+        // Создаём затемнённый фон
         const background = this.scene.add.rectangle(
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height / 2,
@@ -595,8 +599,7 @@ class InventorySystem {
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height / 2,
             key
-        )
-        .setInteractive();
+        ).setInteractive();
         image.setScale(0.8);
         popupGroup.add(image);
     
@@ -609,9 +612,7 @@ class InventorySystem {
                 fontSize: '32px',
                 fill: '#ff0000'
             }
-        )
-        .setInteractive()
-        .setDepth(1001);
+        ).setInteractive();
         popupGroup.add(closeButton);
     
         // Добавляем название предмета
@@ -626,11 +627,13 @@ class InventorySystem {
         ).setOrigin(0.5, 0);
         popupGroup.add(itemName);
     
-        // Закрытие попапа по клику на фон или кнопку
+        // Функция для закрытия попапа
         const closePopup = () => {
-            popupGroup.clear(true, true); // Полное удаление всех объектов
+            popupGroup.clear(true, true); // Удаляем все элементы попапа
+            this.activePopup = null; // Сбрасываем текущий активный попап
         };
     
+        // Обработчики событий для закрытия попапа
         background.on('pointerdown', closePopup);
         image.on('pointerdown', closePopup);
         closeButton.on('pointerdown', closePopup);
