@@ -442,6 +442,143 @@ class NavigationUtils {
     }
 }
 
+class JournalSystem {
+    constructor(scene) {
+        this.scene = scene;           // сцена игры
+        this.entries = [];            // массив для хранения записей дневника
+        this.isOpen = false;          // флаг состояния дневника (открыт/закрыт)
+        this.createJournalButton();   // создаём кнопку при инициализации
+    }
+
+    // Создание кнопки дневника
+    createJournalButton() {
+        // Располагаем кнопку в правом верхнем углу, под иконкой энергии
+        const buttonX = 1830;
+        const buttonY = 155;
+        const buttonScale = 0.8;
+
+        // Создаём кнопку как спрайт
+        this.journalButton = this.scene.add.sprite(buttonX, buttonY, 'journal-button')
+            .setInteractive()         // делаем кнопку интерактивной
+            .setDepth(100)            // устанавливаем слой отображения
+            .setScale(buttonScale);    // задаём размер
+
+        // Добавляем эффект при наведении
+        this.journalButton.on('pointerover', () => {
+            this.journalButton.setTint(0xcccccc); // делаем кнопку светлее при наведении
+        });
+
+        // Убираем эффект при отведении курсора
+        this.journalButton.on('pointerout', () => {
+            this.journalButton.clearTint();
+        });
+
+        // Обработчик клика по кнопке
+        this.journalButton.on('pointerdown', () => {
+            this.toggleJournal(); // открываем/закрываем дневник при клике
+        });
+    }
+
+    // Переключение состояния дневника (открыть/закрыть)
+    toggleJournal() {
+        if (this.isOpen) {
+            this.closeJournal();
+        } else {
+            this.openJournal();
+        }
+        this.isOpen = !this.isOpen;
+    }
+
+    // Создание интерфейса дневника
+    createJournalUI() {
+        // Создаём затемнение фона
+        this.overlay = this.scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            GAME_CONFIG.width,
+            GAME_CONFIG.height,
+            0x000000,
+            0.7
+        ).setDepth(101);
+
+        // Создаём фон дневника
+        const journalWidth = GAME_CONFIG.width * 0.7;  // ширина окна дневника
+        const journalHeight = GAME_CONFIG.height * 0.8; // высота окна дневника
+
+        // Основная панель дневника
+        this.journalPanel = this.scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            journalWidth,
+            journalHeight,
+            0x2c1810 // коричневый цвет для фона дневника
+        ).setDepth(102);
+
+        // Добавляем рамку дневника
+        this.journalBorder = this.scene.add.graphics()
+            .setDepth(102);
+        this.journalBorder.lineStyle(4, 0x8b4513); // коричневая рамка
+        this.journalBorder.strokeRect(
+            (GAME_CONFIG.width - journalWidth) / 2,
+            (GAME_CONFIG.height - journalHeight) / 2,
+            journalWidth,
+            journalHeight
+        );
+
+        // Кнопка закрытия дневника
+        this.closeButton = this.scene.add.sprite(
+            GAME_CONFIG.width / 2 + journalWidth / 2 - 40,
+            GAME_CONFIG.height / 2 - journalHeight / 2 + 40,
+            'close'
+        ).setDepth(103)
+            .setScale(0.8)
+            .setInteractive()
+            .on('pointerdown', () => this.closeJournal());
+
+        // Заголовок дневника
+        this.journalTitle = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2 - journalHeight / 2 + 50,
+            'ДНЕВНИК',
+            {
+                fontSize: '32px',
+                fill: '#ffd700',
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5)
+            .setDepth(103);
+
+        // Контейнер для записей дневника
+        this.entriesContainer = this.scene.add.container(
+            GAME_CONFIG.width / 2 - journalWidth / 2 + 50,
+            GAME_CONFIG.height / 2 - journalHeight / 2 + 100
+        ).setDepth(103);
+
+        this.updateEntries(); // обновляем отображение записей
+    }
+
+    // Открытие дневника
+    openJournal() {
+        this.createJournalUI();
+        // Добавляем возможность закрыть дневник кликом вне его области
+        this.overlay.setInteractive().on('pointerdown', () => {
+            this.closeJournal();
+        });
+    }
+
+    // Закрытие дневника
+    closeJournal() {
+        // Удаляем все элементы интерфейса дневника
+        if (this.overlay) this.overlay.destroy();
+        if (this.journalPanel) this.journalPanel.destroy();
+        if (this.journalBorder) this.journalBorder.destroy();
+        if (this.closeButton) this.closeButton.destroy();
+        if (this.journalTitle) this.journalTitle.destroy();
+        if (this.entriesContainer) this.entriesContainer.destroy();
+        this.isOpen = false;
+    }
+}
+
 class InventorySystem {
     constructor(scene) {
         this.scene = scene;
