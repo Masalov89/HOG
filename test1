@@ -1332,7 +1332,7 @@ class GameScene extends Phaser.Scene {
             { key: 'close', path: 'close.png' },         // Кнопка закрытия
             { key: 'opensafe', path: 'opensafe.png' },   // Открытый сейф
             { key: 'object8', path: 'ring.png' },        // Кольцо
-            { key: 'arrow', path: 'arrow.png' }          // Стрелка
+            { key: 'arrow', path: './UI/ApprovedUI/arrow.png' }          // Стрелка
         ];
     
         // Загрузка всех ресурсов, если они еще не загружены
