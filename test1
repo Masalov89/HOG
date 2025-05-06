@@ -41,8 +41,8 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
                 { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
                 { key: 'journal-button', path: './UI/ApprovedUI/JournalButton.png' },
-                { key: 'close', path: './UI/ApprovedUI/close.png' },
-                { key: 'arrow', path: './UI/ApprovedUI/arrow.png' }
+                { key: 'close', path: './UI/ApprovedUI/Close.png' },
+                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }
             ],
             objects: [
                 { key: 'object1', path: 'plate.png' },
@@ -1329,10 +1329,10 @@ class GameScene extends Phaser.Scene {
             { key: 'object6', path: 'safe.png' },        // Сейф
             { key: 'object7', path: 'sheet.png' },       // Лист
             { key: 'list2', path: 'list2.png' },         // Развернутый лист
-            { key: 'close', path: 'close.png' },         // Кнопка закрытия
+            { key: 'close', path: './UI/ApprovedUI/Close.png' },         // Кнопка закрытия
             { key: 'opensafe', path: 'opensafe.png' },   // Открытый сейф
             { key: 'object8', path: 'ring.png' },        // Кольцо
-            { key: 'arrow', path: './UI/ApprovedUI/arrow.png' }          // Стрелка
+            { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }          // Стрелка
         ];
     
         // Загрузка всех ресурсов, если они еще не загружены
