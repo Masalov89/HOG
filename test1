@@ -869,15 +869,37 @@ class InventorySystem {
         popupGroup.add(image);
     
         // Добавляем кнопку закрытия
-        const closeButton = this.scene.add.text(
+        const closeButton = this.scene.add.sprite(
             GAME_CONFIG.width - 50,
             50,
-            'X',
-            {
-                fontSize: '32px',
-                fill: '#ff0000'
+            'close'
+        ).setScale(0.8)
+        .setInteractive()
+        .setDepth(105);
+    
+        // Добавляем эффекты при наведении и нажатии
+        closeButton.on('pointerover', () => {
+            if (!closeButton.isTinted) {
+                closeButton.setTint(0xcccccc);
             }
-        ).setInteractive();
+        });
+    
+        closeButton.on('pointerout', () => {
+            closeButton.clearTint();
+            closeButton.setScale(0.8);
+        });
+    
+        closeButton.on('pointerdown', () => {
+            closeButton.setScale(0.75);  // немного уменьшаем при нажатии
+            closeButton.setTint(0x999999);
+        });
+    
+        closeButton.on('pointerup', () => {
+            closeButton.setScale(0.8);
+            closeButton.clearTint();
+            closePopup();
+        });
+    
         popupGroup.add(closeButton);
     
         // Добавляем название предмета
@@ -901,7 +923,7 @@ class InventorySystem {
         // Обработчики событий для закрытия попапа
         background.on('pointerdown', closePopup);
         image.on('pointerdown', closePopup);
-        closeButton.on('pointerdown', closePopup);
+        // Убираем обработчик для closeButton, так как он теперь обрабатывается в pointerup
     }
     
     giveItemToCharacter(item, slot) {
