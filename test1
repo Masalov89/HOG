@@ -2021,7 +2021,6 @@ class GameScene extends Phaser.Scene {
             this.closePopup();
         }
     
-        // Сохраняем информацию для использования при закрытии
         this.currentPopupInfo = {
             object,
             imageKey,
@@ -2029,7 +2028,7 @@ class GameScene extends Phaser.Scene {
             isFirstOpen: true // Флаг для определения первого открытия
         };
     
-        this.popupGroup = this.add.group();
+        this.popupGroup = this.add.group(); // Создаем группу для элементов popup
     
         const popupBackground = this.add.rectangle(
             GAME_CONFIG.width / 2,
@@ -2039,7 +2038,7 @@ class GameScene extends Phaser.Scene {
             0x000000,
             0.7
         ).setDepth(998)
-         .setInteractive();
+         .setInteractive(); // Создаем затемненный фон
         this.popupGroup.add(popupBackground);
     
         const popupFrame = this.add.rectangle(
@@ -2048,7 +2047,7 @@ class GameScene extends Phaser.Scene {
             700,
             482,
             0x2c1810
-        ).setDepth(999);
+        ).setDepth(999); // Создаем рамку для контента
         this.popupGroup.add(popupFrame);
     
         const popupImage = this.add.image(
@@ -2056,12 +2055,20 @@ class GameScene extends Phaser.Scene {
             GAME_CONFIG.height / 2,
             imageKey
         ).setInteractive()
-         .setDepth(1000);
+         .setDepth(1000); // Добавляем изображение предмета
         popupImage.setScale(0.8);
         this.popupGroup.add(popupImage);
     
+        const closeButton = this.add.image(
+            GAME_CONFIG.width / 2 + 330,
+            GAME_CONFIG.height / 2 - 220,
+            'close_button'
+        ).setDepth(1001)
+         .setScale(0.5)
+         .setInteractive(); // Добавляем кнопку закрытия (крестик)
+        this.popupGroup.add(closeButton);
+    
         const closePopupHandler = () => {
-            // Добавляем запись в дневник и обрабатываем предмет только при первом открытии скомканного листа
             if (this.currentPopupInfo.imageKey === 'list2' && this.currentPopupInfo.isFirstOpen) {
                 if (this.journalSystem) {
                     this.journalSystem.addEntry("Нашел смятую записку. В ней упоминается сейф, нужно его найти.");
@@ -2076,31 +2083,30 @@ class GameScene extends Phaser.Scene {
                     this.animateObjectDisappearance(this.currentPopupInfo.object);
                 }
             }
-    
             this.closePopup();
-        };
+        }; // Обработчик закрытия popup
     
-        popupImage.on('pointerdown', closePopupHandler);
+        closeButton.on('pointerdown', closePopupHandler); // Обработчик клика на крестик
+        popupImage.on('pointerdown', closePopupHandler); // Обработчик клика на изображение
         popupBackground.on('pointerdown', () => {
             if (this.currentPopupInfo.object) {
                 this.currentPopupInfo.object.isAnimating = false;
             }
             closePopupHandler();
-        });
+        }); // Обработчик клика на фон
     }
     
     reopenPopup(scene) {
         if (!scene) return;
     
-        // При повторном открытии устанавливаем флаг isFirstOpen в false
         this.currentPopupInfo = {
             object: null,
             imageKey: 'list2',
             addToInventory: false,
-            isFirstOpen: false
+            isFirstOpen: false // При повторном открытии флаг в false
         };
     
-        this.popupGroup = scene.add.group();
+        this.popupGroup = scene.add.group(); // Создаем новую группу для элементов
     
         const popupBackground = scene.add.rectangle(
             GAME_CONFIG.width / 2,
@@ -2110,7 +2116,7 @@ class GameScene extends Phaser.Scene {
             0x000000,
             0.7
         ).setDepth(998)
-         .setInteractive();
+         .setInteractive(); // Создаем затемненный фон
         this.popupGroup.add(popupBackground);
     
         const popupFrame = scene.add.rectangle(
@@ -2119,7 +2125,7 @@ class GameScene extends Phaser.Scene {
             700,
             482,
             0x2c1810
-        ).setDepth(999);
+        ).setDepth(999); // Создаем рамку
         this.popupGroup.add(popupFrame);
     
         const popupImage = scene.add.image(
@@ -2127,32 +2133,42 @@ class GameScene extends Phaser.Scene {
             GAME_CONFIG.height / 2,
             'list2'
         ).setInteractive()
-         .setDepth(1000);
+         .setDepth(1000); // Добавляем изображение
         popupImage.setScale(0.8);
         this.popupGroup.add(popupImage);
     
-        popupImage.on('pointerdown', () => this.closePopup());
-        popupBackground.on('pointerdown', () => this.closePopup());
+        const closeButton = scene.add.image(
+            GAME_CONFIG.width / 2 + 330,
+            GAME_CONFIG.height / 2 - 220,
+            'close_button'
+        ).setDepth(1001)
+         .setScale(0.5)
+         .setInteractive(); // Добавляем кнопку закрытия
+        this.popupGroup.add(closeButton);
+    
+        const closeHandler = () => this.closePopup(); // Простой обработчик закрытия
+        closeButton.on('pointerdown', closeHandler); // Обработчик для крестика
+        popupImage.on('pointerdown', closeHandler); // Обработчик для изображения
+        popupBackground.on('pointerdown', closeHandler); // Обработчик для фона
     }
     
     closePopup() {
         if (this.popupGroup) {
-            this.popupGroup.getChildren().forEach(child => child.removeAllListeners());
-            this.popupGroup.clear(true, true);
+            this.popupGroup.getChildren().forEach(child => child.removeAllListeners()); // Удаляем все обработчики событий
+            this.popupGroup.clear(true, true); // Очищаем группу
             this.popupGroup = null;
     
-            // Показываем эффект только при первом открытии скомканного листа
             if (this.currentPopupInfo && 
                 this.currentPopupInfo.imageKey === 'list2' && 
                 this.currentPopupInfo.isFirstOpen) {
                 this.time.delayedCall(100, () => {
                     if (this.journalSystem) {
-                        this.journalSystem.showNewEntryEffect();
+                        this.journalSystem.showNewEntryEffect(); // Показываем эффект на кнопке дневника
                     }
                 });
             }
     
-            this.currentPopupInfo = null;
+            this.currentPopupInfo = null; // Очищаем информацию о текущем popup
         }
     }
 
