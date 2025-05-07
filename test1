@@ -40,7 +40,7 @@ class LoadingScene extends Phaser.Scene {
             ui: [
                 { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
                 { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
-                { key: 'journal-button', path: './UI/ApprovedUI/JournalButton.png' },
+                { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
                 { key: 'close', path: './UI/ApprovedUI/Close.png' },
                 { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }
             ],
@@ -459,7 +459,7 @@ class JournalSystem {
         const buttonSize = 96; // такой же размер как у кнопки энергии
     
         // Создаём кнопку как спрайт
-        this.journalButton = this.scene.add.sprite(buttonX, buttonY, 'journal-button')
+        this.journalButton = this.scene.add.sprite(buttonX, buttonY, 'JournalButton')
             .setInteractive()         
             .setDepth(100)           
             .setDisplaySize(buttonSize, buttonSize);
