@@ -456,31 +456,33 @@ class JournalSystem {
         // Располагаем кнопку в левом верхнем углу
         const buttonX = 190;
         const buttonY = 55;
-
+        const buttonSize = 96; // такой же размер как у кнопки энергии
+    
         // Создаём кнопку как спрайт
         this.journalButton = this.scene.add.sprite(buttonX, buttonY, 'journal-button')
-            .setInteractive()         // делаем кнопку интерактивной
-            .setDepth(100);           // устанавливаем слой отображения
-
+            .setInteractive()         
+            .setDepth(100)           
+            .setDisplaySize(buttonSize, buttonSize);
+    
         // Добавляем эффект при наведении
         this.journalButton.on('pointerover', () => {
-            this.journalButton.setTint(0xcccccc); // делаем кнопку светлее при наведении
+            this.journalButton.setTint(0xcccccc);
         });
-
+    
         // Убираем эффект при отведении курсора
         this.journalButton.on('pointerout', () => {
             this.journalButton.clearTint();
         });
-
-        // Добавляем эффект нажатия
+    
+        // Добавляем эффект при нажатии
         this.journalButton.on('pointerdown', () => {
-            this.journalButton.setScale(0.95); // немного уменьшаем при нажатии
+            this.journalButton.setDisplaySize(buttonSize * 0.95, buttonSize * 0.95);
         });
-
-        // Убираем эффект нажатия и открываем/закрываем дневник
+    
+        // Возвращаем исходный размер при отпускании
         this.journalButton.on('pointerup', () => {
-            this.journalButton.setScale(1); // возвращаем исходный размер
-            this.toggleJournal(); // открываем/закрываем дневник
+            this.journalButton.setDisplaySize(buttonSize, buttonSize);
+            this.toggleJournal();
         });
     }
 
@@ -819,6 +821,11 @@ class InventorySystem {
             name: name,
             key: key
         };
+
+        // Добавляем запись в дневник
+        if (this.scene.journalSystem) {  // проверяем наличие системы дневника
+            this.scene.journalSystem.addEntry(`Найден предмет: ${name}`);
+        }
     
         return true; // Успешное добавление предмета
     }
@@ -1014,7 +1021,7 @@ class EnergySystem {
     createEnergyUI() {
         // Размер иконки энергии
         const energyIconSize = 96;
-
+    
         // Новые координаты для кнопки энергии
         const energyIconX = 1730;  // Позиция по оси X (левее или правее)
         const energyIconY = 55;  // Позиция по оси Y (выше или ниже)
@@ -1025,22 +1032,43 @@ class EnergySystem {
             .setDepth(100)
             .setDisplaySize(energyIconSize, energyIconSize);
     
+        // Добавляем эффект при наведении
+        this.energyIcon.on('pointerover', () => {
+            this.energyIcon.setTint(0xcccccc);
+        });
+    
+        // Убираем эффект при отведении курсора
+        this.energyIcon.on('pointerout', () => {
+            this.energyIcon.clearTint();
+        });
+    
+        // Добавляем эффект при нажатии
+        this.energyIcon.on('pointerdown', () => {
+            this.energyIcon.setDisplaySize(energyIconSize * 0.95, energyIconSize * 0.95);
+        });
+    
+        // Возвращаем исходный размер при отпускании и показываем бар
+        this.energyIcon.on('pointerup', () => {
+            this.energyIcon.setDisplaySize(energyIconSize, energyIconSize);
+            this.showEnergyBar();
+        });
+    
         // Создаем контейнер для бара в нижней части экрана
         this.energyBar = this.scene.add.graphics()
             .setDepth(100);
     
-            this.energyText = this.scene.add.text(
-                GAME_CONFIG.width / 2,
-                GAME_CONFIG.height - 110 + 15, // Позиция Y будет обновляться в updateEnergyBar
-                '', 
-                {
-                    fontSize: '18px',
-                    fill: '#ffffff',
-                    fontWeight: 'bold'
-                }
-            )
-            .setDepth(101)  // Поверх бара
-            .setOrigin(0.5);  // Центрируем текст
+        this.energyText = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height - 110 + 15, // Позиция Y будет обновляться в updateEnergyBar
+            '', 
+            {
+                fontSize: '18px',
+                fill: '#ffffff',
+                fontWeight: 'bold'
+            }
+        )
+        .setDepth(101)  // Поверх бара
+        .setOrigin(0.5);  // Центрируем текст
     
         // Создаем кнопку для просмотра рекламы
         this.adButton = this.scene.add.text(
@@ -1064,11 +1092,6 @@ class EnergySystem {
     
         // Скрываем бар изначально
         this.hideEnergyBar();
-    
-        // Обработчик клика по иконке (оставляем как есть)
-        this.energyIcon.on('pointerdown', () => {
-            this.showEnergyBar();
-        });
     }
     
     showEnergyBar() {
@@ -1377,6 +1400,7 @@ class EnergySystem {
 class GameScene extends Phaser.Scene { 
     constructor() {
         super({ key: 'GameScene' });
+        this.journalSystem = null; // Инициализация системы дневника
 
         this.state = { // Инициализация состояния игры
             remainingObjects: [], // Список оставшихся для поиска предметов
@@ -1419,6 +1443,9 @@ class GameScene extends Phaser.Scene {
             globalEnergySystem.createEnergyUI();
         }
         this.energySystem = globalEnergySystem;
+
+        // Инициализируем систему дневника
+        this.journalSystem = new JournalSystem(this);
     
         // Создаем кнопку подсказки на всех локациях
         this.createHintButton();
