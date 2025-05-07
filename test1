@@ -1650,6 +1650,9 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('hint-button')) {
         this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
         }
+        if (!this.textures.exists('JournalButton')) {
+            this.load.image('JournalButton', './UI/ApprovedUI/JournalButton.png');
+        }
         if (!this.textures.exists('energy-icon')) {
         this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
         }
