@@ -496,36 +496,26 @@ class JournalSystem {
         });
     }
 
-    // Добавляем метод для создания кругового свечения
     showNewEntryEffect() {
-        // Создаем круг свечения
-        const glow = this.scene.add.circle(
-            this.journalButton.x,
-            this.journalButton.y,
-            50, // радиус круга
-            0xffd700, // золотой цвет
-            0.5 // прозрачность
-        ).setDepth(99); // чтобы свечение было под кнопкой
-
-        // Анимация расширения и затухания круга
-        this.scene.tweens.add({
-            targets: glow,
-            scale: 1.5,
-            alpha: 0,
-            duration: 1000,
-            onComplete: () => {
-                glow.destroy();
-            }
-        });
-
-        // Анимация пульсации кнопки
+        // Используем более яркий золотой цвет (0xFFFF00 - чисто жёлтый, 0xFFD700 - стандартный золотой)
+        const glowColor = 0xFFE666; // яркий тёплый золотой
+    
+        // Сразу подсвечиваем кнопку ярким цветом
+        this.journalButton.setTint(glowColor);
+    
+        // Добавляем анимацию с лёгкой пульсацией и затуханием цвета
         this.scene.tweens.add({
             targets: this.journalButton,
-            scale: 1.2,
-            duration: 200,
-            yoyo: true,
-            repeat: 2,
-            ease: 'Quad.easeInOut'
+            scale: { from: 1, to: 1.1 }, // лёгкая пульсация размера
+            alpha: { from: 1, to: 0.7, yoyo: true }, // плавное изменение прозрачности
+            duration: 2000, // 2 секунды на всю анимацию
+            yoyo: true, // добавляем возврат к начальному состоянию
+            ease: 'Sine.easeInOut', // плавная анимация
+            onComplete: () => {
+                this.journalButton.clearTint(); // убираем тонирование
+                this.journalButton.setAlpha(1); // возвращаем полную видимость
+                this.journalButton.setScale(1); // возвращаем исходный размер
+            }
         });
     }
 
@@ -916,14 +906,14 @@ class InventorySystem {
     
         // Добавляем кнопку закрытия
         const closeButton = this.scene.add.sprite(
-            GAME_CONFIG.width - 50,
-            50,
+            GAME_CONFIG.width / 2 + 330,  // Позиционируем как в дневнике
+            GAME_CONFIG.height / 2 - 220,  // Позиционируем как в дневнике
             'close'
-        ).setScale(0.8)
-        .setInteractive()
-        .setDepth(105);
+        ).setDepth(1001)  // Устанавливаем depth как в дневнике
+         .setScale(0.5)   // Устанавливаем scale как в дневнике
+         .setInteractive();
     
-        // Добавляем эффекты при наведении и нажатии
+        // Добавляем эффекты при наведении
         closeButton.on('pointerover', () => {
             if (!closeButton.isTinted) {
                 closeButton.setTint(0xcccccc);
@@ -932,16 +922,16 @@ class InventorySystem {
     
         closeButton.on('pointerout', () => {
             closeButton.clearTint();
-            closeButton.setScale(0.8);
+            closeButton.setScale(0.5); // Возвращаем scale как в дневнике
         });
     
         closeButton.on('pointerdown', () => {
-            closeButton.setScale(0.75);  // немного уменьшаем при нажатии
+            closeButton.setScale(0.45); // Уменьшаем на то же соотношение как в дневнике
             closeButton.setTint(0x999999);
         });
     
         closeButton.on('pointerup', () => {
-            closeButton.setScale(0.8);
+            closeButton.setScale(0.5); // Возвращаем scale как в дневнике
             closeButton.clearTint();
             closePopup();
         });
