@@ -2025,15 +2025,38 @@ class GameScene extends Phaser.Scene {
             this.closePopup();
         }
     
+        // Флаг для отслеживания popup со скомканным листом
+        this.isNewJournalEntry = (imageKey === 'list2');
+    
         this.popupGroup = this.add.group();
     
-        const popupBackground = this.add.rectangle(350, 241, 700, 482, 0x000000, 0.5)
-            .setDepth(998);
+        const popupBackground = this.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            GAME_CONFIG.width,
+            GAME_CONFIG.height,
+            0x000000,
+            0.7
+        ).setDepth(998)
+         .setInteractive();
         this.popupGroup.add(popupBackground);
     
-        const popupImage = this.add.image(350, 241, imageKey)
-            .setInteractive()
-            .setDepth(999);
+        // Добавляем фон для контента (будущая красивая рамка)
+        const popupFrame = this.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            700,
+            482,
+            0x2c1810
+        ).setDepth(999);
+        this.popupGroup.add(popupFrame);
+    
+        const popupImage = this.add.image(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            imageKey
+        ).setInteractive()
+         .setDepth(1000);
         popupImage.setScale(0.8);
         this.popupGroup.add(popupImage);
     
@@ -2048,7 +2071,6 @@ class GameScene extends Phaser.Scene {
             }
         });
     
-        // Добавляем обработчик для сброса флага при закрытии попапа
         popupBackground.on('pointerdown', () => {
             if (object) {
                 object.isAnimating = false;
@@ -2056,27 +2078,60 @@ class GameScene extends Phaser.Scene {
             this.closePopup();
         });
     }
-
-    reopenPopup(scene) { // Повторное открытие попапа (например, для просмотра предмета из инвентаря)
+    
+    reopenPopup(scene) {
         if (!scene) return;
-
+    
         this.popupGroup = scene.add.group();
-
-        let popupBackground = scene.add.rectangle(350, 241, 700, 482, 0x000000, 0.5); // Создание затемненного фона
+    
+        const popupBackground = scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            GAME_CONFIG.width,
+            GAME_CONFIG.height,
+            0x000000,
+            0.7
+        ).setDepth(998)
+         .setInteractive();
         this.popupGroup.add(popupBackground);
-
-        let popupImage = scene.add.image(350, 241, 'list2').setInteractive(); // Добавление изображения
-        popupImage.setScale(0.8, 0.8);
+    
+        const popupFrame = scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            700,
+            482,
+            0x2c1810
+        ).setDepth(999);
+        this.popupGroup.add(popupFrame);
+    
+        const popupImage = scene.add.image(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            'list2'
+        ).setInteractive()
+         .setDepth(1000);
+        popupImage.setScale(0.8);
         this.popupGroup.add(popupImage);
-
-        popupImage.on('pointerdown', () => this.closePopup()); // Обработчик закрытия
+    
+        popupImage.on('pointerdown', () => this.closePopup());
+        popupBackground.on('pointerdown', () => this.closePopup());
     }
-
-    closePopup() { // Закрытие всплывающего окна 
+    
+    closePopup() {
         if (this.popupGroup) {
-            this.popupGroup.getChildren().forEach(child => child.removeAllListeners()); // Удаление всех обработчиков событий и очистка группы
+            this.popupGroup.getChildren().forEach(child => child.removeAllListeners());
             this.popupGroup.clear(true, true);
             this.popupGroup = null;
+    
+            // Показываем эффект на кнопке дневника после закрытия popup
+            if (this.isNewJournalEntry) {
+                this.time.delayedCall(100, () => {
+                    if (this.journalSystem) {
+                        this.journalSystem.showNewEntryEffect();
+                    }
+                });
+                this.isNewJournalEntry = false;
+            }
         }
     }
 
