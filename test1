@@ -1598,10 +1598,6 @@ class GameScene extends Phaser.Scene {
                 break;
             case 'Скомканный лист':
                 this.showPopup(object, 'list2', true);
-                // Теперь передаем просто строку, а не объект
-                if (this.journalSystem) {
-                    this.journalSystem.addEntry("Нашел смятую записку. В ней упоминается сейф, нужно его найти.");
-                }
                 break;
             case 'Кольцо':
                 const inventoryScene = this.scene.get('InventoryScene');
@@ -2025,8 +2021,13 @@ class GameScene extends Phaser.Scene {
             this.closePopup();
         }
     
-        // Флаг для отслеживания popup со скомканным листом
-        this.isNewJournalEntry = (imageKey === 'list2');
+        // Сохраняем информацию для использования при закрытии
+        this.currentPopupInfo = {
+            object,
+            imageKey,
+            addToInventory,
+            isFirstOpen: true // Флаг для определения первого открытия
+        };
     
         this.popupGroup = this.add.group();
     
@@ -2041,7 +2042,6 @@ class GameScene extends Phaser.Scene {
          .setInteractive();
         this.popupGroup.add(popupBackground);
     
-        // Добавляем фон для контента (будущая красивая рамка)
         const popupFrame = this.add.rectangle(
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height / 2,
@@ -2060,27 +2060,45 @@ class GameScene extends Phaser.Scene {
         popupImage.setScale(0.8);
         this.popupGroup.add(popupImage);
     
-        popupImage.on('pointerdown', () => {
-            if (addToInventory && imageKey === 'list2') {
-                const inventoryScene = this.scene.get('InventoryScene');
-                inventoryScene.addItem('list2', 'Развернутый лист');
-            }
-            this.closePopup();
-            if (object) {
-                this.animateObjectDisappearance(object);
-            }
-        });
+        const closePopupHandler = () => {
+            // Добавляем запись в дневник и обрабатываем предмет только при первом открытии скомканного листа
+            if (this.currentPopupInfo.imageKey === 'list2' && this.currentPopupInfo.isFirstOpen) {
+                if (this.journalSystem) {
+                    this.journalSystem.addEntry("Нашел смятую записку. В ней упоминается сейф, нужно его найти.");
+                }
     
-        popupBackground.on('pointerdown', () => {
-            if (object) {
-                object.isAnimating = false;
+                if (this.currentPopupInfo.addToInventory) {
+                    const inventoryScene = this.scene.get('InventoryScene');
+                    inventoryScene.addItem('list2', 'Развернутый лист');
+                }
+    
+                if (this.currentPopupInfo.object) {
+                    this.animateObjectDisappearance(this.currentPopupInfo.object);
+                }
             }
+    
             this.closePopup();
+        };
+    
+        popupImage.on('pointerdown', closePopupHandler);
+        popupBackground.on('pointerdown', () => {
+            if (this.currentPopupInfo.object) {
+                this.currentPopupInfo.object.isAnimating = false;
+            }
+            closePopupHandler();
         });
     }
     
     reopenPopup(scene) {
         if (!scene) return;
+    
+        // При повторном открытии устанавливаем флаг isFirstOpen в false
+        this.currentPopupInfo = {
+            object: null,
+            imageKey: 'list2',
+            addToInventory: false,
+            isFirstOpen: false
+        };
     
         this.popupGroup = scene.add.group();
     
@@ -2123,18 +2141,20 @@ class GameScene extends Phaser.Scene {
             this.popupGroup.clear(true, true);
             this.popupGroup = null;
     
-            // Показываем эффект на кнопке дневника после закрытия popup
-            if (this.isNewJournalEntry) {
+            // Показываем эффект только при первом открытии скомканного листа
+            if (this.currentPopupInfo && 
+                this.currentPopupInfo.imageKey === 'list2' && 
+                this.currentPopupInfo.isFirstOpen) {
                 this.time.delayedCall(100, () => {
                     if (this.journalSystem) {
                         this.journalSystem.showNewEntryEffect();
                     }
                 });
-                this.isNewJournalEntry = false;
             }
+    
+            this.currentPopupInfo = null;
         }
     }
-
 
     addToInventory(itemName) { // Добавление предмета в инвентарь
         if (!this.state.inventory.includes(itemName)) {
