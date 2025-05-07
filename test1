@@ -466,7 +466,9 @@ class JournalSystem {
     
         // Добавляем эффект при наведении
         this.journalButton.on('pointerover', () => {
-            this.journalButton.setTint(0xcccccc);
+            if (!this.journalButton.isTinted) { // Проверяем, не подсвечена ли уже кнопка
+                this.journalButton.setTint(0xcccccc);
+            }
         });
     
         // Убираем эффект при отведении курсора
@@ -477,12 +479,20 @@ class JournalSystem {
         // Добавляем эффект при нажатии
         this.journalButton.on('pointerdown', () => {
             this.journalButton.setDisplaySize(buttonSize * 0.95, buttonSize * 0.95);
+            this.journalButton.setTint(0x999999); // Добавляем затемнение при нажатии
         });
     
         // Возвращаем исходный размер при отпускании
         this.journalButton.on('pointerup', () => {
             this.journalButton.setDisplaySize(buttonSize, buttonSize);
+            this.journalButton.clearTint(); // Убираем затемнение
             this.toggleJournal();
+        });
+    
+        // Добавляем обработчик выхода указателя за пределы кнопки во время нажатия
+        this.journalButton.on('pointerout', () => {
+            this.journalButton.setDisplaySize(buttonSize, buttonSize);
+            this.journalButton.clearTint();
         });
     }
 
@@ -1034,7 +1044,9 @@ class EnergySystem {
     
         // Добавляем эффект при наведении
         this.energyIcon.on('pointerover', () => {
-            this.energyIcon.setTint(0xcccccc);
+            if (!this.energyIcon.isTinted) { // Проверяем, не подсвечена ли уже кнопка
+                this.energyIcon.setTint(0xcccccc);
+            }
         });
     
         // Убираем эффект при отведении курсора
@@ -1045,21 +1057,30 @@ class EnergySystem {
         // Добавляем эффект при нажатии
         this.energyIcon.on('pointerdown', () => {
             this.energyIcon.setDisplaySize(energyIconSize * 0.95, energyIconSize * 0.95);
+            this.energyIcon.setTint(0x999999); // Добавляем затемнение при нажатии
         });
     
         // Возвращаем исходный размер при отпускании и показываем бар
         this.energyIcon.on('pointerup', () => {
             this.energyIcon.setDisplaySize(energyIconSize, energyIconSize);
+            this.energyIcon.clearTint(); // Убираем затемнение
             this.showEnergyBar();
+        });
+    
+        // Добавляем обработчик выхода указателя за пределы кнопки во время нажатия
+        this.energyIcon.on('pointerout', () => {
+            this.energyIcon.setDisplaySize(energyIconSize, energyIconSize);
+            this.energyIcon.clearTint();
         });
     
         // Создаем контейнер для бара в нижней части экрана
         this.energyBar = this.scene.add.graphics()
             .setDepth(100);
     
+        // Создаем текст для отображения энергии
         this.energyText = this.scene.add.text(
             GAME_CONFIG.width / 2,
-            GAME_CONFIG.height - 110 + 15, // Позиция Y будет обновляться в updateEnergyBar
+            GAME_CONFIG.height - 110 + 15,
             '', 
             {
                 fontSize: '18px',
