@@ -496,7 +496,40 @@ class JournalSystem {
         });
     }
 
-    // Добавление новой записи (модифицированный метод)
+    // Добавляем метод для создания кругового свечения
+    showNewEntryEffect() {
+        // Создаем круг свечения
+        const glow = this.scene.add.circle(
+            this.journalButton.x,
+            this.journalButton.y,
+            50, // радиус круга
+            0xffd700, // золотой цвет
+            0.5 // прозрачность
+        ).setDepth(99); // чтобы свечение было под кнопкой
+
+        // Анимация расширения и затухания круга
+        this.scene.tweens.add({
+            targets: glow,
+            scale: 1.5,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => {
+                glow.destroy();
+            }
+        });
+
+        // Анимация пульсации кнопки
+        this.scene.tweens.add({
+            targets: this.journalButton,
+            scale: 1.2,
+            duration: 200,
+            yoyo: true,
+            repeat: 2,
+            ease: 'Quad.easeInOut'
+        });
+    }
+
+    // Обновляем метод addEntry, чтобы он вызывал эффект
     addEntry(text) {
         this.entries.push(text);
         this.saveEntries();
@@ -504,6 +537,9 @@ class JournalSystem {
         if (this.isOpen) {
             this.updateEntries();
         }
+        
+        // Показываем эффект новой записи
+        this.showNewEntryEffect();
     }
 
     // Сохранение записей в localStorage
@@ -1562,11 +1598,9 @@ class GameScene extends Phaser.Scene {
                 break;
             case 'Скомканный лист':
                 this.showPopup(object, 'list2', true);
-                // Добавляем запись в дневник при нахождении скомканного листа
+                // Теперь передаем просто строку, а не объект
                 if (this.journalSystem) {
-                    this.journalSystem.addEntry({
-                        text: "Нашел смятую записку. В ней упоминается сейф, нужно его найти."
-                    });
+                    this.journalSystem.addEntry("Нашел смятую записку. В ней упоминается сейф, нужно его найти.");
                 }
                 break;
             case 'Кольцо':
