@@ -2062,7 +2062,7 @@ class GameScene extends Phaser.Scene {
         const closeButton = this.add.image(
             GAME_CONFIG.width / 2 + 330,
             GAME_CONFIG.height / 2 - 220,
-            'close_button'
+            'close'
         ).setDepth(1001)
          .setScale(0.5)
          .setInteractive(); // Добавляем кнопку закрытия (крестик)
@@ -2140,7 +2140,7 @@ class GameScene extends Phaser.Scene {
         const closeButton = scene.add.image(
             GAME_CONFIG.width / 2 + 330,
             GAME_CONFIG.height / 2 - 220,
-            'close_button'
+            'close'
         ).setDepth(1001)
          .setScale(0.5)
          .setInteractive(); // Добавляем кнопку закрытия
