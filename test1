@@ -605,11 +605,33 @@ class JournalSystem {
         this.closeButton = this.scene.add.sprite(
             GAME_CONFIG.width / 2 + journalWidth / 2 - 40,
             GAME_CONFIG.height / 2 - journalHeight / 2 + 40,
-            'close'
+            'close' // ключ для изображения кнопки закрытия
         ).setDepth(103)
             .setScale(0.8)
-            .setInteractive()
-            .on('pointerdown', () => this.closeJournal());
+            .setInteractive();
+
+        // Добавляем эффекты при наведении и нажатии
+        this.closeButton.on('pointerover', () => {
+            if (!this.closeButton.isTinted) {
+                this.closeButton.setTint(0xcccccc);
+            }
+        });
+
+        this.closeButton.on('pointerout', () => {
+            this.closeButton.clearTint();
+            this.closeButton.setScale(0.8);
+        });
+
+        this.closeButton.on('pointerdown', () => {
+            this.closeButton.setScale(0.75);  // немного уменьшаем при нажатии
+            this.closeButton.setTint(0x999999);
+        });
+
+        this.closeButton.on('pointerup', () => {
+            this.closeButton.setScale(0.8);
+            this.closeButton.clearTint();
+            this.closeJournal();
+        });
 
         // Заголовок дневника
         this.journalTitle = this.scene.add.text(
