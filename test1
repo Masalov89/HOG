@@ -496,21 +496,9 @@ class JournalSystem {
         });
     }
 
-    // Добавление новой записи
-    addEntry(entry) {
-        const timestamp = new Date().toLocaleString('ru-RU', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        this.entries.push({
-            text: entry,
-            timestamp: timestamp
-        });
-        
+    // Добавление новой записи (модифицированный метод)
+    addEntry(text) {
+        this.entries.push(text);
         this.saveEntries();
         
         if (this.isOpen) {
@@ -531,7 +519,7 @@ class JournalSystem {
         }
     }
 
-    // Обновление отображения записей
+    // Обновление отображения записей (модифицированный метод)
     updateEntries() {
         // Очищаем контейнер
         this.entriesContainer.removeAll(true);
@@ -542,7 +530,7 @@ class JournalSystem {
             const entryText = this.scene.add.text(
                 0,
                 index * 60, // Отступ между записями
-                `[${entry.timestamp}]\n${entry.text}`,
+                entry,
                 {
                     fontSize: '18px',
                     fill: '#ffffff',
@@ -1556,17 +1544,17 @@ class GameScene extends Phaser.Scene {
         if (!object || object.isAnimating) {
             return;
         }
-
+    
         // Проверяем достаточно ли энергии для действия
         if (!this.energySystem.spend(this.energySystem.COSTS.SEARCH_ITEM, 'search')) {
             return;
         }
-
+    
         object.isAnimating = true;
         
         // Остальной код handleObjectClick без изменений
         this.handleDependentObjects(object.name);
-
+    
         switch (object.name) {
             case 'Сейф':
                 object.isAnimating = false;
@@ -1574,6 +1562,12 @@ class GameScene extends Phaser.Scene {
                 break;
             case 'Скомканный лист':
                 this.showPopup(object, 'list2', true);
+                // Добавляем запись в дневник при нахождении скомканного листа
+                if (this.journalSystem) {
+                    this.journalSystem.addEntry({
+                        text: "Нашел смятую записку. В ней упоминается сейф, нужно его найти."
+                    });
+                }
                 break;
             case 'Кольцо':
                 const inventoryScene = this.scene.get('InventoryScene');
