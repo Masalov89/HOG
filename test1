@@ -880,9 +880,13 @@ class InventorySystem {
         if (this.activePopup) return;
     
         this.activePopup = this.scene.createPopup({
-            background: 'popup-bg', // Укажите ключ вашего фонового изображения
+            background: 'popup-bg',
             content: key,
             contentScale: 0.8,
+            x: GAME_CONFIG.width / 2,
+            y: GAME_CONFIG.height / 2,
+            customWidth: 700,
+            customHeight: 482,
             onClose: () => {
                 this.activePopup = null;
             }
@@ -1598,6 +1602,9 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('popup-bg')) {
             this.load.image('popup-bg', 'path/to/your/popup-background.png');
         }
+        if (!this.textures.exists('close')) {
+            this.load.image('close', './UI/close-button.png');  // Путь к кнопке закрытия
+        }
         if (!this.textures.exists('energy-icon')) {
         this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
         }
@@ -1938,16 +1945,22 @@ class GameScene extends Phaser.Scene {
     }
     
     showPopup(object, imageKey, addToInventory = false) {
+        // Используем общий метод создания попапа
         this.createPopup({
-            background: 'popup-bg', // Укажите ключ вашего фонового изображения
+            background: 'popup-bg',
             content: imageKey,
             contentScale: 0.8,
+            x: 350,
+            y: 241,
+            customWidth: 700,
+            customHeight: 482,
             onClose: () => {
                 if (addToInventory && imageKey === 'list2') {
                     const inventoryScene = this.scene.get('InventoryScene');
                     inventoryScene.addItem('list2', 'Развернутый лист');
                 }
                 if (object) {
+                    object.isAnimating = false;
                     this.animateObjectDisappearance(object);
                 }
             }
@@ -2482,7 +2495,7 @@ class GameScene extends Phaser.Scene {
          .setDepth(102);
         this.popupGroup.add(darkOverlay);
     
-        // Добавляем фоновое изображение попапа, если оно есть
+        // Добавляем фоновое изображение попапа
         if (background) {
             const popupBackground = this.add.image(x, y, background)
                 .setDepth(103);
@@ -2499,7 +2512,7 @@ class GameScene extends Phaser.Scene {
             this.popupGroup.add(contentImage);
         }
     
-        // Добавляем кнопку закрытия, если она нужна
+        // Добавляем кнопку закрытия
         if (closeButton) {
             const closeBtn = this.add.sprite(
                 x + (customWidth / 2 - 20),
