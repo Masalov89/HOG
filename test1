@@ -877,89 +877,16 @@ class InventorySystem {
     }
 
     showItemPopup(key, name) {
-        // Если попап уже открыт, не создаём новый
         if (this.activePopup) return;
     
-        // Создаём группу для попапа
-        const popupGroup = this.scene.add.group();
-        this.activePopup = popupGroup; // Устанавливаем текущий активный попап
-    
-        // Создаём затемнённый фон
-        const background = this.scene.add.rectangle(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            GAME_CONFIG.width,
-            GAME_CONFIG.height,
-            0x000000,
-            0.7
-        ).setInteractive();
-        popupGroup.add(background);
-    
-        // Добавляем изображение предмета
-        const image = this.scene.add.image(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            key
-        ).setInteractive();
-        image.setScale(0.8);
-        popupGroup.add(image);
-    
-        // Добавляем кнопку закрытия
-        const closeButton = this.scene.add.sprite(
-            GAME_CONFIG.width / 2 + 330,  // Позиционируем как в дневнике
-            GAME_CONFIG.height / 2 - 220,  // Позиционируем как в дневнике
-            'close'
-        ).setDepth(1001)  // Устанавливаем depth как в дневнике
-         .setScale(0.5)   // Устанавливаем scale как в дневнике
-         .setInteractive();
-    
-        // Добавляем эффекты при наведении
-        closeButton.on('pointerover', () => {
-            if (!closeButton.isTinted) {
-                closeButton.setTint(0xcccccc);
+        this.activePopup = this.scene.createPopup({
+            background: 'popup-bg', // Укажите ключ вашего фонового изображения
+            content: key,
+            contentScale: 0.8,
+            onClose: () => {
+                this.activePopup = null;
             }
         });
-    
-        closeButton.on('pointerout', () => {
-            closeButton.clearTint();
-            closeButton.setScale(0.5); // Возвращаем scale как в дневнике
-        });
-    
-        closeButton.on('pointerdown', () => {
-            closeButton.setScale(0.45); // Уменьшаем на то же соотношение как в дневнике
-            closeButton.setTint(0x999999);
-        });
-    
-        closeButton.on('pointerup', () => {
-            closeButton.setScale(0.5); // Возвращаем scale как в дневнике
-            closeButton.clearTint();
-            closePopup();
-        });
-    
-        popupGroup.add(closeButton);
-    
-        // Добавляем название предмета
-        const itemName = this.scene.add.text(
-            GAME_CONFIG.width / 2,
-            50,
-            name,
-            {
-                fontSize: '24px',
-                fill: '#ffffff'
-            }
-        ).setOrigin(0.5, 0);
-        popupGroup.add(itemName);
-    
-        // Функция для закрытия попапа
-        const closePopup = () => {
-            popupGroup.clear(true, true); // Удаляем все элементы попапа
-            this.activePopup = null; // Сбрасываем текущий активный попап
-        };
-    
-        // Обработчики событий для закрытия попапа
-        background.on('pointerdown', closePopup);
-        image.on('pointerdown', closePopup);
-        // Убираем обработчик для closeButton, так как он теперь обрабатывается в pointerup
     }
     
     giveItemToCharacter(item, slot) {
@@ -1667,6 +1594,10 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('JournalButton')) {
             this.load.image('JournalButton', './UI/ApprovedUI/JournalButton.png');
         }
+        // Добавьте загрузку фона для попапа
+        if (!this.textures.exists('popup-bg')) {
+            this.load.image('popup-bg', 'path/to/your/popup-background.png');
+        }
         if (!this.textures.exists('energy-icon')) {
         this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
         }
@@ -2007,83 +1938,20 @@ class GameScene extends Phaser.Scene {
     }
     
     showPopup(object, imageKey, addToInventory = false) {
-        if (this.popupGroup) {
-            this.closePopup();
-        }
-    
-        this.currentPopupInfo = {
-            object,
-            imageKey,
-            addToInventory,
-            isFirstOpen: true // Флаг для определения первого открытия
-        };
-    
-        this.popupGroup = this.add.group(); // Создаем группу для элементов popup
-    
-        const popupBackground = this.add.rectangle(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            GAME_CONFIG.width,
-            GAME_CONFIG.height,
-            0x000000,
-            0.7
-        ).setDepth(998)
-         .setInteractive(); // Создаем затемненный фон
-        this.popupGroup.add(popupBackground);
-    
-        const popupFrame = this.add.rectangle(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            700,
-            482,
-            0x2c1810
-        ).setDepth(999); // Создаем рамку для контента
-        this.popupGroup.add(popupFrame);
-    
-        const popupImage = this.add.image(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            imageKey
-        ).setInteractive()
-         .setDepth(1000); // Добавляем изображение предмета
-        popupImage.setScale(0.8);
-        this.popupGroup.add(popupImage);
-    
-        const closeButton = this.add.image(
-            GAME_CONFIG.width / 2 + 330,
-            GAME_CONFIG.height / 2 - 220,
-            'close'
-        ).setDepth(1001)
-         .setScale(0.5)
-         .setInteractive(); // Добавляем кнопку закрытия (крестик)
-        this.popupGroup.add(closeButton);
-    
-        const closePopupHandler = () => {
-            if (this.currentPopupInfo.imageKey === 'list2' && this.currentPopupInfo.isFirstOpen) {
-                if (this.journalSystem) {
-                    this.journalSystem.addEntry("Нашел смятую записку. В ней упоминается сейф, нужно его найти.");
-                }
-    
-                if (this.currentPopupInfo.addToInventory) {
+        this.createPopup({
+            background: 'popup-bg', // Укажите ключ вашего фонового изображения
+            content: imageKey,
+            contentScale: 0.8,
+            onClose: () => {
+                if (addToInventory && imageKey === 'list2') {
                     const inventoryScene = this.scene.get('InventoryScene');
                     inventoryScene.addItem('list2', 'Развернутый лист');
                 }
-    
-                if (this.currentPopupInfo.object) {
-                    this.animateObjectDisappearance(this.currentPopupInfo.object);
+                if (object) {
+                    this.animateObjectDisappearance(object);
                 }
             }
-            this.closePopup();
-        }; // Обработчик закрытия popup
-    
-        closeButton.on('pointerdown', closePopupHandler); // Обработчик клика на крестик
-        popupImage.on('pointerdown', closePopupHandler); // Обработчик клика на изображение
-        popupBackground.on('pointerdown', () => {
-            if (this.currentPopupInfo.object) {
-                this.currentPopupInfo.object.isAnimating = false;
-            }
-            closePopupHandler();
-        }); // Обработчик клика на фон
+        });
     }
     
     reopenPopup(scene) {
@@ -2583,6 +2451,119 @@ class GameScene extends Phaser.Scene {
             const rightItem = rightColumn[index] || '';
             return `${item.padEnd(maxLength + 5)}${rightItem}`;
         }).join('\n');
+    }
+
+    createPopup({ 
+        background = 'popup-bg',  
+        content = '',            
+        contentScale = 0.8,      
+        onClose = null,          
+        customWidth = 700,       
+        customHeight = 482,      
+        x = GAME_CONFIG.width / 2,  
+        y = GAME_CONFIG.height / 2,  
+        closeButton = true       
+    } = {}) {
+        if (this.popupGroup) {
+            this.closePopup();
+        }
+    
+        this.popupGroup = this.add.group();
+    
+        // Создаем затемнение на весь экран
+        const darkOverlay = this.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            GAME_CONFIG.width,
+            GAME_CONFIG.height,
+            0x000000,
+            0.7
+        ).setInteractive()
+         .setDepth(102);
+        this.popupGroup.add(darkOverlay);
+    
+        // Добавляем фоновое изображение попапа, если оно есть
+        if (background) {
+            const popupBackground = this.add.image(x, y, background)
+                .setDepth(103);
+            popupBackground.setDisplaySize(customWidth, customHeight);
+            this.popupGroup.add(popupBackground);
+        }
+    
+        // Если есть контент, добавляем его
+        if (content) {
+            const contentImage = this.add.image(x, y, content)
+                .setInteractive()
+                .setDepth(103);
+            contentImage.setScale(contentScale);
+            this.popupGroup.add(contentImage);
+        }
+    
+        // Добавляем кнопку закрытия, если она нужна
+        if (closeButton) {
+            const closeBtn = this.add.sprite(
+                x + (customWidth / 2 - 20),
+                y - (customHeight / 2 - 20),
+                'close'
+            ).setDepth(103);
+            
+            closeBtn.setScale(0.5);
+            closeBtn.setInteractive();
+            this.popupGroup.add(closeBtn);
+    
+            // Обработчики для кнопки закрытия
+            closeBtn.on('pointerover', () => {
+                if (!closeBtn.isTinted) {
+                    closeBtn.setTint(0xcccccc);
+                }
+            });
+    
+            closeBtn.on('pointerout', () => {
+                if (this.popupGroup) {
+                    closeBtn.clearTint();
+                    closeBtn.setScale(0.5);
+                }
+            });
+    
+            closeBtn.on('pointerdown', () => {
+                if (this.popupGroup) {
+                    closeBtn.setScale(0.45);
+                    closeBtn.setTint(0x999999);
+                }
+            });
+    
+            closeBtn.on('pointerup', () => {
+                if (this.popupGroup) {
+                    closeBtn.setScale(0.5);
+                    closeBtn.clearTint();
+                    this.closePopup();
+                }
+            });
+        }
+    
+        // Обработчик клика по затемнению
+        darkOverlay.on('pointerdown', () => {
+            this.closePopup();
+        });
+    
+        // Сохраняем callback закрытия
+        if (onClose) {
+            this.popupGroup.onClose = onClose;
+        }
+    
+        return this.popupGroup;
+    }
+    
+    closePopup() {
+        if (!this.popupGroup) return;
+        
+        // Вызываем callback если он есть
+        if (this.popupGroup.onClose) {
+            this.popupGroup.onClose();
+        }
+    
+        this.popupGroup.clear(true, true);
+        this.popupGroup = null;
     }
 }
 
