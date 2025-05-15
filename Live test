@@ -1,0 +1,2604 @@
+class LoadingScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'LoadingScene' });
+    }
+
+    preload() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // Загружаем PNG-фон для инвентаря
+        this.load.image('inventory-bg', './UI/ApprovedUI/inventory-bg.png');
+
+        // Загрузка фона экрана загрузки
+        this.load.image('loading-bg', 'loading-bg.jpg');
+        this.load.on('complete', () => {
+            const bg = this.add.image(width/2, height/2, 'loading-bg')
+                .setDisplaySize(width, height);
+            this.startMainLoading();
+        });
+        this.load.start();
+    }
+
+    startMainLoading() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // Создаем UI элементы загрузки
+        const progressUI = this.createProgressUI(width, height);
+        
+        // Определяем ресурсы для загрузки
+        const resources = {
+            locations: [
+                { key: 'front-house', path: 'front-house.jpg' },
+                { key: 'hall', path: 'hall.jpg' },
+                { key: 'leftroom', path: 'leftroom.jpg' },
+                { key: 'rightroom', path: 'rightroom.jpg' },
+                { key: 'drawer', path: 'drawer.jpg' },
+                { key: 'wardrobe', path: 'wardrobe.jpg' }
+            ],
+            ui: [
+                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
+                { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
+                { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
+                { key: 'close', path: './UI/ApprovedUI/Close.png' },
+                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }
+            ],
+            objects: [
+                { key: 'object1', path: 'plate.png' },
+                { key: 'object2', path: 'candle.png' },
+                { key: 'object3', path: 'art.png' },
+                { key: 'object4', path: 'tea.png' },
+                { key: 'object5', path: 'list1.png' },
+                { key: 'object6', path: 'safe.png' },
+                { key: 'object7', path: 'sheet.png' },
+                { key: 'object8', path: 'ring.png' }
+            ],
+            additional: [
+                { key: 'list2', path: 'list2.png' },
+                { key: 'opensafe', path: 'opensafe.png' }
+            ]
+        };
+
+        // Загружаем все ресурсы
+        this.loadAllResources(resources);
+
+        // Запускаем эмуляцию загрузки
+        this.startFakeLoading(progressUI);
+    }
+
+    createProgressUI(width, height) {
+        // Создаем контейнер прогресс-бара
+        const progressBox = this.add.graphics()
+            .lineStyle(1, 0x333333)
+            .strokeRect(
+                width/2 - 500,
+                height/2 + 200,
+                1000,
+                1
+            );
+
+        // Создаем заполнение прогресс-бара
+        const progressBar = this.add.graphics();
+
+        return { progressBox, progressBar };
+    }
+
+    loadAllResources(resources) {
+        // Загружаем все типы ресурсов
+        Object.values(resources).flat().forEach(({ key, path }) => {
+            this.load.image(key, path);
+        });
+    }
+
+    startFakeLoading({ progressBox, progressBar }) {
+        let loadingProgress = 0;
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        const updateProgress = () => {
+            loadingProgress += 0.01;
+            progressBar.clear()
+                .fillStyle(0xffffff, 1)
+                .fillRect(
+                    width/2 - 500,
+                    height/2 + 200,
+                    1000 * loadingProgress,
+                    1
+                );
+
+            if (loadingProgress < 1) {
+                setTimeout(updateProgress, 50);
+            } else {
+                this.finishLoading({ progressBox, progressBar });
+            }
+        };
+
+        updateProgress();
+    }
+
+    finishLoading({ progressBox, progressBar }) {
+        setTimeout(() => {
+            progressBar.destroy();
+            progressBox.destroy();
+            this.scene.start('GameScene');
+        }, 500);
+    }
+}
+
+const GAME_CONFIG = { 
+    width: 1920,  // Фиксированная ширина Full HD
+    height: 1080, // Фиксированная высота Full HD
+    idleLimit: 10,              // Лимит времени бездействия (в секундах) перед показом подсказки
+    safeCode: ["4", "2", "7", "9"], // Код для открытия сейфа
+    colors: {                    // Цветовые константы для различных состояний
+        success: 0x00ff00,      // Зеленый цвет для успешных действий
+        error: 0xff0000,        // Красный цвет для ошибок
+        hint: 0xffd700,         // Золотой цвет для подсказок
+        background: 0x000000    // Черный цвет для фона
+    }
+};
+
+// Инициализация уведомлений
+function requestNotificationPermission() {
+    if (window.Notification && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+}
+
+// Вызываем функцию при загрузке страницы
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', requestNotificationPermission);
+} else {
+    requestNotificationPermission();
+}
+
+// Добавляем обработчик клавиши F для переключения полноэкранного режима
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'f' || e.key === 'F') {
+        if (!document.fullscreenElement) {
+            // Если сейчас НЕ в полноэкранном режиме - включаем его
+            document.documentElement.requestFullscreen();
+        } else {
+            // Если сейчас В полноэкранном режиме - выключаем его
+            document.exitFullscreen();
+        }
+    }
+});
+
+const locationMap = { 
+    //'new-location': {
+    //    name: 'Новая Локация',
+    //    image: 'new-location',
+    //    neighbors: ['hall'],
+    //    transitions: {
+    //        'hall': {
+    //            points: [
+    //                { x: 300, y: 300 },
+    //                { x: 400, y: 300 },
+    //                { x: 400, y: 400 },
+    //                { x: 300, y: 400 }
+    //            ]
+    //        }
+    //    }
+    //}
+
+    'front-house': { 
+        name: 'Фасад дома', 
+        image: 'front-house', 
+        neighbors: ['hall'],
+        transitions: {
+            'hall': {
+                // Массив из 4 точек, определяющих форму зоны
+                points: [
+                    { x: 925, y: 755 }, // верхняя левая точка
+                    { x: 985, y: 755 }, // верхняя правая точка
+                    { x: 985, y: 865 }, // нижняя правая точка
+                    { x: 925, y: 865 }  // нижняя левая точка
+                ]
+            }
+        }
+    },
+    'hall': { 
+        name: 'Холл', 
+        image: 'hall', 
+        neighbors: ['front-house', 'leftroom', 'rightroom'],
+        transitions: {
+            'front-house': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'leftroom': {
+                points: [
+                    { x: 205, y: 360 },
+                    { x: 360, y: 415 },
+                    { x: 360, y: 970 },
+                    { x: 205, y: 1000 }
+                ]
+            },
+            'rightroom': {
+                points: [
+                    { x: 1680, y: 370 },
+                    { x: 1750, y: 290 },
+                    { x: 1750, y: 1025 },
+                    { x: 1680, y: 980 }
+                ]
+            },
+            //'new-location': {
+            //    points: [
+            //        { x: 500, y: 500 },
+            //        { x: 600, y: 500 },
+            //        { x: 600, y: 600 },
+            //        { x: 500, y: 600 }
+            //    ]
+            //}
+        }
+    },
+    'leftroom': { 
+        name: 'ЛеваяКомната', 
+        image: 'leftroom', 
+        neighbors: ['hall', 'wardrobe'],
+        transitions: {
+            'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'wardrobe': {
+                points: [
+                    { x: 1110, y: 370 },
+                    { x: 1225, y: 345 },
+                    { x: 1225, y: 560 },
+                    { x: 1110, y: 595 }
+                ]
+            }
+        }
+    },
+    'wardrobe': { 
+        name: 'Шкаф', 
+        image: 'wardrobe', 
+        neighbors: ['leftroom'],
+        transitions: {
+            'leftroom': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            }
+        }
+    },
+    'rightroom': { 
+        name: 'ПраваяКомната', 
+        image: 'rightroom', 
+        neighbors: ['hall', 'drawer'],
+        transitions: {
+            'hall': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            },
+            'drawer': {
+                points: [
+                    { x: 1625, y: 710 },
+                    { x: 1815, y: 730 },
+                    { x: 1815, y: 820 },
+                    { x: 1690, y: 800 },
+                    { x: 1670, y: 875 },
+                    { x: 1640, y: 870 },
+                ]
+            }
+        }
+    },
+    'drawer': { 
+        name: 'Комод', 
+        image: 'drawer', 
+        neighbors: ['rightroom'],
+        transitions: {
+            'rightroom': {
+                points: [
+                    { x: 635, y: 1025 },
+                    { x: 1355, y: 1025 },
+                    { x: 1355, y: 1075 },
+                    { x: 635, y: 1075 }
+                ]
+            }
+        }
+    }
+};
+
+const locationPaths = {
+    'front-house': {
+        backTo: [], // начальная точка, возврата нет
+        forwardTo: ['hall'] // можно идти только в дом
+    },
+    'hall': {
+        backTo: ['front-house'], // возврат на улицу
+        forwardTo: ['leftroom', 'rightroom'] // можно идти в комнату одну из двух
+    },
+    'leftroom': {
+        backTo: ['hall'], // возврат в холл
+        forwardTo: [] // дальше пути нет
+    },
+    'rightroom': {
+        backTo: ['hall'], // возврат в холл
+        forwardTo: ['drawer'] // можно перейти в комод
+    },
+    'drawer': {
+        backTo: ['rightroom'], // возврат в правую комнату
+        forwardTo: [] // дальше пути нет
+    },
+    'wardrobe': {
+        backTo: ['leftroom'], // возврат в левую комнату
+        forwardTo: [] // дальше пути нет
+    },
+    //'new-location?': {
+    //    backTo: ['hall?'],
+    //    forwardTo: [?]
+    //},
+};
+
+// Утилитный класс для общих методов
+class NavigationUtils {
+    static createNavigationZones(scene) {
+        const currentLocation = scene.location;
+        const neighbors = locationMap[currentLocation].neighbors;
+        const transitions = locationMap[currentLocation].transitions;
+
+        neighbors.forEach(neighbor => {
+            const zoneName = locationMap[neighbor].name;
+            const transition = transitions[neighbor];
+            const points = transition.points;
+
+            // Создаем зону на основе полигона
+            const navigationZone = scene.add.zone(0, 0, 1, 1)
+                .setOrigin(0)
+                .setInteractive(new Phaser.Geom.Polygon(points), Phaser.Geom.Polygon.Contains);
+
+            // Рисуем видимую границу зоны (для отладки)
+            const graphics = scene.add.graphics();
+            graphics.lineStyle(2, 0xff0000);
+            graphics.beginPath();
+            graphics.moveTo(points[0].x, points[0].y);
+            
+            // Рисуем линии между точками
+            points.forEach((point, index) => {
+                const nextPoint = points[(index + 1) % points.length];
+                graphics.lineTo(nextPoint.x, nextPoint.y);
+            });
+            
+            graphics.closePath();
+            graphics.strokePath();
+
+            // Обработка кликов
+            navigationZone.on('pointerdown', () => {
+                scene.cameras.main.fadeOut(1000);
+                scene.time.delayedCall(1000, () => {
+                    scene.scene.start('GameScene', {
+                        location: neighbor,
+                        history: [...(scene.locationHistory || []), currentLocation]
+                    });
+                });
+            });
+
+            // Добавляем стрелки и текст для обратного направления
+            const isBackwardDirection = locationPaths[currentLocation].backTo.includes(neighbor);
+
+            if (isBackwardDirection) {
+                // Находим центр полигона для размещения стрелки и текста
+                const centerX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+                const centerY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+
+                const edgeThreshold = 100;
+                const distanceToLeft = centerX;
+                const distanceToRight = GAME_CONFIG.width - centerX;
+                const distanceToBottom = GAME_CONFIG.height - centerY;
+
+                const arrow = scene.add.sprite(centerX, centerY, 'arrow')
+                    .setDepth(1)
+                    .setScale(1);
+
+                let angle = 0;
+                let textOffsetY = -15;
+
+                if (distanceToLeft <= edgeThreshold) {
+                    angle = -90;
+                } else if (distanceToRight <= edgeThreshold) {
+                    angle = 90;
+                } else if (distanceToBottom <= edgeThreshold) {
+                    angle = 180;
+                }
+
+                arrow.setAngle(angle);
+
+                const text = scene.add.text(centerX, centerY + textOffsetY, zoneName, {
+                    fontSize: '12px',
+                    fill: '#ffd700',
+                    align: 'center'
+                }).setOrigin(0.5);
+
+                navigationZone
+                    .on('pointerover', () => {
+                        arrow.setTint(0xffff00);
+                        text.setTint(0xffff00);
+                    })
+                    .on('pointerout', () => {
+                        arrow.clearTint();
+                        text.clearTint();
+                    });
+            }
+        });
+    }
+}
+
+class JournalSystem {
+    constructor(scene) {
+        this.scene = scene;           // сцена игры
+        this.entries = [];            // массив для хранения записей дневника
+        this.isOpen = false;          // флаг состояния дневника (открыт/закрыт)
+        this.loadEntries();           // загружаем сохраненные записи
+        this.createJournalButton();   // создаём кнопку при инициализации
+    }
+
+    // Создание кнопки дневника
+    createJournalButton() {
+        // Располагаем кнопку в левом верхнем углу
+        const buttonX = 190;
+        const buttonY = 55;
+        const buttonSize = 96; // такой же размер как у кнопки энергии
+    
+        // Создаём кнопку как спрайт
+        this.journalButton = this.scene.add.sprite(buttonX, buttonY, 'JournalButton')
+            .setInteractive()         
+            .setDepth(100)           
+            .setDisplaySize(buttonSize, buttonSize);
+    
+        // Добавляем эффект при наведении
+        this.journalButton.on('pointerover', () => {
+            if (!this.journalButton.isTinted) { // Проверяем, не подсвечена ли уже кнопка
+                this.journalButton.setTint(0xcccccc);
+            }
+        });
+    
+        // Убираем эффект при отведении курсора
+        this.journalButton.on('pointerout', () => {
+            this.journalButton.clearTint();
+        });
+    
+        // Добавляем эффект при нажатии
+        this.journalButton.on('pointerdown', () => {
+            this.journalButton.setDisplaySize(buttonSize * 0.95, buttonSize * 0.95);
+            this.journalButton.setTint(0x999999); // Добавляем затемнение при нажатии
+        });
+    
+        // Возвращаем исходный размер при отпускании
+        this.journalButton.on('pointerup', () => {
+            this.journalButton.setDisplaySize(buttonSize, buttonSize);
+            this.journalButton.clearTint(); // Убираем затемнение
+            this.toggleJournal();
+        });
+    
+        // Добавляем обработчик выхода указателя за пределы кнопки во время нажатия
+        this.journalButton.on('pointerout', () => {
+            this.journalButton.setDisplaySize(buttonSize, buttonSize);
+            this.journalButton.clearTint();
+        });
+    }
+
+    showNewEntryEffect() {
+        // Используем более яркий золотой цвет (0xFFFF00 - чисто жёлтый, 0xFFD700 - стандартный золотой)
+        const glowColor = 0xFFE666; // яркий тёплый золотой
+    
+        // Сразу подсвечиваем кнопку ярким цветом
+        this.journalButton.setTint(glowColor);
+    
+        // Добавляем анимацию с лёгкой пульсацией и затуханием цвета
+        this.scene.tweens.add({
+            targets: this.journalButton,
+            scale: { from: 1, to: 1.1 }, // лёгкая пульсация размера
+            alpha: { from: 1, to: 0.7, yoyo: true }, // плавное изменение прозрачности
+            duration: 2000, // 2 секунды на всю анимацию
+            yoyo: true, // добавляем возврат к начальному состоянию
+            ease: 'Sine.easeInOut', // плавная анимация
+            onComplete: () => {
+                this.journalButton.clearTint(); // убираем тонирование
+                this.journalButton.setAlpha(1); // возвращаем полную видимость
+                this.journalButton.setScale(1); // возвращаем исходный размер
+            }
+        });
+    }
+
+    // Обновляем метод addEntry, чтобы он вызывал эффект
+    addEntry(text) {
+        this.entries.push(text);
+        this.saveEntries();
+        
+        if (this.isOpen) {
+            this.updateEntries();
+        }
+        
+        // Показываем эффект новой записи
+        this.showNewEntryEffect();
+    }
+
+    // Сохранение записей в localStorage
+    saveEntries() {
+        localStorage.setItem('journalEntries', JSON.stringify(this.entries));
+    }
+
+    // Загрузка записей из localStorage
+    loadEntries() {
+        const savedEntries = localStorage.getItem('journalEntries');
+        if (savedEntries) {
+            this.entries = JSON.parse(savedEntries);
+        }
+    }
+
+    // Обновление отображения записей (модифицированный метод)
+    updateEntries() {
+        // Очищаем контейнер
+        this.entriesContainer.removeAll(true);
+
+        // Создаём и добавляем каждую запись
+        this.entries.forEach((entry, index) => {
+            // Создаём текст записи
+            const entryText = this.scene.add.text(
+                0,
+                index * 60, // Отступ между записями
+                entry,
+                {
+                    fontSize: '18px',
+                    fill: '#ffffff',
+                    wordWrap: { width: GAME_CONFIG.width * 0.6 }
+                }
+            );
+
+            // Добавляем текст в контейнер
+            this.entriesContainer.add(entryText);
+        });
+    }
+
+    // Переключение состояния дневника (открыть/закрыть)
+    toggleJournal() {
+        if (this.isOpen) {
+            this.closeJournal();
+        } else {
+            this.openJournal();
+        }
+        this.isOpen = !this.isOpen;
+    }
+
+    // Создание интерфейса дневника
+    createJournalUI() {
+        // Создаём затемнение фона
+        this.overlay = this.scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            GAME_CONFIG.width,
+            GAME_CONFIG.height,
+            0x000000,
+            0.7
+        ).setDepth(101);
+
+        // Создаём фон дневника
+        const journalWidth = GAME_CONFIG.width * 0.7;   // ширина окна дневника
+        const journalHeight = GAME_CONFIG.height * 0.8;  // высота окна дневника
+
+        // Основная панель дневника
+        this.journalPanel = this.scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            journalWidth,
+            journalHeight,
+            0x2c1810 // коричневый цвет для фона дневника
+        ).setDepth(102);
+
+        // Добавляем рамку дневника
+        this.journalBorder = this.scene.add.graphics()
+            .setDepth(102);
+        this.journalBorder.lineStyle(4, 0x8b4513); // коричневая рамка
+        this.journalBorder.strokeRect(
+            (GAME_CONFIG.width - journalWidth) / 2,
+            (GAME_CONFIG.height - journalHeight) / 2,
+            journalWidth,
+            journalHeight
+        );
+
+        // Кнопка закрытия дневника
+        this.closeButton = this.scene.add.sprite(
+            GAME_CONFIG.width / 2 + journalWidth / 2 - 40,
+            GAME_CONFIG.height / 2 - journalHeight / 2 + 40,
+            'close' // ключ для изображения кнопки закрытия
+        ).setDepth(103)
+            .setScale(0.8)
+            .setInteractive();
+
+        // Добавляем эффекты при наведении и нажатии
+        this.closeButton.on('pointerover', () => {
+            if (!this.closeButton.isTinted) {
+                this.closeButton.setTint(0xcccccc);
+            }
+        });
+
+        this.closeButton.on('pointerout', () => {
+            this.closeButton.clearTint();
+            this.closeButton.setScale(0.8);
+        });
+
+        this.closeButton.on('pointerdown', () => {
+            this.closeButton.setScale(0.75);  // немного уменьшаем при нажатии
+            this.closeButton.setTint(0x999999);
+        });
+
+        this.closeButton.on('pointerup', () => {
+            this.closeButton.setScale(0.8);
+            this.closeButton.clearTint();
+            this.closeJournal();
+        });
+
+        // Заголовок дневника
+        this.journalTitle = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2 - journalHeight / 2 + 50,
+            'ДНЕВНИК',
+            {
+                fontSize: '32px',
+                fill: '#ffd700',
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5)
+            .setDepth(103);
+
+        // Контейнер для записей дневника
+        this.entriesContainer = this.scene.add.container(
+            GAME_CONFIG.width / 2 - journalWidth / 2 + 50,
+            GAME_CONFIG.height / 2 - journalHeight / 2 + 100
+        ).setDepth(103);
+
+        // Добавляем полосу прокрутки, если записей много
+        if (this.entries.length > 8) { // если записей больше 8, добавляем скролл
+            this.addScrollbar();
+        }
+
+        this.updateEntries(); // обновляем отображение записей
+    }
+
+    // Добавление полосы прокрутки
+    addScrollbar() {
+        const scrollBarWidth = 20;
+        const scrollBarHeight = GAME_CONFIG.height * 0.6;
+        const scrollBarX = GAME_CONFIG.width / 2 + (GAME_CONFIG.width * 0.7) / 2 - scrollBarWidth - 20;
+        const scrollBarY = GAME_CONFIG.height / 2 - scrollBarHeight / 2 + 100;
+
+        // Фон полосы прокрутки
+        this.scrollBarBg = this.scene.add.rectangle(
+            scrollBarX,
+            scrollBarY,
+            scrollBarWidth,
+            scrollBarHeight,
+            0x444444
+        ).setDepth(103);
+
+        // Ползунок
+        this.scrollBar = this.scene.add.rectangle(
+            scrollBarX,
+            scrollBarY,
+            scrollBarWidth,
+            100, // высота ползунка
+            0x666666
+        ).setDepth(104)
+            .setInteractive({ draggable: true });
+
+        // Обработка перетаскивания ползунка
+        this.scrollBar.on('drag', (pointer, dragX, dragY) => {
+            const minY = scrollBarY - scrollBarHeight / 2 + this.scrollBar.height / 2;
+            const maxY = scrollBarY + scrollBarHeight / 2 - this.scrollBar.height / 2;
+            this.scrollBar.y = Phaser.Math.Clamp(dragY, minY, maxY);
+
+            // Обновляем позицию контента
+            const scrollPercentage = (this.scrollBar.y - minY) / (maxY - minY);
+            const maxScroll = (this.entries.length * 60) - scrollBarHeight;
+            this.entriesContainer.y = -maxScroll * scrollPercentage;
+        });
+    }
+
+    // Открытие дневника
+    openJournal() {
+        this.createJournalUI();
+        // Добавляем возможность закрыть дневник кликом вне его области
+        this.overlay.setInteractive().on('pointerdown', () => {
+            this.closeJournal();
+        });
+    }
+
+    // Закрытие дневника
+    closeJournal() {
+        // Удаляем все элементы интерфейса дневника
+        if (this.overlay) this.overlay.destroy();
+        if (this.journalPanel) this.journalPanel.destroy();
+        if (this.journalBorder) this.journalBorder.destroy();
+        if (this.closeButton) this.closeButton.destroy();
+        if (this.journalTitle) this.journalTitle.destroy();
+        if (this.entriesContainer) this.entriesContainer.destroy();
+        if (this.scrollBarBg) this.scrollBarBg.destroy();
+        if (this.scrollBar) this.scrollBar.destroy();
+        this.isOpen = false;
+    }
+}
+
+class InventorySystem {
+    constructor(scene) {
+        this.scene = scene;
+        this.slots = [];
+        this.items = [];
+        
+        // Настройки инвентаря
+        this.config = {
+            slots: 5,
+            slotSize: 50,
+            padding: 10,
+            startX: 10, // Зазор в 10 пикселей от левого края
+            // Центрирование по высоте экрана
+            startY: (GAME_CONFIG.height - ((50 + 10) * 5 - 10)) / 2,
+            borderColor: 0x888888
+        };
+
+        this.createInventoryUI(); // Создание UI инвентаря
+    }
+
+    createInventoryUI() {
+        const bgWidth = 100; // Ширина фона после масштабирования
+        const bgHeight = 500; // Высота фона после масштабирования
+    
+        // Масштабирование
+        const scaleX = bgWidth / 249; // Масштаб по ширине
+        const scaleY = bgHeight / 1093; // Масштаб по высоте
+    
+        const inventoryX = 30; // Левый край
+        const inventoryY = 300; // Отступ сверху
+    
+        // Добавляем PNG-фон
+        const background = this.scene.add.image(
+            inventoryX,
+            inventoryY,
+            'inventory-bg' // Ключ PNG-фона
+        );
+        background.setOrigin(0, 0); // Привязка к верхнему левому углу
+        background.setDisplaySize(bgWidth, bgHeight); // Устанавливаем масштаб
+        background.setDepth(1); // Фон ниже рамок и предметов
+    
+        // Центры зон для слотов (масштабируем)
+        const slotCenters = [
+            { x: 130, y: 190 },
+            { x: 130, y: 365 },
+            { x: 130, y: 540 },
+            { x: 130, y: 720 },
+            { x: 130, y: 890 }
+        ].map(center => ({
+            x: inventoryX + center.x * scaleX, // Учитываем масштаб и смещение
+            y: inventoryY + center.y * scaleY
+        }));
+    
+        // Размеры слотов (масштабируем)
+        const scaledSlotWidth = 175 * scaleX;
+        const scaledSlotHeight = 160 * scaleY;
+    
+        // Создаём слоты
+        slotCenters.forEach((center, i) => {
+            const slot = this.scene.add.graphics();
+    
+            // Добавляем рамку
+            //slot.lineStyle(2, this.config.borderColor, 1); // Рамка с непрозрачностью 100%
+            //slot.strokeRoundedRect(
+                //center.x - scaledSlotWidth / 2, // Верхний левый угол
+                //center.y - scaledSlotHeight / 2,
+                //scaledSlotWidth,
+                //scaledSlotHeight,
+                //10 // Радиус скругления
+            //);
+            slot.setDepth(2); // Рамка выше фона
+    
+            this.slots.push({
+                graphics: slot,
+                item: null,
+                index: i,
+                center: center // Центр слота
+            });
+        });
+    }
+    
+    addItem(key, name) {
+        // Находим пустой слот
+        const emptySlot = this.slots.find(slot => !slot.item);
+        if (!emptySlot) return false;
+    
+        // Создание спрайта предмета
+        const item = this.scene.add.sprite(
+            emptySlot.center.x, // Центр слота по X
+            emptySlot.center.y, // Центр слота по Y
+            key
+        );
+    
+        // Масштабирование предмета
+        const scale = Math.min(
+            175 * (100 / 249) / item.width, // Прямое вычисление масштаба
+            160 * (500 / 1093) / item.height
+        ) * 0.9; // Масштаб предмета
+        item.setScale(scale);
+    
+        // Устанавливаем `depth` для предмета
+        item.setDepth(10); // Предмет выше фона
+    
+        // Остальная логика остаётся без изменений
+        item.setInteractive({ draggable: true });
+        this.scene.input.setDraggable(item);
+    
+        item.on('pointerdown', (pointer, localX, localY, event) => {
+            event.stopPropagation();
+            this.showItemPopup(key, name);
+        });
+    
+        item.on('dragstart', () => {
+            item.setTint(0x999999);
+            item.setDepth(20); // Временно поднимаем над другими объектами
+        });
+    
+        item.on('dragend', (pointer) => {
+            item.clearTint();
+            item.setDepth(10); // Возвращаем стандартный `depth`
+            item.x = emptySlot.center.x;
+            item.y = emptySlot.center.y;
+        });
+    
+        // Сохраняем предмет в слоте
+        emptySlot.item = {
+            sprite: item,
+            name: name,
+            key: key
+        };
+
+        // Добавляем запись в дневник
+        if (this.scene.journalSystem) {  // проверяем наличие системы дневника
+            this.scene.journalSystem.addEntry(`Найден предмет: ${name}`);
+        }
+    
+        return true; // Успешное добавление предмета
+    }
+
+    showItemPopup(key, name) {
+        // Используем GameScene для создания попапа
+        const gameScene = this.scene.scene.get('GameScene');
+        if (!gameScene) return;
+
+        gameScene.createPopup({
+            background: 'popup-bg',
+            content: key,
+            contentScale: 0.8,
+            x: GAME_CONFIG.width / 2,
+            y: GAME_CONFIG.height / 2,
+            customWidth: 700,
+            customHeight: 482
+        });
+    }
+    
+    giveItemToCharacter(item, slot) {
+        this.scene.tweens.add({
+            targets: item,
+            alpha: 0,
+            scale: 0,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                item.destroy();
+                slot.item = null;
+                if (this.scene.onItemGiven) {
+                    this.scene.onItemGiven(item.name);
+                }
+            }
+        });
+    }
+
+    removeItem(key) {
+        const slot = this.slots.find(slot => slot.item?.key === key);
+        if (!slot) return false;
+
+        if (slot.item.sprite.tooltip) {
+            slot.item.sprite.tooltip.destroy();
+        }
+        slot.item.sprite.destroy();
+        slot.item = null;
+        return true;
+    }
+}
+
+class InventoryScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'InventoryScene' });
+        this.inventorySystem = null;
+        this.items = []; // Добавляем массив для хранения предметов
+    }
+
+    preload() {
+        // Загружаем изображения, которые могут быть в инвентаре
+        const assets = [
+            { key: 'list2', path: 'list2.png' },
+            { key: 'object8', path: 'ring.png' },
+            { key: 'inventory-bg', path: 'path/to/your/inventory-background.png' } // Добавляем PNG-фон
+        ];
+
+        assets.forEach(({ key, path }) => {
+            if (!this.textures.exists(key)) {
+                this.load.image(key, path);
+            }
+        });
+    }
+
+    create() {
+        this.inventorySystem = new InventorySystem(this);
+        this.cameras.main.setBackgroundColor('rgba(0, 0, 0, 0)');
+        this.scene.bringToTop(); // Добавляем эту строку
+        
+        // Восстанавливаем предметы
+        this.items.forEach(item => {
+            this.inventorySystem.addItem(item.key, item.name);
+        });
+    }
+
+    addItem(key, name) {
+        if (this.inventorySystem.addItem(key, name)) {
+            this.items.push({ key, name });
+            return true;
+        }
+        return false;
+    }
+
+    removeItem(key) {
+        if (this.inventorySystem.removeItem(key)) {
+            this.items = this.items.filter(item => item.key !== key);
+            return true;
+        }
+        return false;
+    }
+}
+
+let globalEnergySystem = null;
+
+class EnergySystem {
+    constructor(scene) {
+        this.scene = scene;
+        
+        // Константы системы энергии
+        this.INITIAL_ENERGY = 200;
+        this.MAX_ENERGY = 200;
+        this.REGENERATION_RATE = 1;          
+        this.REGENERATION_INTERVAL = 10000;  // 10 секунд
+        
+        // Стоимость действий
+        this.COSTS = {
+            SEARCH_ITEM: 5,
+            MISS_PENALTY: 10,
+            USE_HINT: 10,
+            PUZZLE: 20,
+            GIVE_ITEM: 5
+        };
+
+        // Загружаем текущее состояние
+        this.currentEnergy = this.loadEnergy();
+        this.lastUpdateTime = this.loadLastUpdateTime();
+        
+        // Восстанавливаем накопленную энергию
+        this.updateEnergy();
+        
+        // Создаем UI
+        this.createEnergyUI();
+    }
+
+    updateEnergy() {
+        const now = Date.now();
+        const timePassed = now - this.lastUpdateTime;
+        const energyToAdd = Math.floor(timePassed / this.REGENERATION_INTERVAL);
+        
+        if (energyToAdd > 0) {
+            this.addEnergy(energyToAdd);
+            this.lastUpdateTime = now - (timePassed % this.REGENERATION_INTERVAL);
+            this.saveLastUpdateTime();
+        }
+    }
+
+    createEnergyUI() {
+        // Размер иконки энергии
+        const energyIconSize = 96;
+    
+        // Новые координаты для кнопки энергии
+        const energyIconX = 1730;  // Позиция по оси X (левее или правее)
+        const energyIconY = 55;  // Позиция по оси Y (выше или ниже)
+    
+        // Создаем иконку энергии
+        this.energyIcon = this.scene.add.sprite(energyIconX, energyIconY, 'energy-icon')
+            .setInteractive()
+            .setDepth(100)
+            .setDisplaySize(energyIconSize, energyIconSize);
+    
+        // Добавляем эффект при наведении
+        this.energyIcon.on('pointerover', () => {
+            if (!this.energyIcon.isTinted) { // Проверяем, не подсвечена ли уже кнопка
+                this.energyIcon.setTint(0xcccccc);
+            }
+        });
+    
+        // Убираем эффект при отведении курсора
+        this.energyIcon.on('pointerout', () => {
+            this.energyIcon.clearTint();
+        });
+    
+        // Добавляем эффект при нажатии
+        this.energyIcon.on('pointerdown', () => {
+            this.energyIcon.setDisplaySize(energyIconSize * 0.95, energyIconSize * 0.95);
+            this.energyIcon.setTint(0x999999); // Добавляем затемнение при нажатии
+        });
+    
+        // Возвращаем исходный размер при отпускании и показываем бар
+        this.energyIcon.on('pointerup', () => {
+            this.energyIcon.setDisplaySize(energyIconSize, energyIconSize);
+            this.energyIcon.clearTint(); // Убираем затемнение
+            this.showEnergyBar();
+        });
+    
+        // Добавляем обработчик выхода указателя за пределы кнопки во время нажатия
+        this.energyIcon.on('pointerout', () => {
+            this.energyIcon.setDisplaySize(energyIconSize, energyIconSize);
+            this.energyIcon.clearTint();
+        });
+    
+        // Создаем контейнер для бара в нижней части экрана
+        this.energyBar = this.scene.add.graphics()
+            .setDepth(100);
+    
+        // Создаем текст для отображения энергии
+        this.energyText = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height - 110 + 15,
+            '', 
+            {
+                fontSize: '18px',
+                fill: '#ffffff',
+                fontWeight: 'bold'
+            }
+        )
+        .setDepth(101)  // Поверх бара
+        .setOrigin(0.5);  // Центрируем текст
+    
+        // Создаем кнопку для просмотра рекламы
+        this.adButton = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height - 70,
+            'Получить энергию за просмотр рекламы',
+            {
+                fontSize: '16px',
+                fill: '#00ff00',
+                backgroundColor: '#333333',
+                padding: { x: 15, y: 10 }
+            }
+        )
+        .setInteractive()
+        .setDepth(100)
+        .setOrigin(0.5)
+        .setVisible(false)
+        .on('pointerdown', () => this.showRewardedAd())
+        .on('pointerover', () => this.adButton.setStyle({ fill: '#ffffff' }))
+        .on('pointerout', () => this.adButton.setStyle({ fill: '#00ff00' }));
+    
+        // Скрываем бар изначально
+        this.hideEnergyBar();
+    }
+    
+    showEnergyBar() {
+        // Сначала обновляем текущее значение энергии
+        if (this.currentEnergy < this.MAX_ENERGY) {
+            const now = Date.now();
+            const timePassed = now - this.lastUpdateTime;
+            const energyToAdd = Math.floor(timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE;
+            
+            if (energyToAdd > 0) {
+                this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + energyToAdd);
+                this.lastUpdateTime = now - (timePassed % this.REGENERATION_INTERVAL);
+                this.saveEnergy();
+                this.saveLastUpdateTime();
+            }
+        }
+    
+        // Показываем элементы
+        if (this.energyBar) {
+            this.energyBar.visible = true;
+            this.updateEnergyBar();  // Обновляем UI с актуальным значением
+        }
+        if (this.energyText) {
+            this.energyText.visible = true;
+        }
+        if (this.adButton) {
+            this.adButton.visible = true;
+        }
+    
+        // Очищаем существующий таймер, если он есть
+        if (this.hideTimer) {
+            this.scene.time.removeEvent(this.hideTimer);
+        }
+    
+        // Создаем новый таймер на 5 секунд
+        this.hideTimer = this.scene.time.delayedCall(5000, () => {
+            this.hideEnergyBar();
+        }, [], this);
+    }
+
+    hideEnergyBar() {
+        // Скрываем элементы
+        if (this.energyBar) {
+            this.energyBar.visible = false;
+        }
+        if (this.energyText) {
+            this.energyText.visible = false;
+        }
+        if (this.adButton) {
+            this.adButton.visible = false;
+        }
+
+        // Очищаем таймер
+        if (this.hideTimer) {
+            this.scene.time.removeEvent(this.hideTimer);
+            this.hideTimer = null;
+        }
+    }
+
+    updateEnergyBar() {
+        // Добавляем проверку
+        if (!this.energyBar) {
+            return;
+        }
+    
+        this.energyBar.clear();
+    
+        const barWidth = 300;
+        const barHeight = 30;
+        const barX = GAME_CONFIG.width / 2 - barWidth / 2;
+        const barY = GAME_CONFIG.height - 110;
+    
+        // Фон бара
+        this.energyBar.fillStyle(0x333333, 0.8);
+        this.energyBar.fillRoundedRect(barX, barY, barWidth, barHeight, 8);
+    
+        // Заполнение бара
+        const fillWidth = (this.currentEnergy / this.MAX_ENERGY) * barWidth;
+        this.energyBar.fillStyle(0x00ff00);
+        this.energyBar.fillRoundedRect(barX, barY, Math.min(fillWidth, barWidth), barHeight, 8);
+    
+        // Рамка бара
+        this.energyBar.lineStyle(2, 0xffffff, 0.3);
+        this.energyBar.strokeRoundedRect(barX, barY, barWidth, barHeight, 8);
+    
+        // Обновляем текст и размещаем его по центру бара
+        this.energyText.setPosition(
+            GAME_CONFIG.width / 2,  // по центру экрана
+            barY + (barHeight / 2)  // вертикально по центру бара
+        );
+        this.energyText.setText(`${this.currentEnergy}/${this.MAX_ENERGY}`);
+    }
+
+    hasEnough(amount) {
+        this.updateEnergy(); // Обновляем перед проверкой
+        return this.currentEnergy >= amount;
+    }
+
+    spend(amount, action) {
+        this.updateEnergy(); // Обновляем перед тратой
+    
+        if (this.currentEnergy < amount) {
+            this.showNotEnoughEnergy();
+            return false;
+        }
+    
+        this.currentEnergy = Math.max(0, this.currentEnergy - amount);
+        this.saveEnergy();
+        this.updateEnergyBar();
+        
+        if (this.currentEnergy < 20) {
+            this.showLowEnergyWarning();
+        }
+    
+        return true;
+    }
+
+    addEnergy(amount) {
+        const oldEnergy = this.currentEnergy;
+        this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
+        
+        if (oldEnergy !== this.currentEnergy) {
+            this.saveEnergy();
+            this.updateEnergyBar();
+            
+            if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
+                this.resetEnergyWarning();
+            }
+            
+            if (this.currentEnergy >= this.MAX_ENERGY && oldEnergy < this.MAX_ENERGY) {
+                this.sendFullEnergyNotification();
+            }
+        }
+    }
+
+    startRegeneration() {
+        console.log('===== startRegeneration called =====');
+        // Восстанавливаем энергию, накопленную за время отсутствия
+        const now = Date.now();
+        const timePassed = now - this.lastUpdateTime;
+        const energyToAdd = Math.floor((timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE);
+        console.log('Initial restore calculation:', {
+            now: now,
+            lastUpdateTime: this.lastUpdateTime,
+            timePassed: timePassed,
+            energyToAdd: energyToAdd
+        });
+        this.addEnergy(energyToAdd);
+    
+        // Запускаем регулярное восстановление
+        console.log('Setting up regeneration timer with interval:', this.REGENERATION_INTERVAL);
+        
+        // Сохраняем таймер в свойство класса
+        this.regenerationTimer = this.scene.time.addEvent({
+            delay: this.REGENERATION_INTERVAL,
+            callback: () => {
+                console.log('===== Timer tick =====');
+                console.log('Time:', new Date().toLocaleTimeString());
+                
+                // Проверяем, нужно ли добавлять энергию
+                if (this.currentEnergy < this.MAX_ENERGY) {
+                    console.log('Adding energy:', this.REGENERATION_RATE);
+                    console.log('Current energy before add:', this.currentEnergy);
+                    this.addEnergy(this.REGENERATION_RATE);
+                    this.lastUpdateTime = Date.now();
+                    this.saveLastUpdateTime();
+                } else {
+                    console.log('Energy is already full, skipping regeneration');
+                }
+            },
+            callbackScope: this,
+            repeat: -1,
+            loop: true
+        });
+        
+        console.log('Regeneration timer created:', this.regenerationTimer);
+    }
+
+    handleMiss() {
+        this.missCount++;
+        if (this.missCount >= 5) {
+            this.spend(this.COSTS.MISS_PENALTY, 'miss');
+            this.missCount = 0;
+            this.showFrozenScreen();
+        }
+    }
+
+    showFrozenScreen() {
+        const overlay = this.scene.add.rectangle(
+            0, 0, 
+            this.scene.game.config.width, 
+            this.scene.game.config.height,
+            0xffffff, 0.5
+        ).setOrigin(0);
+
+        this.scene.time.delayedCall(1000, () => {
+            overlay.destroy();
+        });
+    }
+
+    showNotEnoughEnergy() {
+        // Показываем сообщение о недостатке энергии
+        const text = this.scene.add.text(
+            this.scene.game.config.width / 2,
+            this.scene.game.config.height / 2,
+            'Недостаточно энергии!',
+            {
+                fontSize: '24px',
+                fill: '#ff0000',
+                backgroundColor: '#000000',
+                padding: { x: 20, y: 10 }
+            }
+        ).setOrigin(0.5);
+
+        this.scene.time.delayedCall(2000, () => {
+            text.destroy();
+        });
+    }
+
+    showLowEnergyWarning() {
+        // Проверяем, что энергии меньше стоимости минимального действия (SEARCH_ITEM = 5)
+        if (this.currentEnergy < this.COSTS.SEARCH_ITEM) {
+            // Красим иконку в красный
+            this.energyIcon.setTint(0xff0000);
+            // Если анимация мигания ещё не создана
+            if (!this.blinkTween) {
+                this.blinkTween = this.scene.tweens.add({
+                    targets: this.energyIcon,
+                    alpha: { from: 1, to: 0.5 }, // Мигание от полной видимости до половины
+                    duration: 500,
+                    yoyo: true, // Анимация будет идти туда-обратно
+                    repeat: -1  // Бесконечное повторение
+                });
+            }
+        }
+    }
+
+    resetEnergyWarning() {
+        // Убираем красный цвет с иконки
+        this.energyIcon.clearTint();
+        // Если есть анимация мигания - останавливаем её
+        if (this.blinkTween) {
+            this.blinkTween.stop();
+            this.blinkTween.remove();
+            this.blinkTween = null;
+        }
+        // Возвращаем полную видимость иконке
+        this.energyIcon.setAlpha(1);
+    }
+
+    sendFullEnergyNotification() {
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Энергия восстановлена!", {
+                body: "Ваша энергия полностью восстановлена!",
+                icon: "./UI/ApprovedUI/Energy.png"
+            });
+        }
+    }
+
+    // Методы сохранения/загрузки
+    saveEnergy() {
+        localStorage.setItem('energy', this.currentEnergy.toString());
+    }
+
+    loadEnergy() {
+        const saved = localStorage.getItem('energy');
+        return saved ? parseInt(saved) : this.INITIAL_ENERGY;
+    }
+
+    saveLastUpdateTime() {
+        localStorage.setItem('energyLastUpdate', this.lastUpdateTime.toString());
+    }
+
+    loadLastUpdateTime() {
+        const saved = localStorage.getItem('energyLastUpdate');
+        return saved ? parseInt(saved) : Date.now();
+    }
+    // Добавляем новый метод для показа рекламы
+    showRewardedAd() {
+    // Здесь будет ваша логика показа рекламы
+    const rewardAmount = 50; // количество энергии за просмотр рекламы
+    this.addEnergy(rewardAmount);
+    
+    // Показываем сообщение о получении награды
+    const rewardText = this.scene.add.text(
+        GAME_CONFIG.width / 2,
+        GAME_CONFIG.height / 2,
+        `+${rewardAmount} энергии!`,
+        {
+            fontSize: '32px',
+            fill: '#00ff00',
+            backgroundColor: '#000000',
+            padding: { x: 20, y: 10 }
+        }
+    )
+    .setOrigin(0.5)
+    .setDepth(200);
+
+    // Удаляем сообщение через 2 секунды
+    this.scene.time.delayedCall(2000, () => {
+        rewardText.destroy();
+    });
+    }
+}
+
+class GameScene extends Phaser.Scene { 
+    constructor() {
+        super({ key: 'GameScene' });
+        this.journalSystem = null; // Инициализация системы дневника
+
+        this.state = { // Инициализация состояния игры
+            remainingObjects: [], // Список оставшихся для поиска предметов
+            foundObjects: [],     // Список найденных предметов
+            hintAvailable: true,  // Флаг доступности подсказки
+            idleTime: 0,         // Счетчик времени бездействия
+            selectedDigits: ["0", "0", "0", "0"], // Текущий код сейфа
+            ringFound: false,     // Флаг нахождения кольца
+            inventory: []         // Поле inventory
+        };
+
+        // Свойства для навигации
+        this.location = 'front-house';
+        this.locationHistory = [];
+
+        // Общие свойства
+        this.popupGroup = null;      // Группа для всплывающих окон
+        this.codeInputGroup = null;  // Группа для ввода кода сейфа
+        this.ringObject = null;      // Объект кольца
+        this.inventory = null;       // Поле для системы инвентаря
+        this.itemTextObjects = [];   // Массив текстовых объектов
+        this.textBackground = null;  // Фон для текста
+
+        // Добавляем эти две строки:
+        this.lastHintTime = 0;      // Время последней подсказки
+        this.hintCooldown = 10000;  // Задержка 10 секунд между подсказками
+        // Добавляем свойство для системы энергии
+        this.energySystem = null;
+    }
+
+    create() {
+        this.cameras.main.fadeIn(1000);
+        this.createBackground();
+    
+        // Инициализируем глобальную систему энергии
+        if (!globalEnergySystem) {
+            globalEnergySystem = new EnergySystem(this);
+        } else {
+            globalEnergySystem.scene = this;
+            globalEnergySystem.createEnergyUI();
+        }
+        this.energySystem = globalEnergySystem;
+
+        // Инициализируем систему дневника
+        this.journalSystem = new JournalSystem(this);
+    
+        // Создаем кнопку подсказки на всех локациях
+        this.createHintButton();
+    
+        // Добавляем обработчик кликов для промахов
+        this.input.on('pointerdown', (pointer) => {
+            if (!pointer.gameObject) {
+                this.energySystem.handleMiss();
+            }
+        });
+    
+        // Создаем объекты только в определенной локации
+        if (this.location === 'leftroom') {
+            this.createObjects();
+            this.createUI();
+        }
+    
+        NavigationUtils.createNavigationZones(this);
+    
+        if (!this.scene.isActive('InventoryScene')) {
+            this.scene.launch('InventoryScene');
+            this.scene.bringToTop('InventoryScene');
+        }
+    }
+
+    updateHintButtonState() {
+        // Проверяем, существует ли кнопка подсказки
+        if (this.hintButton) {
+            // Проверяем, достаточно ли энергии для использования подсказки (USE_HINT = 10)
+            if (this.energySystem.hasEnough(this.energySystem.COSTS.USE_HINT)) {
+                // Если энергии достаточно - кнопка активна
+                this.hintButton.clearTint();
+                this.hintButton.setInteractive();
+            } else {
+                // Если энергии недостаточно (9 и меньше) - кнопка неактивна
+                this.hintButton.setTint(0x666666); // Серый цвет
+                this.hintButton.disableInteractive(); // Отключаем интерактивность
+            }
+        }
+    }
+
+    handleObjectClick(object) {
+        if (!object || object.isAnimating) {
+            return;
+        }
+    
+        // Проверяем достаточно ли энергии для действия
+        if (!this.energySystem.spend(this.energySystem.COSTS.SEARCH_ITEM, 'search')) {
+            return;
+        }
+    
+        object.isAnimating = true;
+        
+        // Остальной код handleObjectClick без изменений
+        this.handleDependentObjects(object.name);
+    
+        switch (object.name) {
+            case 'Сейф':
+                object.isAnimating = false;
+                this.openSafe();
+                break;
+            case 'Скомканный лист':
+                this.showPopup(object, 'list2', true);
+                break;
+            case 'Кольцо':
+                const inventoryScene = this.scene.get('InventoryScene');
+                inventoryScene.addItem('object8', 'Кольцо');
+                this.animateObjectDisappearance(object);
+                break;
+            default:
+                this.animateObjectDisappearance(object);
+        }
+    }
+
+    useHint() {
+        // Проверяем, достаточно ли энергии
+        if (!this.energySystem.spend(this.energySystem.COSTS.USE_HINT, 'hint')) {
+            return;
+        }
+    
+        const currentTime = Date.now();
+        
+        // Проверяем, прошло ли 30 секунд с последнего использования
+        if (currentTime - this.lastHintTime < this.hintCooldown) {
+            // Если не прошло 30 секунд, выходим
+            return;
+        }
+    
+        // Обновляем время последней подсказки
+        this.lastHintTime = currentTime;
+    
+        // Показываем подсказку в зависимости от локации
+        if (this.location === 'leftroom' && this.state.remainingObjects.length > 0) {
+            this.showObjectHint();
+        } else {
+            this.showNavigationHint();
+        }
+    }
+
+    init(data) {
+        // Объединенная инициализация из обоих классов
+        this.location = data.location || 'front-house';
+        this.locationHistory = data.history || [];
+        
+        // Восстанавливаем состояние
+        if (data.gameState) {
+            this.state = {
+                ...this.state,
+                foundObjects: data.gameState.foundObjects || [],
+                remainingObjects: data.gameState.remainingObjects || [],
+                ringFound: data.gameState.ringFound || false,
+                inventory: data.gameState.inventory || []
+            };
+        }
+    }
+
+    preload() { 
+        // Проверка и загрузка основных фоновых изображений
+        if (!this.textures.exists('front-house')) {
+            this.load.image('front-house', 'front-house.jpg');
+        }
+        if (!this.textures.exists('hall')) {
+            this.load.image('hall', 'hall.jpg');
+        }
+        if (!this.textures.exists('leftroom')) {
+            this.load.image('leftroom', 'leftroom.jpg');
+        }
+        if (!this.textures.exists('rightroom')) {
+            this.load.image('rightroom', 'rightroom.jpg');
+        }
+        if (!this.textures.exists('drawer')) {
+            this.load.image('drawer', 'drawer.jpg');
+        }
+        if (!this.textures.exists('wardrobe')) {
+            this.load.image('wardrobe', 'wardrobe.jpg');
+        }
+        if (!this.textures.exists('hint-button')) {
+        this.load.image('hint-button', './UI/ApprovedUI/Hint.png');
+        }
+        if (!this.textures.exists('JournalButton')) {
+            this.load.image('JournalButton', './UI/ApprovedUI/JournalButton.png');
+        }
+        // Добавьте загрузку фона для попапа
+        if (!this.textures.exists('popup-bg')) {
+            this.load.image('popup-bg', 'path/to/your/popup-background.png');
+        }
+        if (!this.textures.exists('close')) {
+            this.load.image('close', './UI/close-button.png');  // Путь к кнопке закрытия
+        }
+        if (!this.textures.exists('energy-icon')) {
+        this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
+        }
+        //if (!this.textures.exists('new-location')) {
+        //    this.load.image('new-location', 'new-location.jpg');
+        //}
+        
+        // Массив всех игровых ресурсов для загрузки
+        const assets = [
+            { key: 'background', path: 'leftroom.jpg' },     // Фон комнаты
+            { key: 'object1', path: 'plate.png' },       // Тарелка
+            { key: 'object2', path: 'candle.png' },      // Свеча
+            { key: 'object3', path: 'art.png' },         // Картина
+            { key: 'object4', path: 'tea.png' },         // Сервиз
+            { key: 'object5', path: 'list1.png' },       // Скомканный лист
+            { key: 'object6', path: 'safe.png' },        // Сейф
+            { key: 'object7', path: 'sheet.png' },       // Лист
+            { key: 'list2', path: 'list2.png' },         // Развернутый лист
+            { key: 'close', path: './UI/ApprovedUI/Close.png' },         // Кнопка закрытия
+            { key: 'opensafe', path: 'opensafe.png' },   // Открытый сейф
+            { key: 'object8', path: 'ring.png' },        // Кольцо
+            { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }          // Стрелка
+        ];
+    
+        // Загрузка всех ресурсов, если они еще не загружены
+        assets.forEach(({ key, path }) => {
+            if (!this.textures.exists(key)) {
+                this.load.image(key, path);
+            }
+        });
+    
+        // Обработчик ошибок загрузки
+        this.load.on('loaderror', (file) => {
+            console.error('Ошибка загрузки ресурса:', file.src);
+        });
+    
+        // Обработчик завершения загрузки
+        this.load.on('complete', () => {
+            console.log('Загрузка всех ресурсов завершена');
+        });
+    }
+
+    createBackground() {
+        const backgroundKey = locationMap[this.location].image;
+        if (this.textures.exists(backgroundKey)) {
+            this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, backgroundKey)
+                .setDisplaySize(1920, 1080);
+        } else {
+            console.error(`Ошибка: Изображение для ${backgroundKey} не загружено`);
+        }
+    }
+
+    createObjects() {
+        const objects = [
+            { key: 'object1', x: 502, y: 206, name: 'Тарелка' },
+            { key: 'object2', x: 175, y: 306, name: 'Череп-свеча' },
+            { key: 'object3', x: 354, y: 106, name: 'Картина' },
+            { key: 'object4', x: 451, y: 251, name: 'Сервиз' },
+            { key: 'object5', x: 485, y: 370, name: 'Скомканный лист' },
+            { key: 'object7', x: 117, y: 407, name: 'Лист' },
+            { 
+                key: 'object8', 
+                x: 353, 
+                y: 246, 
+                name: 'Кольцо',
+                hidden: true,
+                dependsOn: 'Сейф',
+                available: false
+            }
+        ];
+    
+        // Инициализируем remainingObjects, включая скрытые предметы
+        if (!this.state.remainingObjects || this.state.remainingObjects.length === 0) {
+            this.state.remainingObjects = objects;
+        }
+    
+        // Создаем только видимые объекты, которые еще не были найдены
+        this.state.remainingObjects.forEach(obj => {
+            // Проверяем, не был ли предмет уже найден и не является ли он скрытым
+            if (!obj.hidden && !this.state.foundObjects.includes(obj.name)) {
+                this.createGameObject(obj);
+            }
+        });
+    
+        // Создаем сейф, только если кольцо еще не найдено
+        if (!this.state.ringFound) {
+            this.createSafe();
+        }
+    }
+
+    createGameObject(objData) { // Создание отдельного игрового объекта
+        const object = this.add.sprite(objData.x, objData.y, objData.key)
+            .setInteractive()
+            .setName(objData.name)
+            .on('pointerdown', () => this.handleObjectClick(object));
+
+        return object;
+    }
+
+    createSafe() { // Создание сейфа
+        this.createGameObject({
+            key: 'object6',
+            x: 353,
+            y: 246,
+            name: 'Сейф'
+        });
+    }
+
+    createUI() {
+        // Отступ от верхнего края
+        const padding = 5;
+        
+        // 1. Создаем фон сначала
+        this.textBackground = this.add.rectangle(
+            GAME_CONFIG.width / 2,    // центрируем по горизонтали
+            padding + 10,             // небольшой отступ сверху
+            320,                      // ширина фона
+            200,                      // начальная высота фона
+            0x000000,                // черный цвет
+            0.8                      // прозрачность 80%
+        ).setOrigin(0.5, 0);         // привязка к верхнему краю
+        this.textBackground.setDepth(-1); // фон под текстом
+    
+        // 2. Создаем текстовый контейнер
+        this.itemList = this.add.text(
+            GAME_CONFIG.width / 2,    // центрируем по горизонтали
+            padding + 20,             // отступ от верха + 20 пикселей для читаемости
+            '',                       // пустой текст изначально
+            {
+                fontSize: '13px',
+                fill: '#ffffff',
+                padding: { x: 15, y: 5 },
+                align: 'left',        // выравнивание по левому краю
+                fixedWidth: 300,      // фиксированная ширина
+                fixedHeight: 180,     // фиксированная высота
+                backgroundColor: null  // убираем фон у текста
+            }
+        ).setOrigin(0.5, 0);         // центрирование по горизонтали
+    
+        // Разделяем предметы на две колонки
+        const itemsPerColumn = Math.ceil(this.state.remainingObjects.length / 2);
+        const leftColumnItems = this.state.remainingObjects.slice(0, itemsPerColumn);
+        const rightColumnItems = this.state.remainingObjects.slice(itemsPerColumn);
+    
+        // Создаем массивы для обеих колонок с учетом цвета
+        const leftColumn = leftColumnItems.map(obj => {
+            const color = (obj.hidden && !obj.available) ? '#ff0000' : '#ffffff';
+            return { 
+                text: obj.name, 
+                color: color 
+            };
+        });
+        
+        const rightColumn = rightColumnItems.map(obj => {
+            const color = (obj.hidden && !obj.available) ? '#ff0000' : '#ffffff';
+            return { 
+                text: obj.name, 
+                color: color 
+            };
+        });
+
+        // Находим максимальную длину имени предмета для выравнивания колонок
+        const maxLength = Math.max(
+            ...leftColumn.map(item => item.text.length),
+            ...rightColumn.map(item => item.text.length)
+        );
+    
+        // Формируем текст для списка
+        let formattedText = '';
+        leftColumn.forEach((leftItem, index) => {
+            const rightItem = rightColumn[index] || { text: '', color: '#ffffff' };
+            formattedText += leftItem.text.padEnd(maxLength + 5);
+            if (rightItem.text) {
+                formattedText += rightItem.text;
+            }
+            if (index < leftColumn.length - 1) {
+                formattedText += '\n';
+            }
+        });
+    
+        // Устанавливаем текст в контейнер
+        this.itemList.setText(formattedText);
+    
+        // Обновляем список предметов
+        this.updateItemList();
+        
+        return this.itemList;
+    }
+
+    createHintButton() {
+        const buttonSize = 128;
+
+        // Простые фиксированные координаты для кнопки подсказки
+        const buttonX = 1845; // Позиция по X (лево-право)
+        const buttonY = 70; // Позиция по Y (верх-низ)
+
+        // Создаем основную кнопку
+        this.hintButton = this.add.sprite(
+            buttonX,
+            buttonY,
+            'hint-button'
+        )
+    .setInteractive() // Делаем кнопку кликабельной
+    .setDisplaySize(buttonSize, buttonSize); // Устанавливаем размер кнопки
+    
+        // Функция для создания синхронизированной анимации пульсации
+        const createPulseTween = () => {
+            const pulseDuration = 700; 
+    
+            // Объединенная пульсация размера и цвета
+            this.hintButtonTween = this.tweens.add({
+                targets: this.hintButton,
+                scale: { from: 0.92, to: 1.05 }, // Увеличили уменьшение с 0.98 до 0.92
+                duration: pulseDuration,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut',
+                onUpdate: (tween) => {
+                    const progress = (tween.getValue() - 0.92) / (1.05 - 0.92); // обновили нормализацию
+                    const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+                        Phaser.Display.Color.ValueToColor(0xFFFFFF),  // белый
+                        Phaser.Display.Color.ValueToColor(0xFFD700),  // золотой
+                        100,
+                        progress * 100
+                    );
+                    this.hintButton.setTint(Phaser.Display.Color.GetColor(color.r, color.g, color.b));
+                }
+            });
+        };
+    
+        // Обработчик клика с анимацией
+        this.hintButton.on('pointerdown', () => {
+            const currentTime = Date.now();
+            if (currentTime - this.lastHintTime >= this.hintCooldown) {
+                this.tweens.add({
+                    targets: this.hintButton,
+                    scale: 0.9,
+                    duration: 100,
+                    yoyo: true,
+                    onComplete: () => {
+                        this.useHint();
+                        this.hintButton.setAlpha(0.5);
+                        this.hintButton.clearTint();
+                        if (this.hintButtonTween) {
+                            this.hintButtonTween.stop();
+                            this.hintButtonTween = null;
+                        }
+                    }
+                });
+            } else {
+                this.tweens.add({
+                    targets: this.hintButton,
+                    angle: { from: -5, to: 5 },
+                    duration: 100,
+                    yoyo: true,
+                    repeat: 2,
+                    onComplete: () => {
+                        this.hintButton.setAngle(0);
+                    }
+                });
+            }
+        });
+    
+        // Проверка доступности подсказки
+        this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                const currentTime = Date.now();
+                if (currentTime - this.lastHintTime >= this.hintCooldown) {
+                    this.hintButton.setAlpha(1);
+                    if (!this.hintButtonTween) {
+                        createPulseTween();
+                    }
+                }
+            },
+            loop: true
+        });
+    
+        // Начальное состояние
+        if (Date.now() - this.lastHintTime < this.hintCooldown) {
+            this.hintButton.setAlpha(0.5);
+            this.hintButton.clearTint();
+        } else {
+            createPulseTween();
+        }
+    }
+    
+    handleDependentObjects(parentObjectName) {
+        this.state.remainingObjects.forEach(obj => {
+            if (obj.dependsOn === parentObjectName) {
+                this.updateItemList(); // Обновляем список предметов
+                console.log(`Предмет ${obj.name} стал доступен после взаимодействия с ${parentObjectName}`);
+            }
+        });
+    }
+
+    animateObjectDisappearance(object) {
+        if (!object || !object.scene) {
+            return;
+        }
+    
+        object.setTint(GAME_CONFIG.colors.success);
+    
+        // Анимация увеличения
+        this.tweens.add({
+            targets: object,
+            scale: 1.5,
+            duration: 350,
+            ease: 'Power1',
+            onComplete: () => {
+                // Анимация исчезновения
+                this.tweens.add({
+                    targets: object,
+                    alpha: 0,
+                    duration: 350,
+                    ease: 'Power1',
+                    onComplete: () => {
+                        if (object.name === 'Кольцо') {
+                            this.state.ringFound = true;
+                        }
+                        
+                        if (!this.state.foundObjects.includes(object.name)) {
+                            this.state.foundObjects.push(object.name);
+                        }
+                        
+                        this.updateItemList();
+                        
+                        if (object.scene) {
+                            object.destroy();
+                        }
+                    }
+                });
+            }
+        });
+    
+        this.state.idleTime = 0;
+        this.hintButton.clearTint();
+    }
+    
+    showPopup(object, imageKey, addToInventory = false) {
+        // Используем общий метод создания попапа
+        this.createPopup({
+            background: 'popup-bg',
+            content: imageKey,
+            contentScale: 0.8,
+            x: 350,
+            y: 241,
+            customWidth: 700,
+            customHeight: 482,
+            onClose: () => {
+                if (addToInventory && imageKey === 'list2') {
+                    const inventoryScene = this.scene.get('InventoryScene');
+                    inventoryScene.addItem('list2', 'Развернутый лист');
+                }
+                if (object) {
+                    object.isAnimating = false;
+                    this.animateObjectDisappearance(object);
+                }
+            }
+        });
+    }
+    
+    reopenPopup(scene) {
+        if (!scene) return;
+    
+        this.currentPopupInfo = {
+            object: null,
+            imageKey: 'list2',
+            addToInventory: false,
+            isFirstOpen: false // При повторном открытии флаг в false
+        };
+    
+        this.popupGroup = scene.add.group(); // Создаем новую группу для элементов
+    
+        const popupBackground = scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            GAME_CONFIG.width,
+            GAME_CONFIG.height,
+            0x000000,
+            0.7
+        ).setDepth(998)
+         .setInteractive(); // Создаем затемненный фон
+        this.popupGroup.add(popupBackground);
+    
+        const popupFrame = scene.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            700,
+            482,
+            0x2c1810
+        ).setDepth(999); // Создаем рамку
+        this.popupGroup.add(popupFrame);
+    
+        const popupImage = scene.add.image(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            'list2'
+        ).setInteractive()
+         .setDepth(1000); // Добавляем изображение
+        popupImage.setScale(0.8);
+        this.popupGroup.add(popupImage);
+    
+        const closeButton = scene.add.image(
+            GAME_CONFIG.width / 2 + 330,
+            GAME_CONFIG.height / 2 - 220,
+            'close'
+        ).setDepth(1001)
+         .setScale(0.5)
+         .setInteractive(); // Добавляем кнопку закрытия
+        this.popupGroup.add(closeButton);
+    
+        const closeHandler = () => this.closePopup(); // Простой обработчик закрытия
+        closeButton.on('pointerdown', closeHandler); // Обработчик для крестика
+        popupImage.on('pointerdown', closeHandler); // Обработчик для изображения
+        popupBackground.on('pointerdown', closeHandler); // Обработчик для фона
+    }
+    
+    closePopup() {
+        if (this.popupGroup) {
+            this.popupGroup.getChildren().forEach(child => child.removeAllListeners()); // Удаляем все обработчики событий
+            this.popupGroup.clear(true, true); // Очищаем группу
+            this.popupGroup = null;
+    
+            if (this.currentPopupInfo && 
+                this.currentPopupInfo.imageKey === 'list2' && 
+                this.currentPopupInfo.isFirstOpen) {
+                this.time.delayedCall(100, () => {
+                    if (this.journalSystem) {
+                        this.journalSystem.showNewEntryEffect(); // Показываем эффект на кнопке дневника
+                    }
+                });
+            }
+    
+            this.currentPopupInfo = null; // Очищаем информацию о текущем popup
+        }
+    }
+
+    addToInventory(itemName) { // Добавление предмета в инвентарь
+        if (!this.state.inventory.includes(itemName)) {
+            this.state.inventory.push(itemName); // Добавление предмета в массив инвентаря
+
+            const inventoryTextContent = this.state.inventory.map(item => `[${item}]`).join(' '); // Обновление отображения инвентаря
+            this.inventoryText.setText(inventoryTextContent);
+
+            this.inventoryText.removeAllListeners('pointerdown'); // Добавление интерактивности для предметов в инвентаре
+            this.inventoryText.setInteractive(new Phaser.Geom.Rectangle(0, 0, this.inventoryText.width, this.inventoryText.height), Phaser.Geom.Rectangle.Contains);
+            this.inventoryText.on('pointerdown', () => {
+                if (itemName === 'Развернутый лист') {
+                    this.reopenPopup(this.inventoryText.scene);
+                }
+            });
+        }
+
+        this.state.idleTime = 0; // Сброс таймера бездействия
+        this.hintButton.clearTint();
+    }
+
+    openSafe() { // Открытие интерфейса сейфа
+        this.codeInputGroup = this.add.group();
+
+        let background = this.add.rectangle(350, 241, 400, 200, 0x000000, 0.8); // Создание фона для интерфейса сейфа
+        this.codeInputGroup.add(background);
+
+        let digitTexts = [];
+
+        for (let i = 0; i < 4; i++) { // Создание полей для ввода цифр кода
+            let digitText = this.add.text(250 + i * 50, 220, this.state.selectedDigits[i], { 
+                fontSize: '32px', 
+                fill: '#fff' 
+            }).setInteractive();
+            
+            digitText.index = i;
+            digitText.on('pointerdown', () => {
+                this.incrementDigit(digitText);
+            });
+            
+            this.codeInputGroup.add(digitText);
+            digitTexts.push(digitText);
+        }
+
+        let instructions = this.add.text(250, 180, 'Выставьте код:', { // Добавление инструкции
+            fontSize: '24px', 
+            fill: '#fff' 
+        });
+        this.codeInputGroup.add(instructions);
+
+        let confirmButton = this.add.text(350, 280, 'ОК', { // Создание кнопки подтверждения
+            fontSize: '32px', 
+            fill: '#00ff00' 
+        }).setInteractive();
+        confirmButton.on('pointerdown', () => this.checkCode(digitTexts));
+        this.codeInputGroup.add(confirmButton);
+
+        let closeButton = this.add.text(450, 180, 'X', { // Создание кнопки закрытия
+            fontSize: '32px', 
+            fill: '#ff0000' 
+        }).setInteractive();
+        closeButton.on('pointerdown', () => this.closeCodeInput());
+        this.codeInputGroup.add(closeButton);
+    }
+
+    incrementDigit(digitText) { // Увеличение значения цифры в коде сейфа
+        let currentDigit = parseInt(digitText.text);
+        if (isNaN(currentDigit)) currentDigit = 0;
+        currentDigit = (currentDigit + 1) % 10;  // Циклическое изменение от 0 до 9
+        digitText.setText(currentDigit.toString());
+        this.state.selectedDigits[digitText.index] = currentDigit.toString();
+    }
+
+    checkCode(digitTexts) {
+        try {
+            // Получаем введенный код и правильный код
+            const enteredCode = this.state.selectedDigits.join('');
+            const correctCode = GAME_CONFIG.safeCode.join('');
+            console.log('Введенный код:', enteredCode);
+            console.log('Правильный код:', correctCode);
+    
+            if (enteredCode === correctCode) {
+                // Визуальная обратная связь - подсветка правильного кода зеленым
+                digitTexts.forEach(digitText => 
+                    digitText.setFill('#' + GAME_CONFIG.colors.success.toString(16))
+                );
+    
+                // Закрываем интерфейс ввода кода
+                this.closeCodeInput();
+    
+                // Создаем группу для открытого сейфа и кольца
+                const safeGroup = this.add.group();
+    
+                // Создаем затемненный фон
+                const safeBackground = this.add.rectangle(
+                    350, 241,    // координаты центра
+                    700, 482,    // размеры
+                    0x000000,    // цвет
+                    0.5         // прозрачность
+                ).setDepth(1000);
+                safeGroup.add(safeBackground);
+    
+                // Показываем изображение открытого сейфа
+                const openSafeImage = this.add.image(350, 241, 'opensafe')
+                    .setScale(0.8)
+                    .setDepth(1001)
+                    .setInteractive();
+                safeGroup.add(openSafeImage);
+    
+                // Находим объект кольца в списке оставшихся предметов
+                const ringObject = this.state.remainingObjects.find(obj => obj.name === 'Кольцо');
+                
+                // Если кольцо найдено в списке, делаем его доступным
+                if (ringObject) {
+                    ringObject.available = true;
+                    ringObject.hidden = false; // Убираем флаг скрытости
+                    this.updateItemList(); // Обновляем список предметов (цвет изменится на белый)
+                }
+    
+                // Если кольцо еще не было найдено игроком
+                if (!this.state.ringFound) {
+                    console.log('Создаем кольцо...');
+                    // Создаем спрайт кольца в открытом сейфе
+                    this.ringObject = this.add.sprite(353, 236, 'object8')
+                        .setDepth(1002)
+                        .setInteractive();
+                    this.ringObject.name = 'Кольцо';
+                    
+                    // Добавляем обработчик клика на кольцо
+                    this.ringObject.on('pointerdown', () => {
+                        console.log('Клик по кольцу');
+                        this.handleObjectClick(this.ringObject);
+                        safeGroup.destroy(true); // Закрываем сейф после взятия кольца
+                    });
+    
+                    safeGroup.add(this.ringObject);
+                    console.log('Кольцо создано:', this.ringObject);
+                }
+    
+                // Добавляем обработчик закрытия сейфа
+                openSafeImage.on('pointerdown', () => {
+                    if (this.state.ringFound) {
+                        safeGroup.destroy(true); // Закрываем сейф только если кольцо уже найдено
+                    }
+                });
+    
+                // Удаляем записку с кодом из инвентаря через InventoryScene
+                const inventoryScene = this.scene.get('InventoryScene');
+                inventoryScene.removeItem('list2');
+    
+            } else {
+                // Визуальная обратная связь - подсветка неправильного кода красным
+                digitTexts.forEach(digitText => 
+                    digitText.setFill('#' + GAME_CONFIG.colors.error.toString(16))
+                );
+                
+                // Через секунду сбрасываем код и возвращаем белый цвет
+                setTimeout(() => {
+                    digitTexts.forEach(digitText => digitText.setFill('#fff'));
+                    this.resetDigits(digitTexts);
+                }, 1000);
+            }
+        } catch (error) {
+            // Обработка возможных ошибок
+            console.error('Ошибка в методе checkCode:', error);
+            console.error(error.stack);
+        }
+    }
+
+    resetDigits(digitTexts) { // Сброс введенных цифр кода
+        this.state.selectedDigits = ["0", "0", "0", "0"];
+        digitTexts.forEach((digitText, i) => {
+            digitText.setText("0");
+            this.state.selectedDigits[i] = "0";
+        });
+    }
+
+    closeCodeInput() { // Закрытие интерфейса ввода кода
+        if (this.codeInputGroup) {
+            this.codeInputGroup.clear(true, true);
+            this.codeInputGroup = null;
+        }
+    }
+
+    updateItemList() {
+        // Проверяем существование списка предметов
+        if (!this.itemList) return;
+    
+        // Делим предметы на две колонки
+        const itemsPerColumn = Math.ceil(this.state.remainingObjects.length / 2);
+        const leftColumnItems = this.state.remainingObjects.slice(0, itemsPerColumn);
+        const rightColumnItems = this.state.remainingObjects.slice(itemsPerColumn);
+    
+        // Очищаем существующие текстовые объекты, если они есть
+        if (this.itemTextObjects) {
+            this.itemTextObjects.forEach(textObj => textObj.destroy());
+        }
+        this.itemTextObjects = [];
+
+        const topPadding = 5; // Минимальный отступ сверху
+        const itemSpacing = 20; // Расстояние между элементами
+
+        // Создаем или обновляем фон
+        if (!this.textBackground) {
+            this.textBackground = this.add.rectangle(
+                GAME_CONFIG.width / 2,
+                topPadding,
+                320,
+                200,
+                0x000000,
+                0.8
+            ).setOrigin(0.5, 0);
+        }
+        
+        this.textBackground.setDepth(0);
+
+        // Создаем отдельные текстовые объекты для каждого предмета
+        leftColumnItems.forEach((item, index) => {
+            // Позиция для левой колонки
+            const x = GAME_CONFIG.width / 2 - 140;
+            const y = topPadding + 10 + (index * itemSpacing);
+            
+            // Определяем стиль текста в зависимости от состояния предмета
+            const textStyle = {
+                fontSize: '13px',
+                fill: this.getItemColor(item),
+                textDecoration: this.state.foundObjects.includes(item.name) ? 'line-through' : ''
+            };
+            
+            // Создаем текстовый объект для левого элемента
+            const textItem = this.add.text(x, y, item.name, textStyle).setDepth(1);
+            
+            // Если предмет найден, добавляем зачеркивание
+            if (this.state.foundObjects.includes(item.name)) {
+                const strikethrough = this.add.graphics();
+                strikethrough.lineStyle(1, 0x808080); // Серая линия
+                strikethrough.lineBetween(
+                    x, 
+                    y + textItem.height / 2,
+                    x + textItem.width,
+                    y + textItem.height / 2
+                );
+                strikethrough.setDepth(2);
+                this.itemTextObjects.push(strikethrough);
+            }
+            
+            this.itemTextObjects.push(textItem);
+            
+            // Если есть правый элемент, создаем его тоже
+            if (rightColumnItems[index]) {
+                const rightItem = rightColumnItems[index];
+                const rightX = GAME_CONFIG.width / 2 + 20;
+                
+                // Определяем стиль текста для правого элемента
+                const rightTextStyle = {
+                    fontSize: '13px',
+                    fill: this.getItemColor(rightItem),
+                    textDecoration: this.state.foundObjects.includes(rightItem.name) ? 'line-through' : ''
+                };
+                
+                // Создаем текстовый объект для правого элемента
+                const rightTextItem = this.add.text(rightX, y, rightItem.name, rightTextStyle).setDepth(1);
+                
+                // Если правый предмет найден, добавляем зачеркивание
+                if (this.state.foundObjects.includes(rightItem.name)) {
+                    const strikethrough = this.add.graphics();
+                    strikethrough.lineStyle(1, 0x808080); // Серая линия
+                    strikethrough.lineBetween(
+                        rightX,
+                        y + rightTextItem.height / 2,
+                        rightX + rightTextItem.width,
+                        y + rightTextItem.height / 2
+                    );
+                    strikethrough.setDepth(2);
+                    this.itemTextObjects.push(strikethrough);
+                }
+                
+                this.itemTextObjects.push(rightTextItem);
+            }
+        });
+    
+        // Очищаем старый текст в основном контейнере
+        this.itemList.setText('');
+    
+        // Обновляем позицию основного контейнера
+        this.itemList.setPosition(GAME_CONFIG.width / 2, topPadding);
+        this.itemList.setOrigin(0.5, 0);
+
+        // Рассчитываем высоту содержимого
+        const contentHeight = (leftColumnItems.length * itemSpacing) + 20;
+        
+        // Обновляем размер и позицию фона
+        this.textBackground.setSize(320, contentHeight);
+        this.textBackground.setPosition(
+            GAME_CONFIG.width / 2,
+            topPadding
+        );
+    }
+
+    // Добавьте этот вспомогательный метод в класс
+    getItemColor(item) {
+    if (this.state.foundObjects.includes(item.name)) {
+        return '#808080'; // Серый цвет для найденных предметов
+    }
+    if (item.hidden && !item.available) {
+        return '#ff0000'; // Красный цвет для скрытых недоступных предметов
+    }
+    return '#ffffff'; // Белый цвет для обычных предметов
+    }
+
+    removeFromInventory(itemName) { // Удаление предмета из инвентаря
+        this.state.inventory = this.state.inventory.filter(item => item !== itemName);
+        const inventoryTextContent = this.state.inventory.map(item => `[${item}]`).join(' ');
+        this.inventoryText.setText(inventoryTextContent);
+        this.inventoryText.removeAllListeners('pointerdown');
+    }
+    
+    showObjectHint() {
+        // Фильтруем список, оставляя только ненайденные предметы
+        const availableObjects = this.state.remainingObjects.filter(obj => 
+            !this.state.foundObjects.includes(obj.name) && (!obj.hidden || obj.available)
+        );
+    
+        if (availableObjects.length > 0) {
+            // Выбираем один случайный предмет из доступных
+            const randomIndex = Math.floor(Math.random() * availableObjects.length);
+            const hintObject = availableObjects[randomIndex];
+            const sprite = this.children.list.find(child => child.name === hintObject.name);
+    
+            if (sprite) {
+                const graphics = this.add.graphics();
+                graphics.lineStyle(2, GAME_CONFIG.colors.hint, 1); // Используем золотой цвет
+                graphics.strokeRect(sprite.x - sprite.width / 2, sprite.y - sprite.height / 2, 
+                                  sprite.width, sprite.height);
+                graphics.fillStyle(GAME_CONFIG.colors.hint, 0.3); // Полупрозрачная заливка
+                graphics.fillRect(sprite.x - sprite.width / 2, sprite.y - sprite.height / 2, 
+                                  sprite.width, sprite.height);
+    
+                this.tweens.add({
+                    targets: graphics,
+                    alpha: 0,
+                    duration: 1000,
+                    onComplete: () => {
+                        graphics.destroy();
+                    }
+                });
+            }
+        }
+    }
+    
+    showNavigationHint() {
+        // Получаем текущую локацию
+        const currentLocation = locationPaths[this.location];
+        let possibleDirections = [];
+        
+        // Собираем все возможные направления
+        if (currentLocation.forwardTo.length > 0) {
+            possibleDirections = possibleDirections.concat(currentLocation.forwardTo);
+        }
+        if (currentLocation.backTo.length > 0) {
+            possibleDirections = possibleDirections.concat(currentLocation.backTo);
+        }
+    
+        if (possibleDirections.length > 0) {
+            // Выбираем случайное направление
+            const randomDirection = possibleDirections[Math.floor(Math.random() * possibleDirections.length)];
+            
+            // Находим соответствующую зону перехода
+            const transition = locationMap[this.location].transitions[randomDirection];
+            
+            if (transition) {
+                const points = transition.points;
+                
+                // Создаем подсветку зоны перехода
+                const graphics = this.add.graphics();
+                graphics.lineStyle(2, GAME_CONFIG.colors.hint, 1);
+                graphics.beginPath();
+                graphics.moveTo(points[0].x, points[0].y);
+                
+                // Рисуем контур зоны
+                points.forEach((point, index) => {
+                    const nextPoint = points[(index + 1) % points.length];
+                    graphics.lineTo(nextPoint.x, nextPoint.y);
+                });
+                
+                graphics.closePath();
+                graphics.strokePath();
+                
+                // Добавляем полупрозрачную заливку
+                graphics.fillStyle(GAME_CONFIG.colors.hint, 0.3);
+                graphics.fillPath();
+    
+                // Анимация исчезновения
+                this.tweens.add({
+                    targets: graphics,
+                    alpha: 0,
+                    duration: 1000,
+                    onComplete: () => {
+                        graphics.destroy();
+                    }
+                });
+            }
+        }
+    }
+
+    getItemListText() {
+        const itemsPerColumn = Math.ceil(this.state.remainingObjects.length / 2);
+        const leftColumnItems = this.state.remainingObjects.slice(0, itemsPerColumn);
+        const rightColumnItems = this.state.remainingObjects.slice(itemsPerColumn);
+    
+        const leftColumn = leftColumnItems.map(obj => obj.name);
+        const rightColumn = rightColumnItems.map(obj => obj.name);
+        
+        const maxLength = Math.max(
+            ...leftColumn.map(item => item.length),
+            ...rightColumn.map(item => item.length)
+        );
+    
+        return leftColumn.map((item, index) => {
+            const rightItem = rightColumn[index] || '';
+            return `${item.padEnd(maxLength + 5)}${rightItem}`;
+        }).join('\n');
+    }
+
+    createPopup({ 
+        background = 'popup-bg',  
+        content = '',            
+        contentScale = 0.8,      
+        onClose = null,          
+        customWidth = 700,       
+        customHeight = 482,      
+        x = GAME_CONFIG.width / 2,  
+        y = GAME_CONFIG.height / 2,  
+        closeButton = true       
+    } = {}) {
+        if (this.popupGroup) {
+            this.closePopup();
+        }
+    
+        this.popupGroup = this.add.group();
+    
+        // Создаем затемнение на весь экран
+        const darkOverlay = this.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            GAME_CONFIG.width,
+            GAME_CONFIG.height,
+            0x000000,
+            0.7
+        ).setInteractive()
+         .setDepth(102);
+        this.popupGroup.add(darkOverlay);
+    
+        // Добавляем фоновое изображение попапа
+        if (background) {
+            const popupBackground = this.add.image(x, y, background)
+                .setDepth(103)
+                .setOrigin(0.5, 0.5);
+            popupBackground.setDisplaySize(customWidth, customHeight);
+            this.popupGroup.add(popupBackground);
+        }
+    
+        // Если есть контент, добавляем его
+        if (content) {
+            const contentImage = this.add.image(x, y, content)
+                .setInteractive()
+                .setDepth(103)
+                .setOrigin(0.5, 0.5);
+            contentImage.setScale(contentScale);
+            this.popupGroup.add(contentImage);
+        }
+    
+        // Добавляем кнопку закрытия
+        if (closeButton) {
+            const closeBtn = this.add.sprite(
+                x + (customWidth / 2 - 20),
+                y - (customHeight / 2 - 20),
+                'close'
+            ).setDepth(103);
+            
+            closeBtn.setScale(0.5);
+            closeBtn.setInteractive();
+            this.popupGroup.add(closeBtn);
+    
+            // Обработчики для кнопки закрытия
+            closeBtn.on('pointerover', () => {
+                if (!closeBtn.isTinted) {
+                    closeBtn.setTint(0xcccccc);
+                }
+            });
+    
+            closeBtn.on('pointerout', () => {
+                if (this.popupGroup) {
+                    closeBtn.clearTint();
+                    closeBtn.setScale(0.5);
+                }
+            });
+    
+            closeBtn.on('pointerdown', () => {
+                if (this.popupGroup) {
+                    closeBtn.setScale(0.45);
+                    closeBtn.setTint(0x999999);
+                }
+            });
+    
+            closeBtn.on('pointerup', () => {
+                if (this.popupGroup) {
+                    closeBtn.setScale(0.5);
+                    closeBtn.clearTint();
+                    this.closePopup();
+                }
+            });
+        }
+    
+        // Обработчик клика по затемнению
+        darkOverlay.on('pointerdown', () => {
+            this.closePopup();
+        });
+    
+        // Сохраняем callback закрытия
+        if (onClose) {
+            this.popupGroup.onClose = onClose;
+        }
+    
+        return this.popupGroup;
+    }
+    
+    closePopup() {
+        if (!this.popupGroup) return;
+        
+        // Вызываем callback если он есть
+        if (this.popupGroup.onClose) {
+            this.popupGroup.onClose();
+        }
+    
+        this.popupGroup.clear(true, true);
+        this.popupGroup = null;
+    }
+}
+
+const config = {
+    type: Phaser.AUTO,
+    width: GAME_CONFIG.width,
+    height: GAME_CONFIG.height,
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 1920,
+        height: 1080
+    },
+    scene: [LoadingScene, GameScene, InventoryScene], // Добавили LoadingScene первой
+    physics: {
+        default: 'arcade',
+        arcade: {
+            debug: false
+        }
+    }
+};
+
+// Запуск игры
+const game = new Phaser.Game(config);
