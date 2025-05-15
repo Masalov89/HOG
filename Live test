@@ -42,6 +42,9 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
                 { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
                 { key: 'close', path: './UI/ApprovedUI/Close.png' },
+                { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
+                { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
+                { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
                 { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }
             ],
             objects: [
@@ -138,6 +141,199 @@ const GAME_CONFIG = {
         background: 0x000000    // Черный цвет для фона
     }
 };
+
+class PopupSystem {
+    constructor(scene) {
+        this.scene = scene;
+        this.activePopup = null;
+        
+        // Конфигурация для разных типов попапов
+        this.config = {
+            ITEM: {
+                width: 700,
+                height: 482,
+                background: 'popup-bg-item',
+                scale: 0.8
+            },
+            JOURNAL: {
+                width: 800,
+                height: 600,
+                background: 'popup-bg-journal',
+                scale: 1
+            },
+            LOCATION: {
+                width: 400,
+                height: 300,
+                background: 'popup-bg-small',
+                scale: 0.6
+            },
+            closeButton: {
+                scale: 0.8,
+                offset: 40,
+                depth: 1001
+            }
+        };
+    }
+
+    create(type, options) {
+        // Закрываем предыдущий попап, если он существует
+        if (this.activePopup) {
+            this.close();
+        }
+
+        const config = this.config[type];
+        if (!config) {
+            console.error('Неизвестный тип попапа:', type);
+            return;
+        }
+
+        const {
+            content,
+            onClose,
+            data,
+            x = this.scene.cameras.main.width / 2,
+            y = this.scene.cameras.main.height / 2
+        } = options;
+
+        // Создаем группу для попапа
+        const popupGroup = this.scene.add.group();
+
+        // Создаем затемнение
+        const overlay = this.createOverlay();
+        
+        // Создаем фон попапа
+        const background = this.createBackground(x, y, config);
+        
+        // Создаем контент в зависимости от типа
+        const contentElement = this.createContent(type, content, data, x, y, config);
+        
+        // Создаем кнопку закрытия
+        const closeButton = this.createCloseButton(x, y, config);
+
+        // Добавляем все элементы в группу
+        popupGroup.addMultiple([overlay, background, ...contentElement, closeButton]);
+
+        // Настраиваем обработчики для закрытия
+        this.setupCloseHandlers(popupGroup, closeButton, onClose);
+
+        // Сохраняем активный попап
+        this.activePopup = popupGroup;
+
+        return popupGroup;
+    }
+
+    createOverlay() {
+        return this.scene.add.rectangle(
+            0, 0,
+            this.scene.cameras.main.width,
+            this.scene.cameras.main.height,
+            0x000000,
+            0.7
+        ).setOrigin(0)
+         .setDepth(998)
+         .setInteractive();
+    }
+
+    createBackground(x, y, config) {
+        return this.scene.add.image(x, y, config.background)
+            .setDisplaySize(config.width, config.height)
+            .setDepth(999);
+    }
+
+    createContent(type, content, data, x, y, config) {
+        switch(type) {
+            case 'ITEM':
+                return [this.createItemContent(content, x, y, config)];
+            
+            case 'JOURNAL':
+                return this.createJournalContent(data, x, y, config);
+            
+            case 'LOCATION':
+                return [this.createLocationContent(content, x, y, config)];
+            
+            default:
+                return [];
+        }
+    }
+
+    createItemContent(itemKey, x, y, config) {
+        return this.scene.add.image(x, y, itemKey)
+            .setScale(config.scale)
+            .setDepth(1000);
+    }
+
+    createJournalContent(entries, x, y, config) {
+        const contentGroup = [];
+        const startY = y - (config.height / 2) + 100;
+        
+        // Добавляем заголовок
+        contentGroup.push(
+            this.scene.add.text(x, startY - 50, 'ДНЕВНИК', {
+                fontSize: '32px',
+                fill: '#ffd700',
+                fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(1000)
+        );
+
+        // Добавляем записи
+        entries.forEach((entry, index) => {
+            contentGroup.push(
+                this.scene.add.text(
+                    x - (config.width / 2) + 50,
+                    startY + (index * 40),
+                    entry,
+                    {
+                        fontSize: '18px',
+                        fill: '#ffffff',
+                        wordWrap: { width: config.width - 100 }
+                    }
+                ).setDepth(1000)
+            );
+        });
+
+        return contentGroup;
+    }
+
+    createLocationContent(contentKey, x, y, config) {
+        return this.scene.add.image(x, y, contentKey)
+            .setScale(config.scale)
+            .setDepth(1000);
+    }
+
+    createCloseButton(x, y, config) {
+        const button = this.scene.add.sprite(
+            x + (config.width / 2) - this.config.closeButton.offset,
+            y - (config.height / 2) + this.config.closeButton.offset,
+            'close'
+        ).setScale(this.config.closeButton.scale)
+         .setDepth(this.config.closeButton.depth)
+         .setInteractive();
+
+        return button;
+    }
+
+    setupCloseHandlers(popupGroup, closeButton, onClose) {
+        // Обработчики для кнопки закрытия
+        closeButton.on('pointerover', () => closeButton.setTint(0xcccccc));
+        closeButton.on('pointerout', () => {
+            closeButton.clearTint();
+            closeButton.setScale(this.config.closeButton.scale);
+        });
+        closeButton.on('pointerdown', () => {
+            closeButton.setScale(this.config.closeButton.scale * 0.9);
+            closeButton.setTint(0x999999);
+        });
+        closeButton.on('pointerup', () => this.close(onClose));
+    }
+
+    close(onClose = null) {
+        if (this.activePopup) {
+            this.activePopup.destroy(true);
+            this.activePopup = null;
+            if (onClose) onClose();
+        }
+    }
+}
 
 // Инициализация уведомлений
 function requestNotificationPermission() {
@@ -524,8 +720,9 @@ class JournalSystem {
         this.entries.push(text);
         this.saveEntries();
         
-        if (this.isOpen) {
-            this.updateEntries();
+        if (this.isOpen && this.scene.popupSystem) {
+            // Если дневник открыт, обновляем его содержимое
+            this.openJournal();
         }
         
         // Показываем эффект новой записи
@@ -545,30 +742,6 @@ class JournalSystem {
         }
     }
 
-    // Обновление отображения записей (модифицированный метод)
-    updateEntries() {
-        // Очищаем контейнер
-        this.entriesContainer.removeAll(true);
-
-        // Создаём и добавляем каждую запись
-        this.entries.forEach((entry, index) => {
-            // Создаём текст записи
-            const entryText = this.scene.add.text(
-                0,
-                index * 60, // Отступ между записями
-                entry,
-                {
-                    fontSize: '18px',
-                    fill: '#ffffff',
-                    wordWrap: { width: GAME_CONFIG.width * 0.6 }
-                }
-            );
-
-            // Добавляем текст в контейнер
-            this.entriesContainer.add(entryText);
-        });
-    }
-
     // Переключение состояния дневника (открыть/закрыть)
     toggleJournal() {
         if (this.isOpen) {
@@ -576,163 +749,27 @@ class JournalSystem {
         } else {
             this.openJournal();
         }
-        this.isOpen = !this.isOpen;
     }
 
-    // Создание интерфейса дневника
-    createJournalUI() {
-        // Создаём затемнение фона
-        this.overlay = this.scene.add.rectangle(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            GAME_CONFIG.width,
-            GAME_CONFIG.height,
-            0x000000,
-            0.7
-        ).setDepth(101);
-
-        // Создаём фон дневника
-        const journalWidth = GAME_CONFIG.width * 0.7;   // ширина окна дневника
-        const journalHeight = GAME_CONFIG.height * 0.8;  // высота окна дневника
-
-        // Основная панель дневника
-        this.journalPanel = this.scene.add.rectangle(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            journalWidth,
-            journalHeight,
-            0x2c1810 // коричневый цвет для фона дневника
-        ).setDepth(102);
-
-        // Добавляем рамку дневника
-        this.journalBorder = this.scene.add.graphics()
-            .setDepth(102);
-        this.journalBorder.lineStyle(4, 0x8b4513); // коричневая рамка
-        this.journalBorder.strokeRect(
-            (GAME_CONFIG.width - journalWidth) / 2,
-            (GAME_CONFIG.height - journalHeight) / 2,
-            journalWidth,
-            journalHeight
-        );
-
-        // Кнопка закрытия дневника
-        this.closeButton = this.scene.add.sprite(
-            GAME_CONFIG.width / 2 + journalWidth / 2 - 40,
-            GAME_CONFIG.height / 2 - journalHeight / 2 + 40,
-            'close' // ключ для изображения кнопки закрытия
-        ).setDepth(103)
-            .setScale(0.8)
-            .setInteractive();
-
-        // Добавляем эффекты при наведении и нажатии
-        this.closeButton.on('pointerover', () => {
-            if (!this.closeButton.isTinted) {
-                this.closeButton.setTint(0xcccccc);
-            }
-        });
-
-        this.closeButton.on('pointerout', () => {
-            this.closeButton.clearTint();
-            this.closeButton.setScale(0.8);
-        });
-
-        this.closeButton.on('pointerdown', () => {
-            this.closeButton.setScale(0.75);  // немного уменьшаем при нажатии
-            this.closeButton.setTint(0x999999);
-        });
-
-        this.closeButton.on('pointerup', () => {
-            this.closeButton.setScale(0.8);
-            this.closeButton.clearTint();
-            this.closeJournal();
-        });
-
-        // Заголовок дневника
-        this.journalTitle = this.scene.add.text(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2 - journalHeight / 2 + 50,
-            'ДНЕВНИК',
-            {
-                fontSize: '32px',
-                fill: '#ffd700',
-                fontStyle: 'bold'
-            }
-        ).setOrigin(0.5)
-            .setDepth(103);
-
-        // Контейнер для записей дневника
-        this.entriesContainer = this.scene.add.container(
-            GAME_CONFIG.width / 2 - journalWidth / 2 + 50,
-            GAME_CONFIG.height / 2 - journalHeight / 2 + 100
-        ).setDepth(103);
-
-        // Добавляем полосу прокрутки, если записей много
-        if (this.entries.length > 8) { // если записей больше 8, добавляем скролл
-            this.addScrollbar();
-        }
-
-        this.updateEntries(); // обновляем отображение записей
-    }
-
-    // Добавление полосы прокрутки
-    addScrollbar() {
-        const scrollBarWidth = 20;
-        const scrollBarHeight = GAME_CONFIG.height * 0.6;
-        const scrollBarX = GAME_CONFIG.width / 2 + (GAME_CONFIG.width * 0.7) / 2 - scrollBarWidth - 20;
-        const scrollBarY = GAME_CONFIG.height / 2 - scrollBarHeight / 2 + 100;
-
-        // Фон полосы прокрутки
-        this.scrollBarBg = this.scene.add.rectangle(
-            scrollBarX,
-            scrollBarY,
-            scrollBarWidth,
-            scrollBarHeight,
-            0x444444
-        ).setDepth(103);
-
-        // Ползунок
-        this.scrollBar = this.scene.add.rectangle(
-            scrollBarX,
-            scrollBarY,
-            scrollBarWidth,
-            100, // высота ползунка
-            0x666666
-        ).setDepth(104)
-            .setInteractive({ draggable: true });
-
-        // Обработка перетаскивания ползунка
-        this.scrollBar.on('drag', (pointer, dragX, dragY) => {
-            const minY = scrollBarY - scrollBarHeight / 2 + this.scrollBar.height / 2;
-            const maxY = scrollBarY + scrollBarHeight / 2 - this.scrollBar.height / 2;
-            this.scrollBar.y = Phaser.Math.Clamp(dragY, minY, maxY);
-
-            // Обновляем позицию контента
-            const scrollPercentage = (this.scrollBar.y - minY) / (maxY - minY);
-            const maxScroll = (this.entries.length * 60) - scrollBarHeight;
-            this.entriesContainer.y = -maxScroll * scrollPercentage;
-        });
-    }
-
-    // Открытие дневника
+    // Открытие дневника с использованием PopupSystem
     openJournal() {
-        this.createJournalUI();
-        // Добавляем возможность закрыть дневник кликом вне его области
-        this.overlay.setInteractive().on('pointerdown', () => {
-            this.closeJournal();
+        if (!this.scene.popupSystem) return;
+
+        this.scene.popupSystem.create('JOURNAL', {
+            data: this.entries,
+            onClose: () => {
+                this.isOpen = false;
+            }
         });
+        
+        this.isOpen = true;
     }
 
     // Закрытие дневника
     closeJournal() {
-        // Удаляем все элементы интерфейса дневника
-        if (this.overlay) this.overlay.destroy();
-        if (this.journalPanel) this.journalPanel.destroy();
-        if (this.journalBorder) this.journalBorder.destroy();
-        if (this.closeButton) this.closeButton.destroy();
-        if (this.journalTitle) this.journalTitle.destroy();
-        if (this.entriesContainer) this.entriesContainer.destroy();
-        if (this.scrollBarBg) this.scrollBarBg.destroy();
-        if (this.scrollBar) this.scrollBar.destroy();
+        if (this.scene.popupSystem) {
+            this.scene.popupSystem.close();
+        }
         this.isOpen = false;
     }
 }
@@ -877,18 +914,16 @@ class InventorySystem {
     }
 
     showItemPopup(key, name) {
-        // Используем GameScene для создания попапа
+        // Получаем сцену игры для доступа к PopupSystem
         const gameScene = this.scene.scene.get('GameScene');
-        if (!gameScene) return;
-
-        gameScene.createPopup({
-            background: 'popup-bg',
+        if (!gameScene || !gameScene.popupSystem) return;
+    
+        // Используем PopupSystem для создания попапа предмета
+        gameScene.popupSystem.create('ITEM', {
             content: key,
-            contentScale: 0.8,
-            x: GAME_CONFIG.width / 2,
-            y: GAME_CONFIG.height / 2,
-            customWidth: 700,
-            customHeight: 482
+            onClose: () => {
+                console.log(`Закрыт попап предмета: ${name}`);
+            }
         });
     }
     
@@ -1409,38 +1444,56 @@ class EnergySystem {
 class GameScene extends Phaser.Scene { 
     constructor() {
         super({ key: 'GameScene' });
-        this.journalSystem = null; // Инициализация системы дневника
-
-        this.state = { // Инициализация состояния игры
-            remainingObjects: [], // Список оставшихся для поиска предметов
-            foundObjects: [],     // Список найденных предметов
-            hintAvailable: true,  // Флаг доступности подсказки
-            idleTime: 0,         // Счетчик времени бездействия
-            selectedDigits: ["0", "0", "0", "0"], // Текущий код сейфа
-            ringFound: false,     // Флаг нахождения кольца
-            inventory: []         // Поле inventory
+        
+        // Инициализация переменных для игровых систем
+        this.currentLocation = null;  // текущая локация
+        this.inventory = null;        // система инвентаря
+        this.journal = null;          // система дневника
+        this.popupSystem = null;      // система попапов
+        this.energySystem = null;     // система энергии
+        this.hintSystem = null;       // система подсказок
+        
+        // Флаги состояния игры
+        this.isTransitioning = false; // флаг перехода между локациями
+        this.canInteract = true;      // флаг возможности взаимодействия
+        
+        // Системные таймеры и счетчики
+        this.idleTimer = 0;           // таймер бездействия
+        this.lastInteractionTime = 0; // время последнего взаимодействия
+        
+        // Настройки взаимодействия
+        this.transitionZones = [];    // зоны перехода между локациями
+        this.interactiveObjects = []; // интерактивные объекты
+        this.highlightedObject = null;// подсвеченный объект
+        
+        // Состояние игры
+        this.gameState = {
+            visitedLocations: new Set(),  // посещенные локации
+            collectedItems: new Set(),    // собранные предметы
+            solvedPuzzles: new Set(),     // решенные головоломки
+            triggers: new Map()            // игровые триггеры
         };
-
-        // Свойства для навигации
-        this.location = 'front-house';
-        this.locationHistory = [];
-
-        // Общие свойства
-        this.popupGroup = null;      // Группа для всплывающих окон
-        this.codeInputGroup = null;  // Группа для ввода кода сейфа
-        this.ringObject = null;      // Объект кольца
-        this.inventory = null;       // Поле для системы инвентаря
-        this.itemTextObjects = [];   // Массив текстовых объектов
-        this.textBackground = null;  // Фон для текста
-
-        // Добавляем эти две строки:
-        this.lastHintTime = 0;      // Время последней подсказки
-        this.hintCooldown = 10000;  // Задержка 10 секунд между подсказками
-        // Добавляем свойство для системы энергии
-        this.energySystem = null;
+        
+        // Настройки отладки
+        this.debugMode = false;       // режим отладки
+        this.debugGraphics = null;    // графика для отладки
+        
+        // Привязка методов к контексту
+        this.handlePointerMove = this.handlePointerMove.bind(this);
+        this.handlePointerDown = this.handlePointerDown.bind(this);
+        this.updateIdleTimer = this.updateIdleTimer.bind(this);
+        
+        // Инициализация конфигурации
+        this.config = {
+            transitionDuration: 1000,     // длительность перехода между локациями
+            highlightTint: 0xffffcc,      // цвет подсветки объектов
+            idleTimeout: GAME_CONFIG.idleLimit * 1000, // таймаут бездействия
+            debugColor: 0xff0000          // цвет отладочной графики
+        };
     }
 
     create() {
+        this.popupSystem = new PopupSystem(this);
         this.cameras.main.fadeIn(1000);
         this.createBackground();
     
@@ -1480,6 +1533,19 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    showLocationPopup(objectKey, x, y) {
+        if (!this.popupSystem) return;
+
+        this.popupSystem.create('LOCATION', {
+            content: objectKey,
+            x: x,
+            y: y,
+            onClose: () => {
+                console.log(`Закрыт попап локации: ${objectKey}`);
+            }
+        });
+    }
+
     updateHintButtonState() {
         // Проверяем, существует ли кнопка подсказки
         if (this.hintButton) {
@@ -1508,6 +1574,13 @@ class GameScene extends Phaser.Scene {
     
         object.isAnimating = true;
         
+        // Проверяем, является ли объект маленьким попапом
+        if (object.isSmallPopup) {
+            this.showLocationPopup(object.popupKey, object.x, object.y);
+            object.isAnimating = false;
+            return;
+        }
+    
         // Остальной код handleObjectClick без изменений
         this.handleDependentObjects(object.name);
     
@@ -1625,6 +1698,9 @@ class GameScene extends Phaser.Scene {
             { key: 'close', path: './UI/ApprovedUI/Close.png' },         // Кнопка закрытия
             { key: 'opensafe', path: 'opensafe.png' },   // Открытый сейф
             { key: 'object8', path: 'ring.png' },        // Кольцо
+            { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
+            { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
+            { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
             { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }          // Стрелка
         ];
     
