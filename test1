@@ -1383,19 +1383,15 @@ class EnergySystem {
     }
 
     resetEnergyWarning() {
-        if (!this.energyIcon) {
-            console.error('Energy icon not initialized in resetEnergyWarning');
-            return;
-        }
-    
+        // Убираем красный цвет с иконки
         this.energyIcon.clearTint();
-        
+        // Если есть анимация мигания - останавливаем её
         if (this.blinkTween) {
             this.blinkTween.stop();
             this.blinkTween.remove();
             this.blinkTween = null;
         }
-    
+        // Возвращаем полную видимость иконке
         this.energyIcon.setAlpha(1);
     }
 
