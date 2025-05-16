@@ -1670,13 +1670,6 @@ class GameScene extends Phaser.Scene {
         if (!this.textures.exists('JournalButton')) {
             this.load.image('JournalButton', './UI/ApprovedUI/JournalButton.png');
         }
-        // Добавьте загрузку фона для попапа
-        if (!this.textures.exists('popup-bg')) {
-            this.load.image('popup-bg', 'path/to/your/popup-background.png');
-        }
-        if (!this.textures.exists('close')) {
-            this.load.image('close', './UI/close-button.png');  // Путь к кнопке закрытия
-        }
         if (!this.textures.exists('energy-icon')) {
         this.load.image('energy-icon', './UI/ApprovedUI/Energy.png');
         }
