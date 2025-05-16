@@ -731,14 +731,23 @@ class JournalSystem {
 
     // Сохранение записей в localStorage
     saveEntries() {
-        localStorage.setItem('journalEntries', JSON.stringify(this.entries));
+        try {
+            localStorage.setItem('journalEntries', JSON.stringify(this.entries));
+        } catch (error) {
+            console.log('Не удалось сохранить в localStorage:', error);
+        }
     }
 
     // Загрузка записей из localStorage
     loadEntries() {
-        const savedEntries = localStorage.getItem('journalEntries');
-        if (savedEntries) {
-            this.entries = JSON.parse(savedEntries);
+        try {
+            const savedEntries = localStorage.getItem('journalEntries');
+            if (savedEntries) {
+                this.entries = JSON.parse(savedEntries);
+            }
+        } catch (error) {
+            console.log('localStorage недоступен:', error);
+            this.entries = [];
         }
     }
 
@@ -1459,29 +1468,40 @@ class GameScene extends Phaser.Scene {
         
         // Системные таймеры и счетчики
         this.idleTimer = 0;           // таймер бездействия
-        this.lastInteractionTime = 0; // время последнего взаимодействия
+        this.lastInteractionTime = 0;  // время последнего взаимодействия
+        this.lastHintTime = 0;        // время последней подсказки
+        this.hintCooldown = 30000;    // задержка между подсказками (30 секунд)
         
         // Настройки взаимодействия
-        this.transitionZones = [];    // зоны перехода между локациями
-        this.interactiveObjects = []; // интерактивные объекты
-        this.highlightedObject = null;// подсвеченный объект
+        this.transitionZones = [];     // зоны перехода между локациями
+        this.interactiveObjects = [];  // интерактивные объекты
+        this.highlightedObject = null; // подсвеченный объект
         
         // Состояние игры
-        this.gameState = {
+        this.state = {
             visitedLocations: new Set(),  // посещенные локации
             collectedItems: new Set(),    // собранные предметы
             solvedPuzzles: new Set(),     // решенные головоломки
-            triggers: new Map()            // игровые триггеры
+            triggers: new Map(),           // игровые триггеры
+            selectedDigits: ["0", "0", "0", "0"], // код сейфа
+            foundObjects: [],             // найденные объекты
+            remainingObjects: [],         // оставшиеся объекты
+            ringFound: false,            // найдено ли кольцо
+            inventory: []                // инвентарь
         };
+        
+        // UI элементы
+        this.itemList = null;           // список предметов
+        this.itemTextObjects = [];      // текстовые объекты предметов
+        this.textBackground = null;     // фон для текста
+        this.hintButton = null;         // кнопка подсказки
+        this.hintButtonTween = null;    // анимация кнопки подсказки
+        this.codeInputGroup = null;     // группа элементов ввода кода
+        this.popupGroup = null;         // группа элементов попапа
         
         // Настройки отладки
         this.debugMode = false;       // режим отладки
         this.debugGraphics = null;    // графика для отладки
-        
-        // Привязка методов к контексту
-        this.handlePointerMove = this.handlePointerMove.bind(this);
-        this.handlePointerDown = this.handlePointerDown.bind(this);
-        this.updateIdleTimer = this.updateIdleTimer.bind(this);
         
         // Инициализация конфигурации
         this.config = {
@@ -2013,27 +2033,27 @@ class GameScene extends Phaser.Scene {
     }
     
     showPopup(object, imageKey, addToInventory = false) {
-        // Используем общий метод создания попапа
-        this.createPopup({
-            background: 'popup-bg',
-            content: imageKey,
-            contentScale: 0.8,
-            x: 350,
-            y: 241,
-            customWidth: 700,
-            customHeight: 482,
-            onClose: () => {
-                if (addToInventory && imageKey === 'list2') {
-                    const inventoryScene = this.scene.get('InventoryScene');
-                    inventoryScene.addItem('list2', 'Развернутый лист');
-                }
-                if (object) {
-                    object.isAnimating = false;
-                    this.animateObjectDisappearance(object);
-                }
+    // Используем общий метод создания попапа
+    this.createPopup({
+        background: 'popup-bg-item', // Используем правильный ключ
+        content: imageKey,
+        contentScale: 0.8,
+        x: GAME_CONFIG.width / 2,  // Центрируем по горизонтали
+        y: GAME_CONFIG.height / 2, // Центрируем по вертикали
+        customWidth: 700,
+        customHeight: 482,
+        onClose: () => {
+            if (addToInventory && imageKey === 'list2') {
+                const inventoryScene = this.scene.get('InventoryScene');
+                inventoryScene.addItem('list2', 'Развернутый лист');
             }
-        });
-    }
+            if (object) {
+                object.isAnimating = false;
+                this.animateObjectDisappearance(object);
+            }
+        }
+    });
+}
     
     reopenPopup(scene) {
         if (!scene) return;
