@@ -2033,27 +2033,27 @@ class GameScene extends Phaser.Scene {
     }
     
     showPopup(object, imageKey, addToInventory = false) {
-    // Используем общий метод создания попапа
-    this.createPopup({
-        background: 'popup-bg-item', // Используем правильный ключ
-        content: imageKey,
-        contentScale: 0.8,
-        x: GAME_CONFIG.width / 2,  // Центрируем по горизонтали
-        y: GAME_CONFIG.height / 2, // Центрируем по вертикали
-        customWidth: 700,
-        customHeight: 482,
-        onClose: () => {
-            if (addToInventory && imageKey === 'list2') {
-                const inventoryScene = this.scene.get('InventoryScene');
-                inventoryScene.addItem('list2', 'Развернутый лист');
+        // Используем общий метод создания попапа
+        this.createPopup({
+            background: 'popup-bg-item', // Используем правильный ключ
+            content: imageKey,
+            contentScale: 0.8,
+            x: GAME_CONFIG.width / 2,  // Центрируем по горизонтали
+            y: GAME_CONFIG.height / 2, // Центрируем по вертикали
+            customWidth: 700,
+            customHeight: 482,
+            onClose: () => {
+                if (addToInventory && imageKey === 'list2') {
+                    const inventoryScene = this.scene.get('InventoryScene');
+                    inventoryScene.addItem('list2', 'Развернутый лист');
+                }
+                if (object) {
+                    object.isAnimating = false;
+                    this.animateObjectDisappearance(object);
+                }
             }
-            if (object) {
-                object.isAnimating = false;
-                this.animateObjectDisappearance(object);
-            }
-        }
-    });
-}
+        });
+    }
     
     reopenPopup(scene) {
         if (!scene) return;
