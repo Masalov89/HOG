@@ -1555,11 +1555,11 @@ class GameScene extends Phaser.Scene {
 
     showLocationPopup(objectKey, x, y) {
         if (!this.popupSystem) return;
-
+    
         this.popupSystem.create('LOCATION', {
             content: objectKey,
-            x: x,
-            y: y,
+            x: GAME_CONFIG.width / 2,  // было x
+            y: GAME_CONFIG.height / 2, // было y
             onClose: () => {
                 console.log(`Закрыт попап локации: ${objectKey}`);
             }
@@ -2078,13 +2078,12 @@ class GameScene extends Phaser.Scene {
          .setInteractive(); // Создаем затемненный фон
         this.popupGroup.add(popupBackground);
     
-        const popupFrame = scene.add.rectangle(
+        const popupFrame = scene.add.image(
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height / 2,
-            700,
-            482,
-            0x2c1810
-        ).setDepth(999); // Создаем рамку
+            'popup-bg-item'
+        ).setDepth(999)
+         .setDisplaySize(700, 482);
         this.popupGroup.add(popupFrame);
     
         const popupImage = scene.add.image(
@@ -2092,23 +2091,35 @@ class GameScene extends Phaser.Scene {
             GAME_CONFIG.height / 2,
             'list2'
         ).setInteractive()
-         .setDepth(1000); // Добавляем изображение
+         .setDepth(1000)
+         .setOrigin(0.5);
         popupImage.setScale(0.8);
         this.popupGroup.add(popupImage);
     
         const closeButton = scene.add.image(
-            GAME_CONFIG.width / 2 + 330,
-            GAME_CONFIG.height / 2 - 220,
+            GAME_CONFIG.width / 2 + (700 / 2 - 40),
+            GAME_CONFIG.height / 2 - (482 / 2 - 40),
             'close'
         ).setDepth(1001)
          .setScale(0.5)
-         .setInteractive(); // Добавляем кнопку закрытия
+         .setInteractive({ pixelPerfect: true })
+         .setOrigin(0.5);
         this.popupGroup.add(closeButton);
     
-        const closeHandler = () => this.closePopup(); // Простой обработчик закрытия
-        closeButton.on('pointerdown', closeHandler); // Обработчик для крестика
-        popupImage.on('pointerdown', closeHandler); // Обработчик для изображения
-        popupBackground.on('pointerdown', closeHandler); // Обработчик для фона
+        // Добавляем визуальный отклик на кнопку закрытия
+        closeButton.on('pointerover', () => closeButton.setTint(0xcccccc));
+        closeButton.on('pointerout', () => closeButton.clearTint());
+        closeButton.on('pointerdown', () => closeButton.setScale(0.45));
+        closeButton.on('pointerup', () => {
+            closeButton.setScale(0.5);
+            closeButton.clearTint();
+            this.closePopup();
+        });
+    
+        // Отдельный обработчик для фона и изображения
+        const backgroundHandler = () => this.closePopup();
+        popupImage.on('pointerdown', backgroundHandler);
+        popupBackground.on('pointerdown', backgroundHandler);
     }
     
     closePopup() {
