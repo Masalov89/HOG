@@ -643,7 +643,7 @@ class JournalSystem {
         this.scene = scene;           // сцена игры
         this.entries = [];            // массив для хранения записей дневника
         this.isOpen = false;          // флаг состояния дневника (открыт/закрыт)
-        this.loadEntries();           // загружаем сохраненные записи
+        this.clearAllEntries();       // очищаем все записи при создании нового дневника
         this.createJournalButton();   // создаём кнопку при инициализации
     }
 
@@ -715,18 +715,32 @@ class JournalSystem {
         });
     }
 
-    // Обновляем метод addEntry, чтобы он вызывал эффект
-    addEntry(text) {
-        this.entries.push(text);
-        this.saveEntries();
+    // Метод для полной очистки всех записей и localStorage
+    clearAllEntries() {
+        this.entries = [];            // Очищаем массив записей
+        localStorage.removeItem('journalEntries'); // Удаляем записи из localStorage
         
+        // Если дневник открыт, обновляем его содержимое
         if (this.isOpen && this.scene.popupSystem) {
-            // Если дневник открыт, обновляем его содержимое
             this.openJournal();
         }
-        
-        // Показываем эффект новой записи
-        this.showNewEntryEffect();
+    }
+
+    // Обновляем метод addEntry, чтобы он вызывал эффект и проверял дубликаты
+    addEntry(text) {
+        // Проверяем, существует ли уже такая запись
+        if (!this.entries.includes(text)) {
+            this.entries.push(text);
+            this.saveEntries();
+            
+            if (this.isOpen && this.scene.popupSystem) {
+                // Если дневник открыт, обновляем его содержимое
+                this.openJournal();
+            }
+            
+            // Показываем эффект новой записи
+            this.showNewEntryEffect();
+        }
     }
 
     // Сохранение записей в localStorage
@@ -788,43 +802,38 @@ class InventorySystem {
         this.scene = scene;
         this.slots = [];
         this.items = [];
+        this.collectedItems = new Set();
         
-        // Настройки инвентаря
         this.config = {
             slots: 5,
             slotSize: 50,
             padding: 10,
-            startX: 10, // Зазор в 10 пикселей от левого края
-            // Центрирование по высоте экрана
+            startX: 10,
             startY: (GAME_CONFIG.height - ((50 + 10) * 5 - 10)) / 2,
             borderColor: 0x888888
         };
 
-        this.createInventoryUI(); // Создание UI инвентаря
+        this.clearCollectedItems(); // Очищаем собранные предметы при инициализации
+        this.createInventoryUI();
     }
 
     createInventoryUI() {
-        const bgWidth = 100; // Ширина фона после масштабирования
-        const bgHeight = 500; // Высота фона после масштабирования
+        const bgWidth = 100;
+        const bgHeight = 500;
+        const scaleX = bgWidth / 249;
+        const scaleY = bgHeight / 1093;
+        const inventoryX = 30;
+        const inventoryY = 300;
     
-        // Масштабирование
-        const scaleX = bgWidth / 249; // Масштаб по ширине
-        const scaleY = bgHeight / 1093; // Масштаб по высоте
-    
-        const inventoryX = 30; // Левый край
-        const inventoryY = 300; // Отступ сверху
-    
-        // Добавляем PNG-фон
         const background = this.scene.add.image(
             inventoryX,
             inventoryY,
-            'inventory-bg' // Ключ PNG-фона
-        );
-        background.setOrigin(0, 0); // Привязка к верхнему левому углу
-        background.setDisplaySize(bgWidth, bgHeight); // Устанавливаем масштаб
-        background.setDepth(1); // Фон ниже рамок и предметов
+            'inventory-bg'
+        )
+            .setOrigin(0, 0)
+            .setDisplaySize(bgWidth, bgHeight)
+            .setDepth(1);
     
-        // Центры зон для слотов (масштабируем)
         const slotCenters = [
             { x: 130, y: 190 },
             { x: 130, y: 365 },
@@ -832,64 +841,65 @@ class InventorySystem {
             { x: 130, y: 720 },
             { x: 130, y: 890 }
         ].map(center => ({
-            x: inventoryX + center.x * scaleX, // Учитываем масштаб и смещение
+            x: inventoryX + center.x * scaleX,
             y: inventoryY + center.y * scaleY
         }));
     
-        // Размеры слотов (масштабируем)
         const scaledSlotWidth = 175 * scaleX;
         const scaledSlotHeight = 160 * scaleY;
     
-        // Создаём слоты
         slotCenters.forEach((center, i) => {
             const slot = this.scene.add.graphics();
-    
-            // Добавляем рамку
-            //slot.lineStyle(2, this.config.borderColor, 1); // Рамка с непрозрачностью 100%
-            //slot.strokeRoundedRect(
-                //center.x - scaledSlotWidth / 2, // Верхний левый угол
-                //center.y - scaledSlotHeight / 2,
-                //scaledSlotWidth,
-                //scaledSlotHeight,
-                //10 // Радиус скругления
-            //);
-            slot.setDepth(2); // Рамка выше фона
+            slot.setDepth(2);
     
             this.slots.push({
                 graphics: slot,
                 item: null,
                 index: i,
-                center: center // Центр слота
+                center: center
             });
         });
     }
     
     addItem(key, name) {
-        // Находим пустой слот
         const emptySlot = this.slots.find(slot => !slot.item);
         if (!emptySlot) return false;
     
-        // Создание спрайта предмета
         const item = this.scene.add.sprite(
-            emptySlot.center.x, // Центр слота по X
-            emptySlot.center.y, // Центр слота по Y
+            emptySlot.center.x,
+            emptySlot.center.y,
             key
         );
     
-        // Масштабирование предмета
         const scale = Math.min(
-            175 * (100 / 249) / item.width, // Прямое вычисление масштаба
+            175 * (100 / 249) / item.width,
             160 * (500 / 1093) / item.height
-        ) * 0.9; // Масштаб предмета
+        ) * 0.9;
         item.setScale(scale);
+        item.setDepth(10);
     
-        // Устанавливаем `depth` для предмета
-        item.setDepth(10); // Предмет выше фона
-    
-        // Остальная логика остаётся без изменений
         item.setInteractive({ draggable: true });
         this.scene.input.setDraggable(item);
     
+        this.setupItemEvents(item, emptySlot, key, name);
+    
+        emptySlot.item = {
+            sprite: item,
+            name: name,
+            key: key
+        };
+
+        // Добавляем запись в дневник только если предмет собран впервые
+        if (this.scene.journalSystem && !this.collectedItems.has(key)) {
+            this.collectedItems.add(key);
+            this.scene.journalSystem.addEntry(`Найден предмет: ${name}`);
+            this.saveCollectedItems();
+        }
+    
+        return true;
+    }
+
+    setupItemEvents(item, slot, key, name) {
         item.on('pointerdown', (pointer, localX, localY, event) => {
             event.stopPropagation();
             this.showItemPopup(key, name);
@@ -897,37 +907,21 @@ class InventorySystem {
     
         item.on('dragstart', () => {
             item.setTint(0x999999);
-            item.setDepth(20); // Временно поднимаем над другими объектами
+            item.setDepth(20);
         });
     
         item.on('dragend', (pointer) => {
             item.clearTint();
-            item.setDepth(10); // Возвращаем стандартный `depth`
-            item.x = emptySlot.center.x;
-            item.y = emptySlot.center.y;
+            item.setDepth(10);
+            item.x = slot.center.x;
+            item.y = slot.center.y;
         });
-    
-        // Сохраняем предмет в слоте
-        emptySlot.item = {
-            sprite: item,
-            name: name,
-            key: key
-        };
-
-        // Добавляем запись в дневник
-        if (this.scene.journalSystem) {  // проверяем наличие системы дневника
-            this.scene.journalSystem.addEntry(`Найден предмет: ${name}`);
-        }
-    
-        return true; // Успешное добавление предмета
     }
 
     showItemPopup(key, name) {
-        // Получаем сцену игры для доступа к PopupSystem
         const gameScene = this.scene.scene.get('GameScene');
         if (!gameScene || !gameScene.popupSystem) return;
     
-        // Используем PopupSystem для создания попапа предмета
         gameScene.popupSystem.create('ITEM', {
             content: key,
             onClose: () => {
@@ -963,6 +957,31 @@ class InventorySystem {
         slot.item.sprite.destroy();
         slot.item = null;
         return true;
+    }
+
+    saveCollectedItems() {
+        try {
+            localStorage.setItem('collectedItems', JSON.stringify(Array.from(this.collectedItems)));
+        } catch (error) {
+            console.log('Не удалось сохранить собранные предметы:', error);
+        }
+    }
+
+    loadCollectedItems() {
+        try {
+            const savedItems = localStorage.getItem('collectedItems');
+            if (savedItems) {
+                this.collectedItems = new Set(JSON.parse(savedItems));
+            }
+        } catch (error) {
+            console.log('Не удалось загрузить собранные предметы:', error);
+            this.collectedItems = new Set();
+        }
+    }
+
+    clearCollectedItems() {
+        this.collectedItems.clear();
+        localStorage.removeItem('collectedItems'); // Изменено: теперь удаляем данные из localStorage
     }
 }
 
