@@ -1650,58 +1650,6 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    preload() {
-        // Используем ResourceLoader для загрузки всех ресурсов сцены
-        const resourceLoader = new ResourceLoader(this);
-        const resources = {
-            locations: [
-                { key: 'front-house', path: 'front-house.jpg' },
-                { key: 'hall', path: 'hall.jpg' },
-                { key: 'leftroom', path: 'leftroom.jpg' },
-                { key: 'rightroom', path: 'rightroom.jpg' },
-                { key: 'drawer', path: 'drawer.jpg' },
-                { key: 'wardrobe', path: 'wardrobe.jpg' }
-            ],
-            ui: [
-                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
-                { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
-                { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
-                { key: 'close', path: './UI/ApprovedUI/Close.png' },
-                { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
-                { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
-                { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
-                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },
-                { key: 'loading-bg', path: './UI/Backgrounds/loading-bg.jpg' }
-            ],
-            objects: [
-                { key: 'background', path: 'leftroom.jpg' },
-                { key: 'object1', path: 'plate.png' },
-                { key: 'object2', path: 'candle.png' },
-                { key: 'object3', path: 'art.png' },
-                { key: 'object4', path: 'tea.png' },
-                { key: 'object5', path: 'list1.png' },
-                { key: 'object6', path: 'safe.png' },
-                { key: 'object7', path: 'sheet.png' },
-                { key: 'object8', path: 'ring.png' }
-            ],
-            additional: [
-                { key: 'list2', path: 'list2.png' },
-                { key: 'opensafe', path: 'opensafe.png' }
-            ]
-        };
-        resourceLoader.loadResources(resources);
-
-        // Обработчик ошибок загрузки (оставить, если нужно)
-        this.load.on('loaderror', (file) => {
-            console.error('Ошибка загрузки ресурса:', file.src);
-        });
-
-        // Обработчик завершения загрузки (оставить, если нужно)
-        this.load.on('complete', () => {
-            console.log('Загрузка всех ресурсов завершена');
-        });
-    }
-
     createBackground() {
         const backgroundKey = locationMap[this.location].image;
         if (this.textures.exists(backgroundKey)) {
