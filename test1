@@ -30,7 +30,8 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
                 { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
                 { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
-                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }
+                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },
+                { key: 'loading-bg', path: './UI/Backgrounds/loading-bg.jpg' }
             ],
             objects: [
                 { key: 'object1', path: 'plate.png' },
@@ -965,7 +966,7 @@ class InventoryScene extends Phaser.Scene {
         const assets = [
             { key: 'list2', path: 'list2.png' },
             { key: 'object8', path: 'ring.png' },
-            { key: 'inventory-bg', path: 'path/to/your/inventory-background.png' } // Добавляем PNG-фон
+            { key: 'inventory-bg', path: './UI/ApprovedUI/inventory-bg.png' } // Добавляем PNG-фон
         ];
 
         assets.forEach(({ key, path }) => {
@@ -1701,7 +1702,8 @@ class GameScene extends Phaser.Scene {
             { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
             { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
             { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
-            { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' }          // Стрелка
+            { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },        // Стрелка
+            { key: 'loading-bg', path: './UI/Backgrounds/loading-bg.jpg' } // Фон загрузки
         ];
     
         // Загрузка всех ресурсов, если они еще не загружены
