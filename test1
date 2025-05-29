@@ -776,8 +776,6 @@ class JournalSystem {
     }
 }
 
-export default JournalSystem;
-
 class InventorySystem {
     constructor(scene) {
         this.scene = scene;    // Текущая сцена (InventoryScene)
@@ -965,8 +963,6 @@ class InventorySystem {
     }
 }
 
-export default InventorySystem;
-
 class InventoryScene extends Phaser.Scene {
     constructor() {
         super({ key: 'InventoryScene' });
@@ -1018,8 +1014,6 @@ class InventoryScene extends Phaser.Scene {
         return false;
     }
 }
-
-export default InventoryScene;
 
 let globalEnergySystem = null;
 
