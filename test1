@@ -1,33 +1,18 @@
+// === LoadingScene ===
+// Сцена загрузки. Отвечает за загрузку всех ресурсов и отображение экрана загрузки.
 class LoadingScene extends Phaser.Scene {
     constructor() {
-        super({ key: 'LoadingScene' });
+        super({ key: 'LoadingScene' }); // Указываем ключ для сцены.
     }
 
     preload() {
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
+        const width = this.cameras.main.width; // Ширина экрана.
+        const height = this.cameras.main.height; // Высота экрана.
 
-        // Загружаем PNG-фон для инвентаря
-        this.load.image('inventory-bg', './UI/ApprovedUI/inventory-bg.png');
+        // Создаем экземпляр ResourceLoader.
+        const resourceLoader = new ResourceLoader(this);
 
-        // Загрузка фона экрана загрузки
-        this.load.image('loading-bg', 'loading-bg.jpg');
-        this.load.on('complete', () => {
-            const bg = this.add.image(width/2, height/2, 'loading-bg')
-                .setDisplaySize(width, height);
-            this.startMainLoading();
-        });
-        this.load.start();
-    }
-
-    startMainLoading() {
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
-
-        // Создаем UI элементы загрузки
-        const progressUI = this.createProgressUI(width, height);
-        
-        // Определяем ресурсы для загрузки
+        // Определяем список всех ресурсов.
         const resources = {
             locations: [
                 { key: 'front-house', path: 'front-house.jpg' },
@@ -63,69 +48,93 @@ class LoadingScene extends Phaser.Scene {
             ]
         };
 
-        // Загружаем все ресурсы
-        this.loadAllResources(resources);
+        // Загружаем ресурсы через ResourceLoader.
+        resourceLoader.loadResources(resources);
 
-        // Запускаем эмуляцию загрузки
+        // Когда загрузка завершена, отображаем фон загрузки и запускаем основной процесс.
+        this.load.on('complete', () => {
+            const bg = this.add.image(width / 2, height / 2, 'loading-bg')
+                .setDisplaySize(width, height); // Устанавливаем размер фона.
+            this.startMainLoading(); // Запускаем основной процесс загрузки.
+        });
+
+        this.load.start(); // Начинаем загрузку.
+    }
+
+    startMainLoading() {
+        const width = this.cameras.main.width; // Ширина экрана.
+        const height = this.cameras.main.height; // Высота экрана.
+
+        // Создаем UI элементы загрузки.
+        const progressUI = this.createProgressUI(width, height);
+
+        // Загружаем оставшиеся ресурсы.
+        const resources = {
+            locations: [
+                { key: 'front-house', path: 'front-house.jpg' },
+                { key: 'hall', path: 'hall.jpg' }
+            ],
+            ui: [
+                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' }
+            ]
+        };
+
+        const resourceLoader = new ResourceLoader(this);
+        resourceLoader.loadResources(resources);
+
+        // Запускаем эмуляцию загрузки.
         this.startFakeLoading(progressUI);
     }
 
     createProgressUI(width, height) {
-        // Создаем контейнер прогресс-бара
+        // Создаем контейнер прогресс-бара.
         const progressBox = this.add.graphics()
             .lineStyle(1, 0x333333)
             .strokeRect(
-                width/2 - 500,
-                height/2 + 200,
-                1000,
-                1
+                width / 2 - 500, // Позиция по X.
+                height / 2 + 200, // Позиция по Y.
+                1000, // Ширина прогресс-бара.
+                1 // Высота прогресс-бара.
             );
 
-        // Создаем заполнение прогресс-бара
+        // Создаем заполнение прогресс-бара.
         const progressBar = this.add.graphics();
 
-        return { progressBox, progressBar };
-    }
-
-    loadAllResources(resources) {
-        // Загружаем все типы ресурсов
-        Object.values(resources).flat().forEach(({ key, path }) => {
-            this.load.image(key, path);
-        });
+        return { progressBox, progressBar }; // Возвращаем элементы UI.
     }
 
     startFakeLoading({ progressBox, progressBar }) {
-        let loadingProgress = 0;
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
+        let loadingProgress = 0; // Стартовое значение загрузки.
+        const width = this.cameras.main.width; // Ширина экрана.
+        const height = this.cameras.main.height; // Высота экрана.
 
         const updateProgress = () => {
-            loadingProgress += 0.01;
+            loadingProgress += 0.01; // Увеличиваем прогресс.
             progressBar.clear()
-                .fillStyle(0xffffff, 1)
+                .fillStyle(0xffffff, 1) // Устанавливаем цвет.
                 .fillRect(
-                    width/2 - 500,
-                    height/2 + 200,
-                    1000 * loadingProgress,
-                    1
+                    width / 2 - 500, // Позиция по X.
+                    height / 2 + 200, // Позиция по Y.
+                    1000 * loadingProgress, // Ширина прогресса.
+                    1 // Высота прогресса.
                 );
 
             if (loadingProgress < 1) {
-                setTimeout(updateProgress, 50);
+                setTimeout(updateProgress, 50); // Продолжаем обновление.
             } else {
-                this.finishLoading({ progressBox, progressBar });
+                this.finishLoading({ progressBox, progressBar }); // Завершаем загрузку.
             }
         };
 
-        updateProgress();
+        updateProgress(); // Запускаем обновление прогресса.
     }
 
     finishLoading({ progressBox, progressBar }) {
         setTimeout(() => {
-            progressBar.destroy();
-            progressBox.destroy();
-            this.scene.start('GameScene');
-        }, 500);
+            progressBar.destroy(); // Удаляем графику прогресса.
+            progressBox.destroy(); // Удаляем графику контейнера.
+            this.scene.start('GameScene'); // Переходим к следующей сцене.
+        }, 500); // Небольшая задержка перед переходом.
     }
 }
 
@@ -2680,3 +2689,22 @@ const config = {
 
 // Запуск игры
 const game = new Phaser.Game(config);
+
+// === ResourceLoader ===
+// Класс для загрузки ресурсов. Он упрощает процесс загрузки изображений в сценах.
+class ResourceLoader {
+    constructor(scene) {
+        this.scene = scene; // Сохраняем ссылку на текущую сцену.
+    }
+
+    // Метод для загрузки ресурсов.
+    loadResources(resourceCategories) {
+        // Проходимся по каждой категории ресурсов.
+        Object.entries(resourceCategories).forEach(([category, resources]) => {
+            // Загружаем каждый ресурс в категории.
+            resources.forEach(({ key, path }) => {
+                this.scene.load.image(key, path); // Загружаем изображение по ключу и пути.
+            });
+        });
+    }
+}
