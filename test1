@@ -29,6 +29,7 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'close', path: './UI/ApprovedUI/Close.png' },
                 { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
                 { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
+                { key: 'page', path: './UI/PopupBackgrounds/Page.png' },
                 { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
                 { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },
                 { key: 'loading-bg', path: './UI/Backgrounds/loading-bg.jpg' }
@@ -150,7 +151,7 @@ const GAME_CONFIG = {
         hint: 0xffd700,         // Золотой цвет для подсказок
         background: 0x000000    // Черный цвет для фона
     }
-};
+}
 
 class PopupSystem {
     constructor(scene) {
@@ -182,6 +183,12 @@ class PopupSystem {
                 offset: 40,
                 depth: 1001
             }
+        };
+
+        // Для дневника
+        this._diaryState = {
+            currentPage: 0,
+            entries: []
         };
     }
 
@@ -215,7 +222,12 @@ class PopupSystem {
         const background = this.createBackground(x, y, config);
         
         // Создаем контент в зависимости от типа
-        const contentElement = this.createContent(type, content, data, x, y, config);
+        let contentElement;
+        if (type === 'JOURNAL') {
+            contentElement = this.createJournalSpreadContent(data, x, y, config, popupGroup);
+        } else {
+            contentElement = this.createContent(type, content, data, x, y, config);
+        }
         
         // Создаем кнопку закрытия
         const closeButton = this.createCloseButton(x, y, config);
@@ -256,6 +268,7 @@ class PopupSystem {
                 return [this.createItemContent(content, x, y, config)];
             
             case 'JOURNAL':
+                // Старая версия, не используется
                 return this.createJournalContent(data, x, y, config);
             
             case 'LOCATION':
@@ -272,6 +285,73 @@ class PopupSystem {
             .setDepth(1000);
     }
 
+    // Новая версия для дневника с двумя страницами и листанием
+    createJournalSpreadContent(entries, x, y, config, popupGroup) {
+        // Координаты подгони под нужный фон
+        const centerX = x;
+        const centerY = y;
+        const dx = 240;
+        const zoneWidth = 320;
+        const zoneHeight = 520;
+        const textStyle = { font: '20px serif', color: '#432', wordWrap: { width: 300 } };
+
+        // Сохраняем записи и текущую страницу в состоянии
+        this._diaryState.entries = entries;
+        // Открываем на последних двух (или одной) страницах
+        this._diaryState.currentPage = Math.max(0, entries.length - (entries.length % 2 === 0 ? 2 : 1));
+
+        const elements = [];
+
+        // Левая страница (отзеркалить)
+        const leftPage = this.scene.add.image(centerX - dx, centerY, 'page').setScale(-1, 1).setDepth(1000);
+        // Правая страница
+        const rightPage = this.scene.add.image(centerX + dx, centerY, 'page').setScale(1, 1).setDepth(1000);
+        
+        // Тексты
+        const leftText = this.scene.add.text(centerX - dx, centerY, '', textStyle).setOrigin(0.5).setDepth(1001);
+        const rightText = this.scene.add.text(centerX + dx, centerY, '', textStyle).setOrigin(0.5).setDepth(1001);
+
+        // Навигация
+        const leftZone = this.scene.add.zone(centerX - dx, centerY, zoneWidth, zoneHeight)
+            .setOrigin(0.5).setInteractive().setDepth(1050)
+            .on('pointerdown', () => {
+                if (this._diaryState.currentPage >= 2) {
+                    this._diaryState.currentPage -= 2;
+                    updatePages();
+                }
+            });
+        const rightZone = this.scene.add.zone(centerX + dx, centerY, zoneWidth, zoneHeight)
+            .setOrigin(0.5).setInteractive().setDepth(1050)
+            .on('pointerdown', () => {
+                if (this._diaryState.currentPage + 2 < this._diaryState.entries.length) {
+                    this._diaryState.currentPage += 2;
+                    updatePages();
+                }
+            });
+
+        // Функция обновления текста страниц
+        const updatePages = () => {
+            leftText.setText(this._diaryState.entries[this._diaryState.currentPage] || '');
+            rightText.setText(this._diaryState.entries[this._diaryState.currentPage + 1] || '');
+        };
+        updatePages();
+
+        // Закрытие по Esc
+        this._escHandler = this.scene.input.keyboard.on('keydown-ESC', () => {
+            this.close();
+        });
+
+        // Для удаления при закрытии
+        this._diaryState.destroy = () => {
+            [leftPage, rightPage, leftText, rightText, leftZone, rightZone].forEach(e => e && e.destroy());
+            if (this._escHandler) this._escHandler.removeListener('keydown-ESC');
+        };
+
+        elements.push(leftPage, rightPage, leftText, rightText, leftZone, rightZone);
+        return elements;
+    }
+
+    // Старая версия: просто список записей
     createJournalContent(entries, x, y, config) {
         const contentGroup = [];
         const startY = y - (config.height / 2) + 100;
@@ -323,7 +403,6 @@ class PopupSystem {
     }
 
     setupCloseHandlers(popupGroup, closeButton, onClose) {
-        // Обработчики для кнопки закрытия
         closeButton.on('pointerover', () => closeButton.setTint(0xcccccc));
         closeButton.on('pointerout', () => {
             closeButton.clearTint();
@@ -338,6 +417,11 @@ class PopupSystem {
 
     close(onClose = null) {
         if (this.activePopup) {
+            // Удалить дневниковые элементы, если были
+            if (this._diaryState && this._diaryState.destroy) {
+                this._diaryState.destroy();
+                this._diaryState.destroy = null;
+            }
             this.activePopup.destroy(true);
             this.activePopup = null;
             if (onClose) onClose();
