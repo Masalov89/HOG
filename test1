@@ -1020,14 +1020,10 @@ let globalEnergySystem = null;
 class EnergySystem {
     constructor(scene) {
         this.scene = scene;
-        
-        // Константы системы энергии
         this.INITIAL_ENERGY = 200;
         this.MAX_ENERGY = 200;
-        this.REGENERATION_RATE = 1;          
-        this.REGENERATION_INTERVAL = 10000;  // 10 секунд
-        
-        // Стоимость действий
+        this.REGENERATION_RATE = 1;
+        this.REGENERATION_INTERVAL = 10000;
         this.COSTS = {
             SEARCH_ITEM: 5,
             MISS_PENALTY: 10,
@@ -1035,15 +1031,9 @@ class EnergySystem {
             PUZZLE: 20,
             GIVE_ITEM: 5
         };
-
-        // Загружаем текущее состояние
         this.currentEnergy = this.loadEnergy();
         this.lastUpdateTime = this.loadLastUpdateTime();
-        
-        // Восстанавливаем накопленную энергию
         this.updateEnergy();
-        
-        // Создаем UI
         this.createEnergyUI();
     }
 
@@ -1051,7 +1041,6 @@ class EnergySystem {
         const now = Date.now();
         const timePassed = now - this.lastUpdateTime;
         const energyToAdd = Math.floor(timePassed / this.REGENERATION_INTERVAL);
-        
         if (energyToAdd > 0) {
             this.addEnergy(energyToAdd);
             this.lastUpdateTime = now - (timePassed % this.REGENERATION_INTERVAL);
@@ -1060,69 +1049,45 @@ class EnergySystem {
     }
 
     createEnergyUI() {
-        // Размер иконки энергии
         const energyIconSize = 96;
-    
-        // Новые координаты для кнопки энергии
-        const energyIconX = 1730;  // Позиция по оси X (левее или правее)
-        const energyIconY = 55;  // Позиция по оси Y (выше или ниже)
-    
-        // Создаем иконку энергии
+        const energyIconX = 1730;
+        const energyIconY = 55;
         this.energyIcon = this.scene.add.sprite(energyIconX, energyIconY, 'energy-icon')
             .setInteractive()
             .setDepth(100)
             .setDisplaySize(energyIconSize, energyIconSize);
-    
-        // Добавляем эффект при наведении
         this.energyIcon.on('pointerover', () => {
-            if (!this.energyIcon.isTinted) { // Проверяем, не подсвечена ли уже кнопка
+            if (!this.energyIcon.isTinted) {
                 this.energyIcon.setTint(0xcccccc);
             }
         });
-    
-        // Убираем эффект при отведении курсора
         this.energyIcon.on('pointerout', () => {
             this.energyIcon.clearTint();
         });
-    
-        // Добавляем эффект при нажатии
         this.energyIcon.on('pointerdown', () => {
             this.energyIcon.setDisplaySize(energyIconSize * 0.95, energyIconSize * 0.95);
-            this.energyIcon.setTint(0x999999); // Добавляем затемнение при нажатии
+            this.energyIcon.setTint(0x999999);
         });
-    
-        // Возвращаем исходный размер при отпускании и показываем бар
         this.energyIcon.on('pointerup', () => {
             this.energyIcon.setDisplaySize(energyIconSize, energyIconSize);
-            this.energyIcon.clearTint(); // Убираем затемнение
+            this.energyIcon.clearTint();
             this.showEnergyBar();
         });
-    
-        // Добавляем обработчик выхода указателя за пределы кнопки во время нажатия
         this.energyIcon.on('pointerout', () => {
             this.energyIcon.setDisplaySize(energyIconSize, energyIconSize);
             this.energyIcon.clearTint();
         });
-    
-        // Создаем контейнер для бара в нижней части экрана
-        this.energyBar = this.scene.add.graphics()
-            .setDepth(100);
-    
-        // Создаем текст для отображения энергии
+        this.energyBar = this.scene.add.graphics().setDepth(100);
         this.energyText = this.scene.add.text(
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height - 110 + 15,
-            '', 
+            '',
             {
                 fontSize: '18px',
                 fill: '#ffffff',
                 fontWeight: 'bold'
             }
-        )
-        .setDepth(101)  // Поверх бара
-        .setOrigin(0.5);  // Центрируем текст
-    
-        // Создаем кнопку для просмотра рекламы
+        ).setDepth(101).setOrigin(0.5);
         this.adButton = this.scene.add.text(
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height - 70,
@@ -1134,25 +1099,21 @@ class EnergySystem {
                 padding: { x: 15, y: 10 }
             }
         )
-        .setInteractive()
-        .setDepth(100)
-        .setOrigin(0.5)
-        .setVisible(false)
-        .on('pointerdown', () => this.showRewardedAd())
-        .on('pointerover', () => this.adButton.setStyle({ fill: '#ffffff' }))
-        .on('pointerout', () => this.adButton.setStyle({ fill: '#00ff00' }));
-    
-        // Скрываем бар изначально
+            .setInteractive()
+            .setDepth(100)
+            .setOrigin(0.5)
+            .setVisible(false)
+            .on('pointerdown', () => this.showRewardedAd())
+            .on('pointerover', () => this.adButton.setStyle({ fill: '#ffffff' }))
+            .on('pointerout', () => this.adButton.setStyle({ fill: '#00ff00' }));
         this.hideEnergyBar();
     }
-    
+
     showEnergyBar() {
-        // Сначала обновляем текущее значение энергии
         if (this.currentEnergy < this.MAX_ENERGY) {
             const now = Date.now();
             const timePassed = now - this.lastUpdateTime;
             const energyToAdd = Math.floor(timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE;
-            
             if (energyToAdd > 0) {
                 this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + energyToAdd);
                 this.lastUpdateTime = now - (timePassed % this.REGENERATION_INTERVAL);
@@ -1160,11 +1121,9 @@ class EnergySystem {
                 this.saveLastUpdateTime();
             }
         }
-    
-        // Показываем элементы
         if (this.energyBar) {
             this.energyBar.visible = true;
-            this.updateEnergyBar();  // Обновляем UI с актуальным значением
+            this.updateEnergyBar();
         }
         if (this.energyText) {
             this.energyText.visible = true;
@@ -1172,31 +1131,18 @@ class EnergySystem {
         if (this.adButton) {
             this.adButton.visible = true;
         }
-    
-        // Очищаем существующий таймер, если он есть
         if (this.hideTimer) {
             this.scene.time.removeEvent(this.hideTimer);
         }
-    
-        // Создаем новый таймер на 5 секунд
         this.hideTimer = this.scene.time.delayedCall(5000, () => {
             this.hideEnergyBar();
         }, [], this);
     }
 
     hideEnergyBar() {
-        // Скрываем элементы
-        if (this.energyBar) {
-            this.energyBar.visible = false;
-        }
-        if (this.energyText) {
-            this.energyText.visible = false;
-        }
-        if (this.adButton) {
-            this.adButton.visible = false;
-        }
-
-        // Очищаем таймер
+        if (this.energyBar) this.energyBar.visible = false;
+        if (this.energyText) this.energyText.visible = false;
+        if (this.adButton) this.adButton.visible = false;
         if (this.hideTimer) {
             this.scene.time.removeEvent(this.hideTimer);
             this.hideTimer = null;
@@ -1204,122 +1150,139 @@ class EnergySystem {
     }
 
     updateEnergyBar() {
-        // Добавляем проверку
-        if (!this.energyBar) {
-            return;
-        }
-    
+        if (!this.energyBar) return;
         this.energyBar.clear();
-    
-        const barWidth = 300;
-        const barHeight = 30;
+        const barWidth = 300, barHeight = 30;
         const barX = GAME_CONFIG.width / 2 - barWidth / 2;
         const barY = GAME_CONFIG.height - 110;
-    
-        // Фон бара
         this.energyBar.fillStyle(0x333333, 0.8);
         this.energyBar.fillRoundedRect(barX, barY, barWidth, barHeight, 8);
-    
-        // Заполнение бара
         const fillWidth = (this.currentEnergy / this.MAX_ENERGY) * barWidth;
         this.energyBar.fillStyle(0x00ff00);
         this.energyBar.fillRoundedRect(barX, barY, Math.min(fillWidth, barWidth), barHeight, 8);
-    
-        // Рамка бара
         this.energyBar.lineStyle(2, 0xffffff, 0.3);
         this.energyBar.strokeRoundedRect(barX, barY, barWidth, barHeight, 8);
-    
-        // Обновляем текст и размещаем его по центру бара
-        this.energyText.setPosition(
-            GAME_CONFIG.width / 2,  // по центру экрана
-            barY + (barHeight / 2)  // вертикально по центру бара
-        );
+        this.energyText.setPosition(GAME_CONFIG.width / 2, barY + barHeight / 2);
         this.energyText.setText(`${this.currentEnergy}/${this.MAX_ENERGY}`);
-    }
-
-    hasEnough(amount) {
-        this.updateEnergy(); // Обновляем перед проверкой
-        return this.currentEnergy >= amount;
-    }
-
-    spend(amount, action) {
-        this.updateEnergy(); // Обновляем перед тратой
-    
-        if (this.currentEnergy < amount) {
-            this.showNotEnoughEnergy();
-            return false;
-        }
-    
-        this.currentEnergy = Math.max(0, this.currentEnergy - amount);
-        this.saveEnergy();
-        this.updateEnergyBar();
-        
-        if (this.currentEnergy < 20) {
-            this.showLowEnergyWarning();
-        }
-    
-        return true;
     }
 
     addEnergy(amount) {
         const oldEnergy = this.currentEnergy;
         this.currentEnergy = Math.min(this.MAX_ENERGY, this.currentEnergy + amount);
-        
         if (oldEnergy !== this.currentEnergy) {
             this.saveEnergy();
             this.updateEnergyBar();
-            
             if (this.currentEnergy >= this.COSTS.SEARCH_ITEM) {
                 this.resetEnergyWarning();
             }
-            
             if (this.currentEnergy >= this.MAX_ENERGY && oldEnergy < this.MAX_ENERGY) {
                 this.sendFullEnergyNotification();
             }
         }
     }
 
+    showLowEnergyWarning() {
+        if (this.currentEnergy < this.COSTS.SEARCH_ITEM && this.energyIcon) {
+            this.energyIcon.setTint(0xff0000);
+            if (!this.blinkTween) {
+                this.blinkTween = this.scene.tweens.add({
+                    targets: this.energyIcon,
+                    alpha: { from: 1, to: 0.5 },
+                    duration: 500,
+                    yoyo: true,
+                    repeat: -1
+                });
+            }
+        }
+    }
+
+    resetEnergyWarning() {
+        if (this.energyIcon) {
+            this.energyIcon.clearTint();
+            if (this.blinkTween) {
+                this.blinkTween.stop();
+                this.blinkTween.remove();
+                this.blinkTween = null;
+            }
+            this.energyIcon.setAlpha(1);
+        }
+    }
+
+    sendFullEnergyNotification() {
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Энергия восстановлена!", {
+                body: "Ваша энергия полностью восстановлена!",
+                icon: "./UI/ApprovedUI/Energy.png"
+            });
+        }
+    }
+
+    saveEnergy() {
+        localStorage.setItem('energy', this.currentEnergy.toString());
+    }
+    loadEnergy() {
+        const saved = localStorage.getItem('energy');
+        return saved ? parseInt(saved) : this.INITIAL_ENERGY;
+    }
+    saveLastUpdateTime() {
+        localStorage.setItem('energyLastUpdate', this.lastUpdateTime.toString());
+    }
+    loadLastUpdateTime() {
+        const saved = localStorage.getItem('energyLastUpdate');
+        return saved ? parseInt(saved) : Date.now();
+    }
+    showRewardedAd() {
+        const rewardAmount = 50;
+        this.addEnergy(rewardAmount);
+        const rewardText = this.scene.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            `+${rewardAmount} энергии!`,
+            { fontSize: '32px', fill: '#00ff00', backgroundColor: '#000000', padding: { x: 20, y: 10 } }
+        ).setOrigin(0.5).setDepth(200);
+        this.scene.time.delayedCall(2000, () => {
+            rewardText.destroy();
+        });
+    }
+
+    hasEnough(amount) {
+        this.updateEnergy();
+        return this.currentEnergy >= amount;
+    }
+
+    spend(amount, action) {
+        this.updateEnergy();
+        if (this.currentEnergy < amount) {
+            this.showNotEnoughEnergy();
+            return false;
+        }
+        this.currentEnergy = Math.max(0, this.currentEnergy - amount);
+        this.saveEnergy();
+        this.updateEnergyBar();
+        if (this.currentEnergy < 20) {
+            this.showLowEnergyWarning();
+        }
+        return true;
+    }
+
     startRegeneration() {
-        console.log('===== startRegeneration called =====');
-        // Восстанавливаем энергию, накопленную за время отсутствия
         const now = Date.now();
         const timePassed = now - this.lastUpdateTime;
         const energyToAdd = Math.floor((timePassed / this.REGENERATION_INTERVAL) * this.REGENERATION_RATE);
-        console.log('Initial restore calculation:', {
-            now: now,
-            lastUpdateTime: this.lastUpdateTime,
-            timePassed: timePassed,
-            energyToAdd: energyToAdd
-        });
         this.addEnergy(energyToAdd);
-    
-        // Запускаем регулярное восстановление
-        console.log('Setting up regeneration timer with interval:', this.REGENERATION_INTERVAL);
-        
-        // Сохраняем таймер в свойство класса
         this.regenerationTimer = this.scene.time.addEvent({
             delay: this.REGENERATION_INTERVAL,
             callback: () => {
-                console.log('===== Timer tick =====');
-                console.log('Time:', new Date().toLocaleTimeString());
-                
-                // Проверяем, нужно ли добавлять энергию
                 if (this.currentEnergy < this.MAX_ENERGY) {
-                    console.log('Adding energy:', this.REGENERATION_RATE);
-                    console.log('Current energy before add:', this.currentEnergy);
                     this.addEnergy(this.REGENERATION_RATE);
                     this.lastUpdateTime = Date.now();
                     this.saveLastUpdateTime();
-                } else {
-                    console.log('Energy is already full, skipping regeneration');
                 }
             },
             callbackScope: this,
             repeat: -1,
             loop: true
         });
-        
-        console.log('Regeneration timer created:', this.regenerationTimer);
     }
 
     handleMiss() {
@@ -1333,8 +1296,8 @@ class EnergySystem {
 
     showFrozenScreen() {
         const overlay = this.scene.add.rectangle(
-            0, 0, 
-            this.scene.game.config.width, 
+            0, 0,
+            this.scene.game.config.width,
             this.scene.game.config.height,
             0xffffff, 0.5
         ).setOrigin(0);
@@ -1345,7 +1308,6 @@ class EnergySystem {
     }
 
     showNotEnoughEnergy() {
-        // Показываем сообщение о недостатке энергии
         const text = this.scene.add.text(
             this.scene.game.config.width / 2,
             this.scene.game.config.height / 2,
@@ -1361,91 +1323,6 @@ class EnergySystem {
         this.scene.time.delayedCall(2000, () => {
             text.destroy();
         });
-    }
-
-    showLowEnergyWarning() {
-        // Проверяем, что энергии меньше стоимости минимального действия (SEARCH_ITEM = 5)
-        if (this.currentEnergy < this.COSTS.SEARCH_ITEM) {
-            // Красим иконку в красный
-            this.energyIcon.setTint(0xff0000);
-            // Если анимация мигания ещё не создана
-            if (!this.blinkTween) {
-                this.blinkTween = this.scene.tweens.add({
-                    targets: this.energyIcon,
-                    alpha: { from: 1, to: 0.5 }, // Мигание от полной видимости до половины
-                    duration: 500,
-                    yoyo: true, // Анимация будет идти туда-обратно
-                    repeat: -1  // Бесконечное повторение
-                });
-            }
-        }
-    }
-
-    resetEnergyWarning() {
-        // Убираем красный цвет с иконки
-        this.energyIcon.clearTint();
-        // Если есть анимация мигания - останавливаем её
-        if (this.blinkTween) {
-            this.blinkTween.stop();
-            this.blinkTween.remove();
-            this.blinkTween = null;
-        }
-        // Возвращаем полную видимость иконке
-        this.energyIcon.setAlpha(1);
-    }
-
-    sendFullEnergyNotification() {
-        if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("Энергия восстановлена!", {
-                body: "Ваша энергия полностью восстановлена!",
-                icon: "./UI/ApprovedUI/Energy.png"
-            });
-        }
-    }
-
-    // Методы сохранения/загрузки
-    saveEnergy() {
-        localStorage.setItem('energy', this.currentEnergy.toString());
-    }
-
-    loadEnergy() {
-        const saved = localStorage.getItem('energy');
-        return saved ? parseInt(saved) : this.INITIAL_ENERGY;
-    }
-
-    saveLastUpdateTime() {
-        localStorage.setItem('energyLastUpdate', this.lastUpdateTime.toString());
-    }
-
-    loadLastUpdateTime() {
-        const saved = localStorage.getItem('energyLastUpdate');
-        return saved ? parseInt(saved) : Date.now();
-    }
-    // Добавляем новый метод для показа рекламы
-    showRewardedAd() {
-    // Здесь будет ваша логика показа рекламы
-    const rewardAmount = 50; // количество энергии за просмотр рекламы
-    this.addEnergy(rewardAmount);
-    
-    // Показываем сообщение о получении награды
-    const rewardText = this.scene.add.text(
-        GAME_CONFIG.width / 2,
-        GAME_CONFIG.height / 2,
-        `+${rewardAmount} энергии!`,
-        {
-            fontSize: '32px',
-            fill: '#00ff00',
-            backgroundColor: '#000000',
-            padding: { x: 20, y: 10 }
-        }
-    )
-    .setOrigin(0.5)
-    .setDepth(200);
-
-    // Удаляем сообщение через 2 секунды
-    this.scene.time.delayedCall(2000, () => {
-        rewardText.destroy();
-    });
     }
 }
 
