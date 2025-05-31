@@ -303,9 +303,9 @@ class PopupSystem {
         const elements = [];
 
         // Левая страница (отзеркалить)
-        const leftPage = this.scene.add.image(centerX - dx, centerY, 'page').setScale(-1, 1).setDepth(1000);
+        const leftPage = this.scene.add.image(centerX - dx, centerY, 'page').setScale(1, 1).setDepth(1000);
         // Правая страница
-        const rightPage = this.scene.add.image(centerX + dx, centerY, 'page').setScale(1, 1).setDepth(1000);
+        const rightPage = this.scene.add.image(centerX + dx, centerY, 'page').setScale(-1, 1).setDepth(1000);
         
         // Тексты
         const leftText = this.scene.add.text(centerX - dx, centerY, '', textStyle).setOrigin(0.5).setDepth(1001);
