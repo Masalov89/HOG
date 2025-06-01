@@ -238,7 +238,7 @@ class PopupSystem {
 
     createJournalSpreadContent(entries, x, y, config) {
         // Все временные элементы (страницы, зоны, тексты) храним в массиве и destroy при каждом renderPages!
-        const shiftY = -7, centerX = x, centerY = y, dx = 305;
+        const shiftY = -7, centerX = x, centerY = y, dx = 295;
         const pageWidth = 610, pageHeight = 800;
         const textStyle = { font: '20px serif', color: '#432', wordWrap: { width: 500 } };
         const pageNumberStyle = { font: '14px serif', color: '#000', align: 'center' };
