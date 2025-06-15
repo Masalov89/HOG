@@ -135,8 +135,143 @@ class LoadingScene extends Phaser.Scene {
         setTimeout(() => {
             progressBar.destroy(); // Удаляем графику прогресса.
             progressBox.destroy(); // Удаляем графику контейнера.
-            this.scene.start('GameScene'); // Переходим к следующей сцене.
+            this.scene.start('MainMenuScene'); // Переходим к следующей сцене.
         }, 500); // Небольшая задержка перед переходом.
+    }
+}
+
+// === MainMenuScene ===
+class MainMenuScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'MainMenuScene' });
+    }
+
+    preload() {
+        // Загрузи фон под свои пути, если нужен другой – измени путь!
+        this.load.image('main-bg', './UI/Backgrounds/loading-bg.jpg');
+        // Если хочешь добавить другие картинки, здесь их тоже подключай
+    }
+
+    create() {
+        // Фон
+        this.add.image(GAME_CONFIG.width/2, GAME_CONFIG.height/2, 'main-bg')
+            .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
+
+        // Кнопки горизонтального меню
+        const buttons = ['Играть', 'Достижения', 'Опции', 'Помощь'];
+        const startX = 600;
+        const stepX = 240;
+        const y = 100;
+        this.menuBtnObjs = [];
+
+        buttons.forEach((label, i) => {
+            const btn = this.add.text(startX + i * stepX, y, label, {
+                font: '42px Arial',
+                color: '#FFD700',
+                backgroundColor: '#222',
+                padding: { left: 28, right: 28, top: 12, bottom: 12 }
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+            btn.on('pointerover', () => btn.setColor('#FFF6A8'));
+            btn.on('pointerout', () => btn.setColor('#FFD700'));
+            btn.on('pointerdown', () => this.menuClick(label));
+
+            this.menuBtnObjs.push(btn);
+        });
+
+        // Группа для подменю (истории)
+        this.storyBtnsGroup = this.add.group();
+
+        // Пример энергии
+        this.energy = 400;
+        this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
+        this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
+            font: '28px Arial', color: '#FFD700'
+        }).setOrigin(0, 0.5);
+    }
+
+    menuClick(label) {
+        if (label === 'Играть') {
+            this.showStoryMenu();
+        } else {
+            this.clearStoryMenu();
+            // Здесь показывай другие окна (достижения, опции, помощь)
+        }
+    }
+
+    showStoryMenu() {
+        this.clearStoryMenu();
+        const stories = ['Сейф', 'Особняк'];
+        const startX = 800;
+        const stepX = 220;
+        const y = 200;
+
+        stories.forEach((story, i) => {
+            const btn = this.add.text(startX + i * stepX, y, story, {
+                font: '28px Arial',
+                color: '#FFD700',
+                backgroundColor: '#292929',
+                padding: { left: 20, right: 20, top: 8, bottom: 8 }
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+            btn.on('pointerover', () => btn.setColor('#FFF6A8'));
+            btn.on('pointerout', () => btn.setColor('#FFD700'));
+            btn.on('pointerdown', () => this.openChaptersModal(story));
+            this.storyBtnsGroup.add(btn);
+        });
+    }
+
+    clearStoryMenu() {
+        this.storyBtnsGroup.clear(true, true);
+    }
+
+    openChaptersModal(storyName) {
+        this.closeChaptersModal();
+
+        // Модалка по центру экрана
+        const modalBg = this.add.rectangle(GAME_CONFIG.width/2, GAME_CONFIG.height/2, 700, 500, 0x181818, 0.95)
+            .setStrokeStyle(4, 0xffd700);
+        const closeBtn = this.add.text(GAME_CONFIG.width/2 + 320, GAME_CONFIG.height/2 - 220, '×', {
+            font: '48px Arial', color: '#FFD700'
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+        closeBtn.on('pointerdown', () => this.closeChaptersModal());
+
+        // Пример глав
+        const chapters = [
+            { name: 'Глава 1', state: 'completed' },
+            { name: 'Глава 2', state: 'locked' },
+            { name: 'Глава 3', state: 'available' }
+        ];
+
+        this.chaptersModalGroup = this.add.group([modalBg, closeBtn]);
+
+        chapters.forEach((ch, i) => {
+            const color = ch.state === 'completed' ? '#66ff66'
+                        : ch.state === 'locked' ? '#cccccc'
+                        : '#FFD700';
+            const card = this.add.text(GAME_CONFIG.width/2, GAME_CONFIG.height/2 - 50 + i * 90, ch.name, {
+                font: '32px Arial',
+                color,
+                backgroundColor: '#333',
+                padding: { left: 30, right: 30, top: 14, bottom: 14 }
+            }).setOrigin(0.5).setInteractive();
+
+            if (ch.state === 'available') {
+                card.on('pointerdown', () => {
+                    this.closeChaptersModal();
+                    alert('Глава началась!');
+                    // this.scene.start('GameScene'); // Если нужно запускать игру
+                });
+            }
+            this.chaptersModalGroup.add(card);
+        });
+    }
+
+    closeChaptersModal() {
+        if (this.chaptersModalGroup) {
+            this.chaptersModalGroup.clear(true, true);
+        }
     }
 }
 
@@ -157,52 +292,29 @@ class PopupSystem {
     constructor(scene) {
         this.scene = scene;
         this.activePopup = null;
-        
-        // Конфигурация для разных типов попапов
-        this.config = {
-            ITEM: {
-                width: 700,
-                height: 482,
-                background: 'popup-bg-item',
-                scale: 0.8
-            },
-            JOURNAL: {
-                width: 800,
-                height: 600,
-                background: 'popup-bg-journal',
-                scale: 1
-            },
-            LOCATION: {
-                width: 400,
-                height: 300,
-                background: 'popup-bg-small',
-                scale: 0.6
-            },
-            closeButton: {
-                scale: 0.8,
-                offset: 40,
-                depth: 1001
-            }
-        };
-
-        // Для дневника
+        this.overlay = null;
+        this.background = null;
+        this.closeButton = null;
+        this._popupElements = []; // временные элементы (страницы, зоны и т.д.)
+        this._escHandler = null;
         this._diaryState = {
-            currentPage: 0,
-            entries: []
+            currentSpread: 0,
+            entries: [],
+            onBackground: true,
+            destroy: null
         };
     }
 
     create(type, options) {
-        // Закрываем предыдущий попап, если он существует
-        if (this.activePopup) {
-            this.close();
-        }
+        this.close(); // всегда всё чистим!
 
-        const config = this.config[type];
-        if (!config) {
-            console.error('Неизвестный тип попапа:', type);
-            return;
-        }
+        const config = {
+            ITEM: { width: 700, height: 482, background: 'popup-bg-item', scale: 0.8 },
+            JOURNAL: { background: 'popup-bg-journal' },
+            LOCATION: { width: 400, height: 300, background: 'popup-bg-small', scale: 0.6 },
+            closeButton: { scale: 0.8, offset: 40, depth: 1001 }
+        }[type];
+        if (!config) return;
 
         const {
             content,
@@ -212,220 +324,284 @@ class PopupSystem {
             y = this.scene.cameras.main.height / 2
         } = options;
 
-        // Создаем группу для попапа
-        const popupGroup = this.scene.add.group();
-
-        // Создаем затемнение
-        const overlay = this.createOverlay();
-        
-        // Создаем фон попапа
-        const background = this.createBackground(x, y, config);
-        
-        // Создаем контент в зависимости от типа
-        let contentElement;
-        if (type === 'JOURNAL') {
-            contentElement = this.createJournalSpreadContent(data, x, y, config, popupGroup);
-        } else {
-            contentElement = this.createContent(type, content, data, x, y, config);
-        }
-        
-        // Создаем кнопку закрытия
-        const closeButton = this.createCloseButton(x, y, config);
-
-        // Добавляем все элементы в группу
-        popupGroup.addMultiple([overlay, background, ...contentElement, closeButton]);
-
-        // Настраиваем обработчики для закрытия
-        this.setupCloseHandlers(popupGroup, closeButton, onClose);
-
-        // Сохраняем активный попап
-        this.activePopup = popupGroup;
-
-        return popupGroup;
-    }
-
-    createOverlay() {
-        return this.scene.add.rectangle(
+        // Overlay и closeButton создаём только один раз
+        this.overlay = this.scene.add.rectangle(
             0, 0,
             this.scene.cameras.main.width,
             this.scene.cameras.main.height,
-            0x000000,
-            0.7
-        ).setOrigin(0)
-         .setDepth(998)
-         .setInteractive();
-    }
+            0x000000, 0.7
+        ).setOrigin(0).setDepth(998).setInteractive();
 
-    createBackground(x, y, config) {
-        return this.scene.add.image(x, y, config.background)
-            .setDisplaySize(config.width, config.height)
-            .setDepth(999);
+        // Фон попапа
+        if (type === 'JOURNAL') {
+            this.background = this.scene.add.image(x, y, config.background).setDepth(999);
+        } else {
+            this.background = this.scene.add.image(x, y, config.background)
+                .setDisplaySize(config.width, config.height)
+                .setDepth(999);
+        }
+
+        // CloseButton всегда один, координаты переданы тобой: 1500x425!
+        this.closeButton = this.createCloseButton(1500, 425, config);
+        this.setupCloseHandlers(this.closeButton, onClose);
+
+        // Overlay, background, closeButton должны быть всегда в сцене, остальные временные
+        this.activePopup = [this.overlay, this.background, this.closeButton];
+
+        // Контент
+        if (type === 'JOURNAL') {
+            this.createJournalSpreadContent(data, x, y, config);
+        } else {
+            this._popupElements.push(...this.createContent(type, content, data, x, y, config));
+        }
     }
 
     createContent(type, content, data, x, y, config) {
         switch(type) {
-            case 'ITEM':
-                return [this.createItemContent(content, x, y, config)];
-            
-            case 'JOURNAL':
-                // Старая версия, не используется
-                return this.createJournalContent(data, x, y, config);
-            
-            case 'LOCATION':
-                return [this.createLocationContent(content, x, y, config)];
-            
-            default:
-                return [];
+            case 'ITEM': return [this.createItemContent(content, x, y, config)];
+            case 'JOURNAL': return this.createJournalContent(data, x, y, config);
+            case 'LOCATION': return [this.createLocationContent(content, x, y, config)];
+            default: return [];
         }
     }
 
     createItemContent(itemKey, x, y, config) {
         return this.scene.add.image(x, y, itemKey)
             .setScale(config.scale)
-            .setDepth(1000);
+            .setDepth(1001);
     }
 
-    // Новая версия для дневника с двумя страницами и листанием
-    createJournalSpreadContent(entries, x, y, config, popupGroup) {
-        // Координаты подгони под нужный фон
-        const centerX = x;
-        const centerY = y;
-        const dx = 240;
-        const zoneWidth = 320;
-        const zoneHeight = 520;
-        const textStyle = { font: '20px serif', color: '#432', wordWrap: { width: 300 } };
-
-        // Сохраняем записи и текущую страницу в состоянии
+    createJournalSpreadContent(entries, x, y, config) {
+        // Все временные элементы (страницы, зоны, тексты) храним в массиве и destroy при каждом renderPages!
+        const shiftY = -7, centerX = x, centerY = y, dx = 295;
+        const pageWidth = 610, pageHeight = 800;
+        const textStyle = { font: '20px serif', color: '#432', wordWrap: { width: 500 } };
+        const pageNumberStyle = { font: '14px serif', color: '#000', align: 'center' };
+        const entriesCount = Array.isArray(entries) ? entries.length : 0;
         this._diaryState.entries = entries;
-        // Открываем на последних двух (или одной) страницах
-        this._diaryState.currentPage = Math.max(0, entries.length - (entries.length % 2 === 0 ? 2 : 1));
+        const filledSpreads = Math.ceil(entriesCount / 2);
 
-        const elements = [];
+        // Состояния
+        if (entriesCount === 0) {
+            this._diaryState.onBackground = true;
+            this._diaryState.currentSpread = 0;
+        } else {
+            this._diaryState.onBackground = false;
+            this._diaryState.currentSpread = filledSpreads - 1;
+        }
 
-        // Левая страница (отзеркалить)
-        const leftPage = this.scene.add.image(centerX - dx, centerY, 'page').setScale(1, 1).setDepth(1000);
-        // Правая страница
-        const rightPage = this.scene.add.image(centerX + dx, centerY, 'page').setScale(-1, 1).setDepth(1000);
-        
-        // Тексты
-        const leftText = this.scene.add.text(centerX - dx, centerY, '', textStyle).setOrigin(0.5).setDepth(1001);
-        const rightText = this.scene.add.text(centerX + dx, centerY, '', textStyle).setOrigin(0.5).setDepth(1001);
+        // Обновление страниц: всегда destroy старые элементы!
+        const renderPages = () => {
+            this._popupElements.forEach(e => { try { e.destroy(); } catch{} });
+            this._popupElements = [];
 
-        // Навигация
-        const leftZone = this.scene.add.zone(centerX - dx, centerY, zoneWidth, zoneHeight)
-            .setOrigin(0.5).setInteractive().setDepth(1050)
-            .on('pointerdown', () => {
-                if (this._diaryState.currentPage >= 2) {
-                    this._diaryState.currentPage -= 2;
-                    updatePages();
-                }
-            });
-        const rightZone = this.scene.add.zone(centerX + dx, centerY, zoneWidth, zoneHeight)
-            .setOrigin(0.5).setInteractive().setDepth(1050)
-            .on('pointerdown', () => {
-                if (this._diaryState.currentPage + 2 < this._diaryState.entries.length) {
-                    this._diaryState.currentPage += 2;
-                    updatePages();
-                }
-            });
+            // ======= Фон дневника =======
+            if (this._diaryState.onBackground) {
+                const rightZone = this.scene.add.zone(centerX + dx, centerY + shiftY, pageWidth, pageHeight)
+                    .setOrigin(0.5).setInteractive().setDepth(1050)
+                    .on('pointerdown', () => {
+                        if (entriesCount === 0) {
+                            this._diaryState.onBackground = false;
+                            renderPages();
+                        } else {
+                            this._diaryState.onBackground = false;
+                            this._diaryState.currentSpread = filledSpreads - 1;
+                            renderPages();
+                        }
+                    });
+                this._popupElements.push(rightZone);
+                return;
+            }
 
-        // Функция обновления текста страниц
-        const updatePages = () => {
-            leftText.setText(this._diaryState.entries[this._diaryState.currentPage] || '');
-            rightText.setText(this._diaryState.entries[this._diaryState.currentPage + 1] || '');
+            // ======= Разворот страницы =======
+            const leftPage = this.scene.add.image(centerX - dx, centerY + shiftY, 'page')
+                .setDisplaySize(pageWidth, pageHeight).setDepth(1001);
+            const rightPage = this.scene.add.image(centerX + dx, centerY + shiftY, 'page')
+                .setDisplaySize(pageWidth, pageHeight).setScale(-1, 1).setDepth(1001);
+            const leftText = this.scene.add.text(centerX - dx, centerY + shiftY, '', textStyle).setOrigin(0.5).setDepth(1002);
+            const rightText = this.scene.add.text(centerX + dx, centerY + shiftY, '', textStyle).setOrigin(0.5).setDepth(1002);
+            const pageY = centerY + shiftY + pageHeight / 2 - 25;
+            const leftPageNum = this.scene.add.text(centerX - dx, pageY, '', pageNumberStyle).setOrigin(0.5, 1).setDepth(1051);
+            const rightPageNum = this.scene.add.text(centerX + dx, pageY, '', pageNumberStyle).setOrigin(0.5, 1).setDepth(1051);
+
+            // Навигация — левая страница (назад)
+            const leftZone = this.scene.add.zone(centerX - dx, centerY + shiftY, pageWidth, pageHeight)
+                .setOrigin(0.5).setInteractive().setDepth(1050)
+                .on('pointerdown', () => {
+                    if (entriesCount === 0) {
+                        this._diaryState.onBackground = true;
+                        renderPages();
+                        return;
+                    }
+                    if (this._diaryState.currentSpread === 0) {
+                        this._diaryState.onBackground = true;
+                        renderPages();
+                        return;
+                    }
+                    if (this._diaryState.currentSpread > 0) {
+                        this._diaryState.currentSpread -= 1;
+                        updatePages();
+                    }
+                });
+
+            // Навигация — правая страница (вперёд)
+            const rightZone = this.scene.add.zone(centerX + dx, centerY + shiftY, pageWidth, pageHeight)
+                .setOrigin(0.5).setInteractive({ cursor: 'pointer' }).setDepth(1050)
+                .on('pointerdown', () => {
+                    if (entriesCount === 0) {
+                        this._shake(rightPage, centerX + dx, 5);
+                        return;
+                    }
+                    if (this._diaryState.currentSpread === filledSpreads) {
+                        this._shake(rightPage, centerX + dx, 5);
+                        return;
+                    }
+                    if (this._diaryState.currentSpread < filledSpreads) {
+                        this._diaryState.currentSpread += 1;
+                        updatePages();
+                        return;
+                    }
+                });
+
+            // Заполняем текст/номера
+            const updatePages = () => {
+                const spread = this._diaryState.currentSpread;
+                const idx = spread * 2;
+                leftText.setText(entries[idx] ? entries[idx] : '');
+                leftPageNum.setText(entries[idx] ? (idx + 1).toString() : '');
+                rightText.setText(entries[idx + 1] ? entries[idx + 1] : '');
+                rightPageNum.setText(entries[idx + 1] ? (idx + 2).toString() : '');
+                rightPage.x = x + dx;
+                rightPage.angle = 0;
+            };
+
+            updatePages();
+
+            this._popupElements.push(
+                leftPage, rightPage, leftText, rightText, leftPageNum, rightPageNum, leftZone, rightZone
+            );
         };
-        updatePages();
 
-        // Закрытие по Esc
-        this._escHandler = this.scene.input.keyboard.on('keydown-ESC', () => {
-            this.close();
-        });
+        // ESC для закрытия
+        this._escHandler = this.scene.input.keyboard.on('keydown-ESC', () => this.close());
 
-        // Для удаления при закрытии
+        // destroy всех временных элементов + esc
         this._diaryState.destroy = () => {
-            [leftPage, rightPage, leftText, rightText, leftZone, rightZone].forEach(e => e && e.destroy());
+            this._popupElements.forEach(e => { try { e.destroy(); } catch{} });
+            this._popupElements = [];
             if (this._escHandler) this._escHandler.removeListener('keydown-ESC');
         };
 
-        elements.push(leftPage, rightPage, leftText, rightText, leftZone, rightZone);
-        return elements;
+        renderPages();
     }
 
-    // Старая версия: просто список записей
+    _shake(target, originalX, amplitude = 10) {
+        if (!target) return;
+        target.x = originalX;
+        this.scene.tweens.add({
+            targets: target,
+            x: originalX + amplitude,
+            duration: 40,
+            yoyo: true,
+            repeat: 1,
+            onComplete: () => { target.x = originalX; }
+        });
+    }
+
     createJournalContent(entries, x, y, config) {
         const contentGroup = [];
-        const startY = y - (config.height / 2) + 100;
-        
-        // Добавляем заголовок
+        const startY = y - (600 / 2) + 100;
         contentGroup.push(
             this.scene.add.text(x, startY - 50, 'ДНЕВНИК', {
                 fontSize: '32px',
                 fill: '#ffd700',
                 fontStyle: 'bold'
-            }).setOrigin(0.5).setDepth(1000)
+            }).setOrigin(0.5).setDepth(1002)
         );
-
-        // Добавляем записи
         entries.forEach((entry, index) => {
             contentGroup.push(
                 this.scene.add.text(
-                    x - (config.width / 2) + 50,
+                    x - (800 / 2) + 50,
                     startY + (index * 40),
                     entry,
                     {
                         fontSize: '18px',
                         fill: '#ffffff',
-                        wordWrap: { width: config.width - 100 }
+                        wordWrap: { width: 800 - 100 }
                     }
-                ).setDepth(1000)
+                ).setDepth(1002)
             );
         });
-
         return contentGroup;
     }
 
     createLocationContent(contentKey, x, y, config) {
         return this.scene.add.image(x, y, contentKey)
             .setScale(config.scale)
-            .setDepth(1000);
+            .setDepth(1002);
     }
 
+    // Кнопка close по твоим координатам (1500, 425)
     createCloseButton(x, y, config) {
-        const button = this.scene.add.sprite(
-            x + (config.width / 2) - this.config.closeButton.offset,
-            y - (config.height / 2) + this.config.closeButton.offset,
+        const btn = this.scene.add.sprite(
+            1675, 525,
             'close'
-        ).setScale(this.config.closeButton.scale)
-         .setDepth(this.config.closeButton.depth)
+        ).setScale(config.closeButton?.scale || 0.8)
+         .setDepth(config.closeButton?.depth || 1002)
          .setInteractive();
-
-        return button;
+        return btn;
     }
 
-    setupCloseHandlers(popupGroup, closeButton, onClose) {
+    setupCloseHandlers(closeButton, onClose) {
+        if (!closeButton) return;
+        closeButton.removeAllListeners && closeButton.removeAllListeners();
         closeButton.on('pointerover', () => closeButton.setTint(0xcccccc));
         closeButton.on('pointerout', () => {
             closeButton.clearTint();
-            closeButton.setScale(this.config.closeButton.scale);
+            closeButton.setScale(0.8);
         });
         closeButton.on('pointerdown', () => {
-            closeButton.setScale(this.config.closeButton.scale * 0.9);
+            closeButton.setScale(0.7);
             closeButton.setTint(0x999999);
         });
         closeButton.on('pointerup', () => this.close(onClose));
     }
 
     close(onClose = null) {
-        if (this.activePopup) {
-            // Удалить дневниковые элементы, если были
-            if (this._diaryState && this._diaryState.destroy) {
-                this._diaryState.destroy();
-                this._diaryState.destroy = null;
-            }
-            this.activePopup.destroy(true);
-            this.activePopup = null;
-            if (onClose) onClose();
+        // Уничтожаем временные popup элементы (страницы, зоны, тексты)
+        if (this._popupElements && this._popupElements.length) {
+            this._popupElements.forEach(e => { try { e.destroy && e.destroy(); } catch{} });
+            this._popupElements = [];
         }
+        // Чистим esc
+        if (this._diaryState && typeof this._diaryState.destroy === 'function') {
+            this._diaryState.destroy();
+            this._diaryState.destroy = null;
+        }
+        // Удаляем closeButton
+        if (this.closeButton) {
+            this.closeButton.removeAllListeners && this.closeButton.removeAllListeners();
+            this.closeButton.destroy && this.closeButton.destroy();
+            this.closeButton = null;
+        }
+        // Удаляем overlay
+        if (this.overlay) {
+            this.overlay.destroy && this.overlay.destroy();
+            this.overlay = null;
+        }
+        // Удаляем background
+        if (this.background) {
+            this.background.destroy && this.background.destroy();
+            this.background = null;
+        }
+        this.activePopup = null;
+        this._diaryState = {
+            currentSpread: 0,
+            entries: [],
+            onBackground: true,
+            destroy: null
+        };
+        if (onClose) onClose();
     }
 }
 
@@ -2573,7 +2749,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [LoadingScene, GameScene, InventoryScene], // Добавили LoadingScene первой
+    scene: [LoadingScene, MainMenuScene, GameScene, InventoryScene], // Добавили LoadingScene первой
     physics: {
         default: 'arcade',
         arcade: {
