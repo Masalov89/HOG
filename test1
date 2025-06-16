@@ -26,6 +26,7 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
                 { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
                 { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
+                { key: 'menu-btn', path: './UI/ApprovedUI/menu-btn.png' },
                 { key: 'close', path: './UI/ApprovedUI/Close.png' },
                 { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
                 { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
@@ -149,7 +150,6 @@ class MainMenuScene extends Phaser.Scene {
         this.buttonLabels = {
             ua: ['ГРАТИ', 'ДОСЯГНЕННЯ', 'НАЛАШТУВАННЯ', 'ДОПОМОГА']
         };
-        this.selectedBtnIndex = null;
     }
 
     preload() {
@@ -173,9 +173,7 @@ class MainMenuScene extends Phaser.Scene {
             { key: 'help-btn', width: 223, height: 75 }
         ];
 
-        const spacing = 80;
-        const maxScale = 1.2; // 20% увеличение
-
+        const spacing = 40;
         const totalWidth =
             this.menuButtons.reduce((sum, btn) => sum + btn.width, 0) +
             spacing * (this.menuButtons.length - 1);
@@ -194,32 +192,10 @@ class MainMenuScene extends Phaser.Scene {
                 .setDisplaySize(btnInfo.width, btnInfo.height)
                 .setInteractive({ useHandCursor: true });
 
-            // Увеличение при наведении (pointerover)
-            btn.on('pointerover', () => {
-                this.tweens.add({
-                    targets: btn,
-                    scale: maxScale,
-                    duration: 180,
-                    ease: 'Cubic.easeOut'
-                });
-            });
+            btn.on('pointerover', () => btn.setScale(1.06));
+            btn.on('pointerout', () => btn.setScale(1));
+            btn.on('pointerdown', () => this.menuClick(i));
 
-            // Сброс масштаба при уходе курсора
-            btn.on('pointerout', () => {
-                this.tweens.add({
-                    targets: btn,
-                    scale: 1,
-                    duration: 180,
-                    ease: 'Cubic.easeIn'
-                });
-            });
-
-            // Только нажатие (без свечения и изменения масштаба)
-            btn.on('pointerdown', () => {
-                this.menuClick(i);
-            });
-
-            // Подписи только для украинского языка
             let label = null;
             if (labels[i]) {
                 label = this.add.text(currentX, y + btnInfo.height / 2 + 30, labels[i], {
@@ -240,14 +216,15 @@ class MainMenuScene extends Phaser.Scene {
         this.energy = 400;
         this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
         this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
-            font: '28px Arial', color: '#FFD700'
+            font: '28px Arial',
+            color: '#FFD700'
         }).setOrigin(0, 0.5);
     }
 
-    // Переключение языка
     switchLanguage(nextLang) {
         if (!this.languages.includes(nextLang)) return;
         this.currentLanguage = nextLang;
+
         const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : ['', '', '', ''];
         this.menuBtnLabels.forEach((labelObj, i) => {
             if (labelObj) labelObj.destroy();
@@ -256,7 +233,8 @@ class MainMenuScene extends Phaser.Scene {
                 this.menuBtnLabels[i] = this.add.text(
                     btn.x,
                     btn.y + this.menuButtons[i].height / 2 + 30,
-                    labels[i], { font: '28px Arial', color: '#FFD700' }
+                    labels[i],
+                    { font: '28px Arial', color: '#FFD700' }
                 ).setOrigin(0.5);
             } else {
                 this.menuBtnLabels[i] = null;
@@ -305,14 +283,12 @@ class MainMenuScene extends Phaser.Scene {
         const y = 350;
         const group = this.add.group();
 
-        // "Мова / Language:"
         const optionsTitle = this.add.text(x, y, 'Мова / Language:', {
             font: '32px Arial',
             color: '#FFD700'
         }).setOrigin(0.5);
         group.add(optionsTitle);
 
-        // Кнопка "EN"
         const enBtn = this.add.text(x - 70, y + 60, 'EN', {
             font: '28px Arial',
             color: this.currentLanguage === 'en' ? '#FFD700' : '#999'
@@ -324,7 +300,6 @@ class MainMenuScene extends Phaser.Scene {
         });
         group.add(enBtn);
 
-        // Кнопка "UA"
         const uaBtn = this.add.text(x + 70, y + 60, 'UA', {
             font: '28px Arial',
             color: this.currentLanguage === 'ua' ? '#FFD700' : '#999'
@@ -345,7 +320,8 @@ class MainMenuScene extends Phaser.Scene {
         const modalBg = this.add.rectangle(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 700, 500, 0x181818, 0.95)
             .setStrokeStyle(4, 0xffd700);
         const closeBtn = this.add.text(GAME_CONFIG.width / 2 + 320, GAME_CONFIG.height / 2 - 220, '×', {
-            font: '48px Arial', color: '#FFD700'
+            font: '48px Arial',
+            color: '#FFD700'
         })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true });
@@ -362,7 +338,7 @@ class MainMenuScene extends Phaser.Scene {
         chapters.forEach((ch, i) => {
             const color = ch.state === 'completed' ? '#66ff66'
                 : ch.state === 'locked' ? '#cccccc'
-                    : '#FFD700';
+                : '#FFD700';
             const card = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 - 50 + i * 90, ch.name, {
                 font: '32px Arial',
                 color,
@@ -370,10 +346,17 @@ class MainMenuScene extends Phaser.Scene {
                 padding: { left: 30, right: 30, top: 14, bottom: 14 }
             }).setOrigin(0.5).setInteractive();
 
-            if (ch.state === 'available') {
+            // Изменяем условие, чтобы первая глава была доступна
+            if (i === 0) { // Если это первая глава
                 card.on('pointerdown', () => {
                     this.closeChaptersModal();
-                    alert('Глава началась!');
+                    this.cameras.main.fadeOut(1000);
+                    this.time.delayedCall(1000, () => {
+                        this.scene.start('GameScene', {
+                            location: 'front-house',
+                            history: []
+                        });
+                    });
                 });
             }
             this.chaptersModalGroup.add(card);
@@ -1776,6 +1759,9 @@ class GameScene extends Phaser.Scene {
 
         // Инициализируем систему дневника
         this.journalSystem = new JournalSystem(this);
+
+        // Добавляем кнопку меню
+        this.menuButton = this.createMenuButton();
     
         // Создаем кнопку подсказки на всех локациях
         this.createHintButton();
@@ -2310,6 +2296,36 @@ class GameScene extends Phaser.Scene {
     
             this.currentPopupInfo = null; // Очищаем информацию о текущем popup
         }
+    }
+
+    createMenuButton() {
+        const buttonSize = 75;
+        const menuButton = this.add.sprite(50, 50, 'menu-btn')
+            .setDisplaySize(buttonSize, buttonSize)
+            .setInteractive({ useHandCursor: true })
+            .setDepth(1000);
+
+        menuButton.on('pointerover', () => {
+            menuButton.setScale(1.1);
+        });
+
+        menuButton.on('pointerout', () => {
+            menuButton.setScale(1);
+        });
+
+        menuButton.on('pointerdown', () => {
+            menuButton.setTint(0xcccccc);
+        });
+
+        menuButton.on('pointerup', () => {
+            menuButton.clearTint();
+            this.cameras.main.fadeOut(1000);
+            this.time.delayedCall(1000, () => {
+                this.scene.start('MainMenuScene');
+            });
+        });
+
+        return menuButton;
     }
 
     addToInventory(itemName) { // Добавление предмета в инвентарь
