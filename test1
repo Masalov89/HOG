@@ -147,34 +147,52 @@ class MainMenuScene extends Phaser.Scene {
     }
 
     preload() {
-        // Загрузи фон под свои пути, если нужен другой – измени путь!
-        this.load.image('main-bg', './UI/Backgrounds/loading-bg.jpg');
-        // Если хочешь добавить другие картинки, здесь их тоже подключай
+        // Фон
+        this.load.image('main-bg', './UI/Backgrounds/main-bg.jpg');
+        // Картинки кнопок (пути под твои файлы)
+        this.load.image('play-btn', './UI/ApprovedUI/play-btn.png');
+        this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
+        this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
+        this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
     }
 
     create() {
+        this.cameras.main.fadeIn(1000);
+
         // Фон
         this.add.image(GAME_CONFIG.width/2, GAME_CONFIG.height/2, 'main-bg')
             .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
 
-        // Кнопки горизонтального меню
-        const buttons = ['Играть', 'Достижения', 'Опции', 'Помощь'];
+        // Массив данных для кнопок: ключ картинки и действие
+        const menuButtons = [
+            { key: 'play-btn', action: 'Играть', label: 'Играть' },
+            { key: 'achiev-btn', action: 'Достижения', label: 'Достижения' },
+            { key: 'options-btn', action: 'Опции', label: 'Опции' },
+            { key: 'help-btn', action: 'Помощь', label: 'Помощь' }
+        ];
+
         const startX = 600;
         const stepX = 240;
         const y = 100;
         this.menuBtnObjs = [];
 
-        buttons.forEach((label, i) => {
-            const btn = this.add.text(startX + i * stepX, y, label, {
-                font: '42px Arial',
-                color: '#FFD700',
-                backgroundColor: '#222',
-                padding: { left: 28, right: 28, top: 12, bottom: 12 }
-            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        menuButtons.forEach((btnInfo, i) => {
+            // Кнопка-спрайт
+            const btn = this.add.sprite(startX + i * stepX, y, btnInfo.key)
+                .setOrigin(0.5)
+                .setInteractive({ useHandCursor: true })
+                .setScale(1);
 
-            btn.on('pointerover', () => btn.setColor('#FFF6A8'));
-            btn.on('pointerout', () => btn.setColor('#FFD700'));
-            btn.on('pointerdown', () => this.menuClick(label));
+            // Hover-эффект
+            btn.on('pointerover', () => btn.setScale(1.06));
+            btn.on('pointerout', () => btn.setScale(1));
+            btn.on('pointerdown', () => this.menuClick(btnInfo.action));
+
+            // Текст-подпись под кнопкой (опционально)
+            this.add.text(startX + i * stepX, y + 70, btnInfo.label, {
+                font: '28px Arial',
+                color: '#FFD700'
+            }).setOrigin(0.5);
 
             this.menuBtnObjs.push(btn);
         });
@@ -182,7 +200,7 @@ class MainMenuScene extends Phaser.Scene {
         // Группа для подменю (истории)
         this.storyBtnsGroup = this.add.group();
 
-        // Пример энергии
+        // Энергия (пример)
         this.energy = 400;
         this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
         this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
@@ -195,7 +213,8 @@ class MainMenuScene extends Phaser.Scene {
             this.showStoryMenu();
         } else {
             this.clearStoryMenu();
-            // Здесь показывай другие окна (достижения, опции, помощь)
+            // Здесь показывай/открывай другие окна (достижения, опции, помощь)
+            // Например: if (label === 'Опции') { ... }
         }
     }
 
@@ -272,19 +291,6 @@ class MainMenuScene extends Phaser.Scene {
         if (this.chaptersModalGroup) {
             this.chaptersModalGroup.clear(true, true);
         }
-    }
-}
-
-const GAME_CONFIG = { 
-    width: 1920,  // Фиксированная ширина Full HD
-    height: 1080, // Фиксированная высота Full HD
-    idleLimit: 10,              // Лимит времени бездействия (в секундах) перед показом подсказки
-    safeCode: ["4", "2", "7", "9"], // Код для открытия сейфа
-    colors: {                    // Цветовые константы для различных состояний
-        success: 0x00ff00,      // Зеленый цвет для успешных действий
-        error: 0xff0000,        // Красный цвет для ошибок
-        hint: 0xffd700,         // Золотой цвет для подсказок
-        background: 0x000000    // Черный цвет для фона
     }
 }
 
