@@ -2299,9 +2299,7 @@ class GameScene extends Phaser.Scene {
     }
 
     createMenuButton() {
-        const buttonSize = 75;
-        const menuButton = this.add.sprite(50, 50, 'menu-btn')
-            .setDisplaySize(buttonSize, buttonSize)
+        const menuButton = this.add.sprite(75, 70, 'menu-btn')
             .setInteractive({ useHandCursor: true })
             .setDepth(1000);
 
