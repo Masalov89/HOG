@@ -1,0 +1,348 @@
+class MainMenuScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'MainMenuScene' });
+        this.currentLanguage = 'en';
+        this.languages = ['en', 'ua'];
+        this.buttonLabels = {
+            ua: ['ГРАТИ', 'ДОСЯГНЕННЯ', 'НАЛАШТУВАННЯ', 'ДОПОМОГА']
+        };
+        this.selectedBtnIndex = null;
+    }
+
+    preload() {
+        this.load.image('main-bg', './UI/Backgrounds/main-bg.jpg');
+        this.load.image('play-btn', './UI/ApprovedUI/play-btn.png');
+        this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
+        this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
+        this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
+    }
+
+    create() {
+        this.input.enabled = true;
+        this.input.setTopOnly(true);
+
+        this.cameras.main.fadeIn(1000);
+
+        this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'main-bg')
+            .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height)
+            .setDepth(1);
+
+        this.menuButtons = [
+            { key: 'play-btn', width: 210, height: 75 },
+            { key: 'achiev-btn', width: 472, height: 75 },
+            { key: 'options-btn', width: 336, height: 75 },
+            { key: 'help-btn', width: 223, height: 75 }
+        ];
+
+        const spacing = 80;
+        const totalWidth = this.menuButtons.reduce((sum, btn) => sum + btn.width, 0) + 
+                          spacing * (this.menuButtons.length - 1);
+        let currentX = (GAME_CONFIG.width - totalWidth) / 2 + this.menuButtons[0].width / 2;
+        const y = 100;
+
+        this.menuBtnObjs = [];
+        this.menuBtnLabels = [];
+
+        const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : ['', '', '', ''];
+
+        this.menuButtons.forEach((btnInfo, i) => {
+            const container = this.add.container(currentX, y);
+            container.setDepth(100);
+
+            const btn = this.add.sprite(0, 0, btnInfo.key)
+                .setScale(1);
+
+            const hitZone = this.add.rectangle(0, 0, btnInfo.width, btnInfo.height)
+                .setInteractive()
+                .setDepth(99);
+
+            const debug = this.add.graphics()
+                .lineStyle(2, 0xFF0000)
+                .strokeRect(-btnInfo.width/2, -btnInfo.height/2, btnInfo.width, btnInfo.height)
+                .setDepth(101);
+
+            container.add([hitZone, btn, debug]);
+
+            hitZone.on('pointerover', () => {
+                console.log(`Наведение на ${btnInfo.key}`);
+                btn.setScale(1.2);
+            });
+
+            hitZone.on('pointerout', () => {
+                console.log(`Уход с ${btnInfo.key}`);
+                btn.setScale(1);
+            });
+
+            hitZone.on('pointerdown', () => {
+                console.log(`Нажатие ${btnInfo.key}`);
+                btn.setTint(0xcccccc);
+            });
+
+            hitZone.on('pointerup', () => {
+                btn.clearTint();
+                this.menuClick(i);
+            });
+
+            if (labels[i]) {
+                this.menuBtnLabels[i] = this.add.text(
+                    currentX, 
+                    y + btnInfo.height / 2 + 30, 
+                    labels[i], 
+                    { font: '28px Arial', color: '#FFD700' }
+                ).setOrigin(0.5).setDepth(102);
+            }
+
+            this.menuBtnObjs.push(btn);
+
+            if (i < this.menuButtons.length - 1) {
+                currentX += (btnInfo.width / 2) + (this.menuButtons[i + 1].width / 2) + spacing;
+            }
+        });
+
+        this.storyBtnsGroup = this.add.group();
+
+        this.energy = 400;
+        this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700)
+            .setOrigin(0, 0.5)
+            .setDepth(50);
+        this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
+            font: '28px Arial',
+            color: '#FFD700'
+        }).setOrigin(0, 0.5).setDepth(51);
+    }
+
+    switchLanguage(nextLang) {
+        if (!this.languages.includes(nextLang)) return;
+        this.currentLanguage = nextLang;
+        const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : ['', '', '', ''];
+        this.menuBtnLabels.forEach((labelObj, i) => {
+            if (labelObj) labelObj.destroy();
+            if (labels[i]) {
+                const btn = this.menuBtnObjs[i];
+                this.menuBtnLabels[i] = this.add.text(
+                    btn.x,
+                    btn.y + this.menuButtons[i].height / 2 + 30,
+                    labels[i],
+                    { font: '28px Arial', color: '#FFD700' }
+                ).setOrigin(0.5).setDepth(102);
+            } else {
+                this.menuBtnLabels[i] = null;
+            }
+        });
+    }
+
+    menuClick(btnIndex) {
+        if (btnIndex === 0) {
+            this.showStoryMenu();
+        } else if (btnIndex === 2) {
+            this.showOptionsMenu();
+        } else {
+            this.clearStoryMenu();
+        }
+    }
+
+    showStoryMenu() {
+        this.clearStoryMenu();
+        const stories = ['Сейф', 'Особняк'];
+        const startX = 800;
+        const stepX = 220;
+        const y = 200;
+
+        stories.forEach((story, i) => {
+            const btn = this.add.text(startX + i * stepX, y, story, {
+                font: '28px Arial',
+                color: '#FFD700',
+                backgroundColor: '#292929',
+                padding: { left: 20, right: 20, top: 8, bottom: 8 }
+            }).setOrigin(0.5)
+              .setInteractive()
+              .setDepth(120);
+
+            btn.on('pointerover', () => {
+                console.log(`Наведение на историю ${story}`);
+                btn.setScale(1.1);
+                btn.setColor('#FFF6A8');
+            });
+
+            btn.on('pointerout', () => {
+                console.log(`Уход с истории ${story}`);
+                btn.setScale(1);
+                btn.setColor('#FFD700');
+            });
+
+            btn.on('pointerdown', () => {
+                btn.setTint(0xcccccc);
+            });
+
+            btn.on('pointerup', () => {
+                btn.clearTint();
+                this.openChaptersModal(story);
+            });
+
+            this.storyBtnsGroup.add(btn);
+        });
+    }
+
+    clearStoryMenu() {
+        this.storyBtnsGroup.clear(true, true);
+    }
+
+    showOptionsMenu() {
+        this.clearStoryMenu();
+        const x = GAME_CONFIG.width / 2;
+        const y = 350;
+        const group = this.add.group();
+
+        const optionsTitle = this.add.text(x, y, 'Мова / Language:', {
+            font: '32px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5).setDepth(120);
+        group.add(optionsTitle);
+
+        const enBtn = this.add.text(x - 70, y + 60, 'EN', {
+            font: '28px Arial',
+            color: this.currentLanguage === 'en' ? '#FFD700' : '#999'
+        }).setOrigin(0.5)
+          .setInteractive()
+          .setDepth(120);
+
+        enBtn.on('pointerover', () => {
+            console.log('Наведение на EN');
+            enBtn.setScale(1.1);
+        });
+
+        enBtn.on('pointerout', () => {
+            console.log('Уход с EN');
+            enBtn.setScale(1);
+        });
+
+        enBtn.on('pointerdown', () => {
+            enBtn.setTint(0xcccccc);
+        });
+
+        enBtn.on('pointerup', () => {
+            enBtn.clearTint();
+            this.switchLanguage('en');
+            enBtn.setColor('#FFD700');
+            uaBtn.setColor('#999');
+        });
+        group.add(enBtn);
+
+        const uaBtn = this.add.text(x + 70, y + 60, 'UA', {
+            font: '28px Arial',
+            color: this.currentLanguage === 'ua' ? '#FFD700' : '#999'
+        }).setOrigin(0.5)
+          .setInteractive()
+          .setDepth(120);
+
+        uaBtn.on('pointerover', () => {
+            console.log('Наведение на UA');
+            uaBtn.setScale(1.1);
+        });
+
+        uaBtn.on('pointerout', () => {
+            console.log('Уход с UA');
+            uaBtn.setScale(1);
+        });
+
+        uaBtn.on('pointerdown', () => {
+            uaBtn.setTint(0xcccccc);
+        });
+
+        uaBtn.on('pointerup', () => {
+            uaBtn.clearTint();
+            this.switchLanguage('ua');
+            uaBtn.setColor('#FFD700');
+            enBtn.setColor('#999');
+        });
+        group.add(uaBtn);
+
+        this.storyBtnsGroup.addMultiple(group.getChildren());
+    }
+
+    openChaptersModal(storyName) {
+        this.closeChaptersModal();
+
+        const modalBg = this.add.rectangle(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 700, 500, 0x181818, 0.95)
+            .setStrokeStyle(4, 0xffd700)
+            .setDepth(130);
+
+        const closeBtn = this.add.text(GAME_CONFIG.width / 2 + 320, GAME_CONFIG.height / 2 - 220, '×', {
+            font: '48px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5)
+          .setInteractive()
+          .setDepth(131);
+
+        closeBtn.on('pointerover', () => {
+            console.log('Наведение на кнопку закрытия');
+            closeBtn.setScale(1.1);
+        });
+
+        closeBtn.on('pointerout', () => {
+            console.log('Уход с кнопки закрытия');
+            closeBtn.setScale(1);
+        });
+
+        closeBtn.on('pointerdown', () => {
+            closeBtn.setTint(0xcccccc);
+        });
+
+        closeBtn.on('pointerup', () => {
+            closeBtn.clearTint();
+            this.closeChaptersModal();
+        });
+
+        const chapters = [
+            { name: 'Глава 1', state: 'completed' },
+            { name: 'Глава 2', state: 'locked' },
+            { name: 'Глава 3', state: 'available' }
+        ];
+
+        this.chaptersModalGroup = this.add.group([modalBg, closeBtn]);
+
+        chapters.forEach((ch, i) => {
+            const color = ch.state === 'completed' ? '#66ff66'
+                : ch.state === 'locked' ? '#cccccc'
+                : '#FFD700';
+
+            const card = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 - 50 + i * 90, ch.name, {
+                font: '32px Arial',
+                color,
+                backgroundColor: '#333',
+                padding: { left: 30, right: 30, top: 14, bottom: 14 }
+            }).setOrigin(0.5)
+              .setInteractive()
+              .setDepth(131);
+
+            if (ch.state === 'available') {
+                card.on('pointerover', () => {
+                    console.log(`Наведение на главу ${ch.name}`);
+                    card.setScale(1.1);
+                });
+
+                card.on('pointerout', () => {
+                    console.log(`Уход с главы ${ch.name}`);
+                    card.setScale(1);
+                });
+
+                card.on('pointerdown', () => {
+                    card.setTint(0xcccccc);
+                });
+
+                card.on('pointerup', () => {
+                    card.clearTint();
+                    this.closeChaptersModal();
+                    alert('Глава началась!');
+                });
+            }
+            this.chaptersModalGroup.add(card);
+        });
+    }
+
+    closeChaptersModal() {
+        if (this.chaptersModalGroup) {
+            this.chaptersModalGroup.clear(true, true);
+        }
+    }
+}
