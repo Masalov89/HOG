@@ -135,8 +135,237 @@ class LoadingScene extends Phaser.Scene {
         setTimeout(() => {
             progressBar.destroy(); // Удаляем графику прогресса.
             progressBox.destroy(); // Удаляем графику контейнера.
-            this.scene.start('GameScene'); // Переходим к следующей сцене.
+            this.scene.start('MainMenuScene'); // Переходим к следующей сцене.
         }, 500); // Небольшая задержка перед переходом.
+    }
+}
+
+// === MainMenuScene ===
+class MainMenuScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'MainMenuScene' });
+        this.currentLanguage = 'en';
+        this.languages = ['en', 'ua'];
+        // Только украинские подписи нужны для подписей
+        this.buttonLabels = {
+            ua: ['ГРАТИ', 'ДОСЯГНЕННЯ', 'НАЛАШТУВАННЯ', 'ДОПОМОГА']
+        };
+    }
+
+    preload() {
+        this.load.image('main-bg', './UI/Backgrounds/main-bg.jpg');
+        this.load.image('play-btn', './UI/ApprovedUI/play-btn.png');
+        this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
+        this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
+        this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
+    }
+
+    create() {
+        this.cameras.main.fadeIn(1000);
+
+        this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'main-bg')
+            .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
+
+        this.menuButtons = [
+            { key: 'play-btn', width: 210, height: 75 },
+            { key: 'achiev-btn', width: 472, height: 75 },
+            { key: 'options-btn', width: 336, height: 75 },
+            { key: 'help-btn', width: 223, height: 75 }
+        ];
+
+        const spacing = 40;
+        const totalWidth =
+            this.menuButtons.reduce((sum, btn) => sum + btn.width, 0) +
+            spacing * (this.menuButtons.length - 1);
+
+        let currentX = (GAME_CONFIG.width - totalWidth) / 2 + this.menuButtons[0].width / 2;
+        const y = 100;
+
+        this.menuBtnObjs = [];
+        this.menuBtnLabels = [];
+
+        // Для английского — labels будут пустыми, для украинского — подписи
+        const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : [ '', '', '', '' ];
+
+        this.menuButtons.forEach((btnInfo, i) => {
+            const btn = this.add.sprite(currentX, y, btnInfo.key)
+                .setOrigin(0.5)
+                .setDisplaySize(btnInfo.width, btnInfo.height)
+                .setInteractive({ useHandCursor: true });
+
+            btn.on('pointerover', () => btn.setScale(1.06));
+            btn.on('pointerout', () => btn.setScale(1));
+            btn.on('pointerdown', () => this.menuClick(i));
+
+            // Подпись только если язык украинский
+            let label = null;
+            if (labels[i]) {
+                label = this.add.text(currentX, y + btnInfo.height / 2 + 30, labels[i], {
+                    font: '28px Arial',
+                    color: '#FFD700'
+                }).setOrigin(0.5);
+            }
+            this.menuBtnObjs.push(btn);
+            this.menuBtnLabels.push(label);
+
+            if (i < this.menuButtons.length - 1) {
+                currentX += (btnInfo.width / 2) + (this.menuButtons[i + 1].width / 2) + spacing;
+            }
+        });
+
+        this.storyBtnsGroup = this.add.group();
+
+        this.energy = 400;
+        this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
+        this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
+            font: '28px Arial', color: '#FFD700'
+        }).setOrigin(0, 0.5);
+    }
+
+    // Переключение языка
+    switchLanguage(nextLang) {
+        if (!this.languages.includes(nextLang)) return;
+        this.currentLanguage = nextLang;
+
+        // Обновить подписи на кнопках
+        const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : [ '', '', '', '' ];
+        this.menuBtnLabels.forEach((labelObj, i) => {
+            // Удалить старую подпись если была
+            if (labelObj) labelObj.destroy();
+            // Создать новую подпись если выбрана украинский
+            if (labels[i]) {
+                const btn = this.menuBtnObjs[i];
+                this.menuBtnLabels[i] = this.add.text(
+                    btn.x,
+                    btn.y + this.menuButtons[i].height / 2 + 30,
+                    labels[i], { font: '28px Arial', color: '#FFD700' }
+                ).setOrigin(0.5);
+            } else {
+                this.menuBtnLabels[i] = null;
+            }
+        });
+    }
+
+    menuClick(btnIndex) {
+        if (btnIndex === 0) {
+            this.showStoryMenu();
+        } else if (btnIndex === 2) {
+            this.showOptionsMenu();
+        } else {
+            this.clearStoryMenu();
+        }
+    }
+
+    showStoryMenu() {
+        this.clearStoryMenu();
+        const stories = ['Сейф', 'Особняк'];
+        const startX = 800;
+        const stepX = 220;
+        const y = 200;
+
+        stories.forEach((story, i) => {
+            const btn = this.add.text(startX + i * stepX, y, story, {
+                font: '28px Arial',
+                color: '#FFD700',
+                backgroundColor: '#292929',
+                padding: { left: 20, right: 20, top: 8, bottom: 8 }
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+            btn.on('pointerover', () => btn.setColor('#FFF6A8'));
+            btn.on('pointerout', () => btn.setColor('#FFD700'));
+            btn.on('pointerdown', () => this.openChaptersModal(story));
+            this.storyBtnsGroup.add(btn);
+        });
+    }
+
+    clearStoryMenu() {
+        this.storyBtnsGroup.clear(true, true);
+    }
+
+    showOptionsMenu() {
+        this.clearStoryMenu();
+        const x = GAME_CONFIG.width / 2;
+        const y = 350;
+        const group = this.add.group();
+
+        // "Мова / Language:"
+        const optionsTitle = this.add.text(x, y, 'Мова / Language:', {
+            font: '32px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5);
+        group.add(optionsTitle);
+
+        // Кнопка "EN"
+        const enBtn = this.add.text(x - 70, y + 60, 'EN', {
+            font: '28px Arial',
+            color: this.currentLanguage === 'en' ? '#FFD700' : '#999'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        enBtn.on('pointerdown', () => {
+            this.switchLanguage('en');
+            enBtn.setColor('#FFD700');
+            uaBtn.setColor('#999');
+        });
+        group.add(enBtn);
+
+        // Кнопка "UA"
+        const uaBtn = this.add.text(x + 70, y + 60, 'UA', {
+            font: '28px Arial',
+            color: this.currentLanguage === 'ua' ? '#FFD700' : '#999'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        uaBtn.on('pointerdown', () => {
+            this.switchLanguage('ua');
+            uaBtn.setColor('#FFD700');
+            enBtn.setColor('#999');
+        });
+        group.add(uaBtn);
+
+        this.storyBtnsGroup.addMultiple(group.getChildren());
+    }
+
+    openChaptersModal(storyName) {
+        this.closeChaptersModal();
+
+        const modalBg = this.add.rectangle(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 700, 500, 0x181818, 0.95)
+            .setStrokeStyle(4, 0xffd700);
+        const closeBtn = this.add.text(GAME_CONFIG.width / 2 + 320, GAME_CONFIG.height / 2 - 220, '×', {
+            font: '48px Arial', color: '#FFD700'
+        })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+        closeBtn.on('pointerdown', () => this.closeChaptersModal());
+
+        const chapters = [
+            { name: 'Глава 1', state: 'completed' },
+            { name: 'Глава 2', state: 'locked' },
+            { name: 'Глава 3', state: 'available' }
+        ];
+
+        this.chaptersModalGroup = this.add.group([modalBg, closeBtn]);
+
+        chapters.forEach((ch, i) => {
+            const color = ch.state === 'completed' ? '#66ff66'
+                : ch.state === 'locked' ? '#cccccc'
+                    : '#FFD700';
+            const card = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 - 50 + i * 90, ch.name, {
+                font: '32px Arial',
+                color,
+                backgroundColor: '#333',
+                padding: { left: 30, right: 30, top: 14, bottom: 14 }
+            }).setOrigin(0.5).setInteractive();
+
+            if (ch.state === 'available') {
+                card.on('pointerdown', () => {
+                    this.closeChaptersModal();
+                    alert('Глава началась!');
+                });
+            }
+            this.chaptersModalGroup.add(card);
+        });
+    }
+
+    closeChaptersModal() {
+        if (this.chaptersModalGroup) {
+            this.chaptersModalGroup.clear(true, true);
+        }
     }
 }
 
@@ -2614,7 +2843,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [LoadingScene, GameScene, InventoryScene], // Добавили LoadingScene первой
+    scene: [LoadingScene, MainMenuScene, GameScene, InventoryScene], // Добавили LoadingScene первой
     physics: {
         default: 'arcade',
         arcade: {
