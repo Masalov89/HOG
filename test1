@@ -1152,90 +1152,6 @@ class InventorySystem {
         this.createInventoryUI(); // Создаём UI инвентаря при инициализации
     }
 
-    // Внутри класса GameScene
-    createInventoryUI() {
-        // Оригинальный размер PNG inventory-bg
-        const originalBgWidth = 249;
-        const originalBgHeight = 1093;
-
-        // Желаемый размер инвентаря на экране (как нравилось)
-        const bgWidth = 100;   // например, 100px ширина
-        const bgHeight = 440;  // например, 440px высота
-
-        // Коэффициенты масштабирования для слотов и предметов
-        const scaleX = bgWidth / originalBgWidth;
-        const scaleY = bgHeight / originalBgHeight;
-
-        // Позиция левого верхнего угла инвентаря
-        const inventoryX = 30;
-        const inventoryY = 300;
-
-        // Добавляем фон инвентаря с нужным масштабом
-        this.inventory.background = this.add.image(
-            inventoryX,
-            inventoryY,
-            'inventory-bg'
-        )
-        .setOrigin(0, 0)
-        .setDisplaySize(bgWidth, bgHeight)
-        .setScrollFactor(0)
-        .setDepth(1000)
-        .setVisible(false);
-
-        // Центры слотов (по оригиналу, затем умножаем на scale)
-        const slotCenters = [
-            { x: 65, y: 120 },
-            { x: 65, y: 220 },
-            { x: 65, y: 320 },
-            { x: 65, y: 420 },
-            { x: 65, y: 520 }
-        ].map(center => ({
-            x: inventoryX + center.x * scaleX,
-            y: inventoryY + center.y * scaleY
-        }));
-
-        // Размеры слотов (с учётом масштаба)
-        const slotWidth = 80 * scaleX;
-        const slotHeight = 80 * scaleY;
-
-        // Сохраняем слоты
-        this.inventory.slots = [];
-
-        // Создаём графические объекты для каждого слота (рамка)
-        slotCenters.forEach((center, i) => {
-            const slot = this.add.graphics();
-            slot.lineStyle(2, 0xffd700, 0.8);
-            slot.strokeRoundedRect(
-                center.x - slotWidth / 2,
-                center.y - slotHeight / 2,
-                slotWidth,
-                slotHeight,
-                10
-            );
-            slot.setDepth(1001);
-            slot.setVisible(false); // показываем только вместе с инвентарём
-
-            this.inventory.slots.push({
-                graphics: slot,
-                item: null,
-                index: i,
-                center: center
-            });
-        });
-
-        // Кнопка открытия/закрытия инвентаря
-        this.inventory.toggleButton = this.add.sprite(
-            inventoryX + bgWidth / 2, 
-            inventoryY - 40, 
-            'inventory-btn'
-        )
-        .setScrollFactor(0)
-        .setDepth(1002)
-        .setScale(0.7)
-        .setInteractive()
-        .on('pointerdown', () => this.toggleInventory());
-    }
-
     // Добавление предмета в инвентарь
     addItem(key, name) {
         // Находим первый пустой слот
@@ -1730,7 +1646,31 @@ class GameScene extends Phaser.Scene {
         };
     }
 
+    initInventory() {
+        this.inventory = {
+            slots: [],
+            items: [],
+            background: null,
+            toggleButton: null,
+            isVisible: false,
+            config: {
+                originalBgWidth: 249,
+                originalBgHeight: 1093,
+                bgWidth: 100,   // желаемая ширина на экране
+                bgHeight: 440,  // желаемая высота на экране
+                bgOffsetX: 30,
+                bgOffsetY: 300,
+                slotSize: 60,   // размер предмета в слоте (для масштабирования)
+                maxSlots: 5
+            }
+        };
+    }
+
     create() {
+        this.initInventory();        // сбрасываем inventory
+        this.createInventoryUI();    // делаем фон и слоты
+        this.restoreInventoryItems();// восстанавливаем предметы
+
         // Инициализация игровых систем
         this.popupSystem = new PopupSystem(this);
         this.cameras.main.fadeIn(1000);
@@ -1751,7 +1691,6 @@ class GameScene extends Phaser.Scene {
         // Создание UI
         this.menuButton = this.createMenuButton();
         this.createHintButton();
-        this.createInventoryUI();
 
         // Обработчик промахов
         this.input.on('pointerdown', (pointer) => {
@@ -1768,9 +1707,6 @@ class GameScene extends Phaser.Scene {
 
         // Навигация
         NavigationUtils.createNavigationZones(this);
-
-        // Восстановление предметов в инвентаре при загрузке
-        this.restoreInventoryItems();
     }
 
     createInventoryUI() {
@@ -1808,64 +1744,50 @@ class GameScene extends Phaser.Scene {
     }
 
     restoreInventoryItems() {
-        // Восстанавливаем предметы из state.inventory
-        this.state.inventory.forEach(item => {
-            this.addToInventory(item.key, item.name, true);
+        // Удалить старые спрайты
+        this.inventory.items.forEach(sprite => { if (sprite) sprite.destroy(); });
+        this.inventory.items = [];
+        this.inventory.slots.forEach(slot => { slot.item = null; });
+
+        // Восстановить предметы
+        this.state.inventory.forEach(({ key, name }) => {
+            this.addToInventory(key, name, true); // режим восстановления
         });
     }
 
     addToInventory(key, name, restoring = false) {
-        // Проверяем, есть ли уже такой предмет по ключу (только по state.inventory)
-        if (this.state.inventory.some(item => item.key === key)) {
-            return false;
-        }
+        if (this.state.inventory.some(item => item.key === key) && !restoring) return false;
 
-        // Находим свободный слот
         const freeSlot = this.inventory.slots.find(slot => !slot.item);
         if (!freeSlot) return false;
 
-        // Создаем спрайт предмета
-        const itemSprite = this.add.sprite(
-            freeSlot.x,
-            freeSlot.y,
-            key
-        )
-        .setScrollFactor(0)
-        .setDepth(this.config.inventoryDepth + 1)
-        .setVisible(true) // всегда видим
-        .setInteractive();
+        const itemSprite = this.add.sprite(freeSlot.x, freeSlot.y, key)
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(this.config.inventoryDepth + 1)
+            .setVisible(true)
+            .setInteractive();
 
-        // Масштабируем предмет под слот
-        const desiredSize = this.inventory.config.slotSize || 60;
+        const desiredSize = this.inventory.config.slotSize || 64;
         const scale = Math.min(
             desiredSize / itemSprite.width,
             desiredSize / itemSprite.height
         );
         itemSprite.setScale(scale);
 
-        // Добавляем обработчик клика
         itemSprite.on('pointerdown', () => {
             this.showItemPopup(key, name);
         });
 
-        // Важно: явно сохраняем key и name в sprite, если потом нужно
-        itemSprite.key = key;
-        itemSprite.name = name;
-
-        // Привязываем предмет к слоту и массиву инвентаря
         freeSlot.item = itemSprite;
         this.inventory.items.push(itemSprite);
 
-        // Добавляем в state.inventory только если не восстановление
         if (!restoring) {
             this.state.inventory.push({ key, name });
+            if (this.journalSystem) {
+                this.journalSystem.addEntry(`Найден предмет: ${name}`);
+            }
         }
-
-        // Добавляем запись в дневник, если есть система дневника
-        if (this.journalSystem && !restoring) {
-            this.journalSystem.addEntry(`Найден предмет: ${name}`);
-        }
-
         return true;
     }
 
@@ -2417,44 +2339,44 @@ class GameScene extends Phaser.Scene {
     }
 
     addToInventory(key, name, restoring = false) {
-        // Проверка — нет ли уже предмета в инвентаре
-        if (this.state.inventory.some(item => item.key === key)) return false;
+        // Не добавлять дубликаты (если не восстановление)
+        if (this.state.inventory.some(item => item.key === key) && !restoring) return false;
 
         // Найти свободный слот
         const freeSlot = this.inventory.slots.find(slot => !slot.item);
         if (!freeSlot) return false;
 
-        // Создать иконку предмета
+        // Создать спрайт предмета
         const itemSprite = this.add.sprite(freeSlot.x, freeSlot.y, key)
+            .setOrigin(0.5)
             .setScrollFactor(0)
-            .setDepth(this.config.inventoryDepth + 1)
+            .setDepth(1001)
             .setVisible(true)
             .setInteractive();
 
         // Масштабировать под размер слота
-        const desiredSize = this.inventory.config.slotSize || 60;
-        const scale = Math.min(desiredSize / itemSprite.width, desiredSize / itemSprite.height);
+        const desiredSize = this.inventory.config.slotSize || 64;
+        const scale = Math.min(
+            desiredSize / itemSprite.width,
+            desiredSize / itemSprite.height
+        );
         itemSprite.setScale(scale);
 
-        itemSprite.key = key;
-        itemSprite.name = name;
-
-        // Открытие попапа по клику на предмет
+        // Клик по предмету — показать попап
         itemSprite.on('pointerdown', () => {
             this.showItemPopup(key, name);
         });
 
+        // Привязать к слоту и массиву
         freeSlot.item = itemSprite;
         this.inventory.items.push(itemSprite);
 
-        // Сохраняем предмет в state.inventory
+        // Добавить в state.inventory, если не восстанавливаем
         if (!restoring) {
             this.state.inventory.push({ key, name });
-        }
-
-        // Запись в дневник (если есть)
-        if (this.journalSystem && !restoring) {
-            this.journalSystem.addEntry(`Найден предмет: ${name}`);
+            if (this.journalSystem) {
+                this.journalSystem.addEntry(`Найден предмет: ${name}`);
+            }
         }
 
         return true;
@@ -2749,23 +2671,23 @@ class GameScene extends Phaser.Scene {
     }
 
     removeFromInventory(itemKey) {
-    // Находим слот с предметом
-    const slotIndex = this.inventory.slots.findIndex(slot => slot.item?.key === itemKey);
-    if (slotIndex === -1) return false;
+        // Находим слот с предметом
+        const slotIndex = this.inventory.slots.findIndex(slot => slot.item && slot.item.key === itemKey);
+        if (slotIndex === -1) return false;
 
-    // Удаляем спрайт предмета
-    const itemSprite = this.inventory.slots[slotIndex].item.sprite;
-    itemSprite.destroy();
+        // Удаляем спрайт предмета
+        const itemSprite = this.inventory.slots[slotIndex].item;
+        itemSprite.destroy();
 
-    // Очищаем слот
-    this.inventory.slots[slotIndex].item = null;
+        // Очищаем слот
+        this.inventory.slots[slotIndex].item = null;
 
-    // Удаляем из массивов
-    this.inventory.items = this.inventory.items.filter(item => item !== itemSprite);
-    this.state.inventory = this.state.inventory.filter(item => item.key !== itemKey);
+        // Удаляем из массивов
+        this.inventory.items = this.inventory.items.filter(item => item !== itemSprite);
+        this.state.inventory = this.state.inventory.filter(item => item.key !== itemKey);
 
-    return true;
-}
+        return true;
+    }
     
     showObjectHint() {
         // Фильтруем список, оставляя только ненайденные предметы
