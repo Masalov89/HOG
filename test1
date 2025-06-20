@@ -33,7 +33,8 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'page', path: './UI/PopupBackgrounds/Page.png' },
                 { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
                 { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },
-                { key: 'loading-bg', path: './UI/Backgrounds/loading-bg.jpg' }
+                { key: 'loading-bg', path: './UI/Backgrounds/loading-bg.jpg' },
+                { key: 'inventory-bg', path: './UI/ApprovedUI/inventory-bg.png' }
             ],
             objects: [
                 { key: 'object1', path: 'plate.png' },
@@ -1133,7 +1134,7 @@ class JournalSystem {
 
 class InventorySystem {
     constructor(scene) {
-        this.scene = scene;    // Текущая сцена (InventoryScene)
+        this.scene = scene;
         this.slots = [];       // Массив слотов инвентаря
         this.items = [];       // Массив предметов (можно использовать для логики)
 
@@ -1315,58 +1316,6 @@ class InventorySystem {
         slot.item.sprite.destroy();
         slot.item = null;
         return true;
-    }
-}
-
-class InventoryScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'InventoryScene' });
-        this.inventorySystem = null;    // Система управления инвентарём (логика и UI)
-        this.items = [];                // Массив для хранения предметов (ключ + имя)
-    }
-
-    // Предзагрузка ресурсов (иконок предметов и фона)
-    preload() {
-        // Используем отдельный загрузчик ресурсов (если такой есть в проекте)
-        const resourceLoader = new ResourceLoader(this);
-        const resources = {
-            inventory: [
-                { key: 'list2', path: 'list2.png' },
-                { key: 'object8', path: 'ring.png' },
-                { key: 'inventory-bg', path: './UI/ApprovedUI/inventory-bg.png' }
-            ]
-        };
-        resourceLoader.loadResources(resources);
-    }
-
-    // Инициализация сцены
-    create() {
-        this.inventorySystem = new InventorySystem(this); // Создаём систему инвентаря
-        this.cameras.main.setBackgroundColor('rgba(0, 0, 0, 0)'); // Прозрачный фон
-        this.scene.bringToTop(); // Поднимаем сцену инвентаря над остальными
-
-        // Восстанавливаем предметы из массива items (например, после рестарта)
-        this.items.forEach(item => {
-            this.inventorySystem.addItem(item.key, item.name);
-        });
-    }
-
-    // Добавить предмет в инвентарь (и в массив для восстановления)
-    addItem(key, name) {
-        if (this.inventorySystem.addItem(key, name)) {
-            this.items.push({ key, name });
-            return true;
-        }
-        return false;
-    }
-
-    // Удалить предмет из инвентаря (и из массива для восстановления)
-    removeItem(key) {
-        if (this.inventorySystem.removeItem(key)) {
-            this.items = this.items.filter(item => item.key !== key);
-            return true;
-        }
-        return false;
     }
 }
 
@@ -1686,39 +1635,53 @@ class GameScene extends Phaser.Scene {
         super({ key: 'GameScene' });
         
         // Инициализация переменных для игровых систем
-        this.currentLocation = null;  // текущая локация
-        this.inventory = null;        // система инвентаря
-        this.journalSystem = null;          // система дневника
-        this.popupSystem = null;      // система попапов
-        this.energySystem = null;     // система энергии
-        this.hintSystem = null;       // система подсказок
+        this.currentLocation = null;    // текущая локация
+        this.journalSystem = null;      // система дневника
+        this.popupSystem = null;        // система попапов
+        this.energySystem = null;       // система энергии
+        this.hintSystem = null;         // система подсказок
         
         // Флаги состояния игры
-        this.isTransitioning = false; // флаг перехода между локациями
-        this.canInteract = true;      // флаг возможности взаимодействия
+        this.isTransitioning = false;   // флаг перехода между локациями
+        this.canInteract = true;        // флаг возможности взаимодействия
         
         // Системные таймеры и счетчики
-        this.idleTimer = 0;           // таймер бездействия
-        this.lastInteractionTime = 0;  // время последнего взаимодействия
-        this.lastHintTime = 0;        // время последней подсказки
-        this.hintCooldown = 30000;    // задержка между подсказками (30 секунд)
+        this.idleTimer = 0;             // таймер бездействия
+        this.lastInteractionTime = 0;   // время последнего взаимодействия
+        this.lastHintTime = 0;          // время последней подсказки
+        this.hintCooldown = 30000;      // задержка между подсказками (30 секунд)
         
         // Настройки взаимодействия
-        this.transitionZones = [];     // зоны перехода между локациями
-        this.interactiveObjects = [];  // интерактивные объекты
-        this.highlightedObject = null; // подсвеченный объект
+        this.transitionZones = [];       // зоны перехода между локациями
+        this.interactiveObjects = [];    // интерактивные объекты
+        this.highlightedObject = null;  // подсвеченный объект
         
         // Состояние игры
         this.state = {
             visitedLocations: new Set(),  // посещенные локации
             collectedItems: new Set(),    // собранные предметы
             solvedPuzzles: new Set(),     // решенные головоломки
-            triggers: new Map(),           // игровые триггеры
+            triggers: new Map(),          // игровые триггеры
             selectedDigits: ["0", "0", "0", "0"], // код сейфа
-            foundObjects: [],             // найденные объекты
-            remainingObjects: [],         // оставшиеся объекты
+            foundObjects: [],            // найденные объекты
+            remainingObjects: [],        // оставшиеся объекты
             ringFound: false,            // найдено ли кольцо
-            inventory: []                // инвентарь
+            inventory: []                // инвентарь (теперь дублируется в this.inventory)
+        };
+        
+        // Система инвентаря (новая реализация)
+        this.inventory = {
+            items: [],                  // Phaser-объекты предметов
+            slots: [],                  // данные о слотах
+            background: null,           // фон инвентаря
+            toggleButton: null,         // кнопка открытия
+            isVisible: false,           // флаг видимости
+            config: {                   // конфигурация
+                bgOffsetX: 80,          // позиция фона по X
+                bgOffsetY: 300,         // позиция фона по Y
+                slotSize: 150,          // размер слотов
+                maxSlots: 5             // максимальное количество слотов
+            }
         };
         
         // UI элементы
@@ -1731,24 +1694,26 @@ class GameScene extends Phaser.Scene {
         this.popupGroup = null;         // группа элементов попапа
         
         // Настройки отладки
-        this.debugMode = false;       // режим отладки
-        this.debugGraphics = null;    // графика для отладки
+        this.debugMode = false;         // режим отладки
+        this.debugGraphics = null;      // графика для отладки
         
         // Инициализация конфигурации
         this.config = {
             transitionDuration: 1000,     // длительность перехода между локациями
             highlightTint: 0xffffcc,      // цвет подсветки объектов
             idleTimeout: GAME_CONFIG.idleLimit * 1000, // таймаут бездействия
-            debugColor: 0xff0000          // цвет отладочной графики
+            debugColor: 0xff0000,         // цвет отладочной графики
+            inventoryDepth: 1000          // глубина отрисовки инвентаря
         };
     }
 
     create() {
+        // Инициализация систем
         this.popupSystem = new PopupSystem(this);
         this.cameras.main.fadeIn(1000);
         this.createBackground();
-    
-        // Инициализируем глобальную систему энергии
+
+        // Система энергии
         if (!globalEnergySystem) {
             globalEnergySystem = new EnergySystem(this);
         } else {
@@ -1757,34 +1722,140 @@ class GameScene extends Phaser.Scene {
         }
         this.energySystem = globalEnergySystem;
 
-        // Инициализируем систему дневника
+        // Система дневника
         this.journalSystem = new JournalSystem(this);
 
-        // Добавляем кнопку меню
+        // Создаем UI элементы
         this.menuButton = this.createMenuButton();
-    
-        // Создаем кнопку подсказки на всех локациях
         this.createHintButton();
-    
-        // Добавляем обработчик кликов для промахов
+        this.createInventoryUI(); // Создаем инвентарь внутри GameScene
+
+        // Обработчик кликов для промахов
         this.input.on('pointerdown', (pointer) => {
             if (!pointer.gameObject) {
                 this.energySystem.handleMiss();
             }
         });
-    
+
         // Создаем объекты только в определенной локации
         if (this.location === 'leftroom') {
             this.createObjects();
             this.createUI();
         }
-    
+
+        // Создаем зоны навигации
         NavigationUtils.createNavigationZones(this);
-    
-        if (!this.scene.isActive('InventoryScene')) {
-            this.scene.launch('InventoryScene');
-            this.scene.bringToTop('InventoryScene');
+
+        // Восстанавливаем предметы в инвентаре при загрузке сцены
+        this.restoreInventoryItems();
+    }
+
+    createInventoryUI() {
+        // Фон инвентаря
+        this.inventory.background = this.add.image(
+            this.inventory.config.bgOffsetX, 
+            this.inventory.config.bgOffsetY, 
+            'inventory-bg'
+        )
+        .setOrigin(0)
+        .setScrollFactor(0)
+        .setDepth(this.config.inventoryDepth)
+        .setVisible(true)
+        .setInteractive();
+
+        // Позиции слотов (примерные координаты)
+        const slotPositions = [
+            { x: 130, y: 190 },
+            { x: 130, y: 365 },
+            { x: 130, y: 540 },
+            { x: 130, y: 720 },
+            { x: 130, y: 890 }
+        ];
+
+        // Инициализируем слоты
+        this.inventory.slots = slotPositions.map(pos => ({
+            x: pos.x,
+            y: pos.y,
+            item: null
+        }));
+    }
+
+    restoreInventoryItems() {
+        // Восстанавливаем предметы из state.inventory
+        this.state.inventory.forEach(item => {
+            this.addToInventory(item.key, item.name);
+        });
+    }
+
+    toggleInventory() {
+        this.inventory.isVisible = !this.inventory.isVisible;
+        this.inventory.background.setVisible(this.inventory.isVisible);
+        
+        // Показываем/скрываем все предметы
+        this.inventory.items.forEach(item => {
+            item.setVisible(this.inventory.isVisible);
+        });
+
+        // Блокируем взаимодействие с игрой при открытом инвентаре
+        this.canInteract = !this.inventory.isVisible;
+    }
+
+    addToInventory(key, name) {
+        // Проверяем, есть ли уже такой предмет
+        if (this.state.inventory.some(item => item.key === key)) {
+            return false;
         }
+
+        // Находим свободный слот
+        const freeSlot = this.inventory.slots.find(slot => !slot.item);
+        if (!freeSlot) return false;
+
+        // Создаем спрайт предмета
+        const item = this.add.sprite(
+            freeSlot.x, 
+            freeSlot.y, 
+            key
+        )
+        .setScrollFactor(0)
+        .setDepth(this.config.inventoryDepth + 1)
+        .setVisible(true)
+        .setInteractive();
+
+        // Масштабируем предмет
+        const scale = Math.min(
+            0.8, 
+            this.inventory.config.slotSize / item.width,
+            this.inventory.config.slotSize / item.height
+        );
+        item.setScale(scale);
+
+        // Добавляем обработчик клика
+        item.on('pointerdown', () => {
+            this.showItemPopup(key, name);
+        });
+
+        // Сохраняем ссылки
+        freeSlot.item = { sprite: item, key, name };
+        this.inventory.items.push(item);
+        this.state.inventory.push({ key, name });
+
+        // Добавляем запись в дневник
+        if (this.journalSystem) {
+            this.journalSystem.addEntry(`Найден предмет: ${name}`);
+        }
+
+        return true;
+    }
+
+    showItemPopup(key, name) {
+        if (!this.popupSystem) return;
+        
+        this.popupSystem.create('ITEM', {
+            content: key,
+            onClose: () => {
+                console.log(`Закрыт попап предмета: ${name}`);
+            }
+        });
     }
 
     showLocationPopup(objectKey, x, y) {
@@ -1847,8 +1918,7 @@ class GameScene extends Phaser.Scene {
                 this.showPopup(object, 'list2', true);
                 break;
             case 'Кольцо':
-                const inventoryScene = this.scene.get('InventoryScene');
-                inventoryScene.addItem('object8', 'Кольцо');
+                this.addToInventory('object8', 'Кольцо');
                 this.animateObjectDisappearance(object);
                 break;
             default:
@@ -2203,8 +2273,7 @@ class GameScene extends Phaser.Scene {
             y: GAME_CONFIG.height / 2,   // центр по вертикали
             onClose: () => {
                 if (addToInventory && imageKey === 'list2') {
-                    const inventoryScene = this.scene.get('InventoryScene');
-                    inventoryScene.addItem('list2', 'Развернутый лист');
+                    this.addToInventory('list2', 'Развернутый лист');
                 }
                 if (object) {
                     object.isAnimating = false;
@@ -2471,9 +2540,8 @@ class GameScene extends Phaser.Scene {
                     }
                 });
     
-                // Удаляем записку с кодом из инвентаря через InventoryScene
-                const inventoryScene = this.scene.get('InventoryScene');
-                inventoryScene.removeItem('list2');
+                // Удаляем записку с кодом из инвентаря
+                this.removeFromInventory('list2');
     
             } else {
                 // Визуальная обратная связь - подсветка неправильного кода красным
@@ -2635,12 +2703,24 @@ class GameScene extends Phaser.Scene {
     return '#ffffff'; // Белый цвет для обычных предметов
     }
 
-    removeFromInventory(itemName) { // Удаление предмета из инвентаря
-        this.state.inventory = this.state.inventory.filter(item => item !== itemName);
-        const inventoryTextContent = this.state.inventory.map(item => `[${item}]`).join(' ');
-        this.inventoryText.setText(inventoryTextContent);
-        this.inventoryText.removeAllListeners('pointerdown');
-    }
+    removeFromInventory(itemKey) {
+    // Находим слот с предметом
+    const slotIndex = this.inventory.slots.findIndex(slot => slot.item?.key === itemKey);
+    if (slotIndex === -1) return false;
+
+    // Удаляем спрайт предмета
+    const itemSprite = this.inventory.slots[slotIndex].item.sprite;
+    itemSprite.destroy();
+
+    // Очищаем слот
+    this.inventory.slots[slotIndex].item = null;
+
+    // Удаляем из массивов
+    this.inventory.items = this.inventory.items.filter(item => item !== itemSprite);
+    this.state.inventory = this.state.inventory.filter(item => item.key !== itemKey);
+
+    return true;
+}
     
     showObjectHint() {
         // Фильтруем список, оставляя только ненайденные предметы
@@ -2875,7 +2955,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [LoadingScene, MainMenuScene, GameScene, InventoryScene], // Добавили LoadingScene первой
+    scene: [LoadingScene, MainMenuScene, GameScene], // Добавили LoadingScene первой
     physics: {
         default: 'arcade',
         arcade: {
