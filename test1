@@ -1815,15 +1815,16 @@ class GameScene extends Phaser.Scene {
     }
 
     addToInventory(key, name, restoring = false) {
-        // Проверяем, есть ли уже такой предмет
-        if (this.inventory.items.some(item => item.key === key)) {
+        // Проверяем, есть ли уже такой предмет по ключу (только по state.inventory)
+        if (this.state.inventory.some(item => item.key === key)) {
             return false;
         }
+
         // Находим свободный слот
         const freeSlot = this.inventory.slots.find(slot => !slot.item);
         if (!freeSlot) return false;
 
-        // Создаём предмет
+        // Создаем спрайт предмета
         const itemSprite = this.add.sprite(
             freeSlot.x,
             freeSlot.y,
@@ -1831,34 +1832,36 @@ class GameScene extends Phaser.Scene {
         )
         .setScrollFactor(0)
         .setDepth(this.config.inventoryDepth + 1)
-        .setVisible(this.inventory.isVisible)
+        .setVisible(true) // всегда видим
         .setInteractive();
 
-        // Масштаб предмета (для гармоничного отображения)
-        const desiredSize = this.inventory.config.slotSize;
+        // Масштабируем предмет под слот
+        const desiredSize = this.inventory.config.slotSize || 60;
         const scale = Math.min(
             desiredSize / itemSprite.width,
             desiredSize / itemSprite.height
         );
         itemSprite.setScale(scale);
 
-        itemSprite.key = key;
-        itemSprite.name = name;
-
-        // Клик по предмету — показать попап
+        // Добавляем обработчик клика
         itemSprite.on('pointerdown', () => {
             this.showItemPopup(key, name);
         });
 
+        // Важно: явно сохраняем key и name в sprite, если потом нужно
+        itemSprite.key = key;
+        itemSprite.name = name;
+
+        // Привязываем предмет к слоту и массиву инвентаря
         freeSlot.item = itemSprite;
         this.inventory.items.push(itemSprite);
 
-        // Записываем в state.inventory только если это не восстановление
+        // Добавляем в state.inventory только если не восстановление
         if (!restoring) {
             this.state.inventory.push({ key, name });
         }
 
-        // Добавляем запись в дневник
+        // Добавляем запись в дневник, если есть система дневника
         if (this.journalSystem && !restoring) {
             this.journalSystem.addEntry(`Найден предмет: ${name}`);
         }
