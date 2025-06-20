@@ -1152,65 +1152,88 @@ class InventorySystem {
         this.createInventoryUI(); // Создаём UI инвентаря при инициализации
     }
 
-    // Создание пользовательского интерфейса инвентаря
+    // Внутри класса GameScene
     createInventoryUI() {
-        const bgWidth = 100;   // Ширина PNG-фона
-        const bgHeight = 500;  // Высота PNG-фона
+        // Оригинальный размер PNG inventory-bg
+        const originalBgWidth = 249;
+        const originalBgHeight = 1093;
 
-        // Коэффициенты масштабирования
-        const scaleX = bgWidth / 249;
-        const scaleY = bgHeight / 1093;
+        // Желаемый размер инвентаря на экране (как нравилось)
+        const bgWidth = 100;   // например, 100px ширина
+        const bgHeight = 440;  // например, 440px высота
 
+        // Коэффициенты масштабирования для слотов и предметов
+        const scaleX = bgWidth / originalBgWidth;
+        const scaleY = bgHeight / originalBgHeight;
+
+        // Позиция левого верхнего угла инвентаря
         const inventoryX = 30;
         const inventoryY = 300;
 
-        // Добавляем фон инвентаря
-        const background = this.scene.add.image(
+        // Добавляем фон инвентаря с нужным масштабом
+        this.inventory.background = this.add.image(
             inventoryX,
             inventoryY,
             'inventory-bg'
-        );
-        background.setOrigin(0, 0);
-        background.setDisplaySize(bgWidth, bgHeight);
-        background.setDepth(1); // Фон под слотами и предметами
+        )
+        .setOrigin(0, 0)
+        .setDisplaySize(bgWidth, bgHeight)
+        .setScrollFactor(0)
+        .setDepth(1000)
+        .setVisible(false);
 
-        // Центры слотов (с учётом масштаба)
+        // Центры слотов (по оригиналу, затем умножаем на scale)
         const slotCenters = [
-            { x: 130, y: 190 },
-            { x: 130, y: 365 },
-            { x: 130, y: 540 },
-            { x: 130, y: 720 },
-            { x: 130, y: 890 }
+            { x: 65, y: 120 },
+            { x: 65, y: 220 },
+            { x: 65, y: 320 },
+            { x: 65, y: 420 },
+            { x: 65, y: 520 }
         ].map(center => ({
             x: inventoryX + center.x * scaleX,
             y: inventoryY + center.y * scaleY
         }));
 
         // Размеры слотов (с учётом масштаба)
-        const scaledSlotWidth = 175 * scaleX;
-        const scaledSlotHeight = 160 * scaleY;
+        const slotWidth = 80 * scaleX;
+        const slotHeight = 80 * scaleY;
 
-        // Создаём графические объекты для каждого слота
+        // Сохраняем слоты
+        this.inventory.slots = [];
+
+        // Создаём графические объекты для каждого слота (рамка)
         slotCenters.forEach((center, i) => {
-            const slot = this.scene.add.graphics();
-            // Здесь можно добавить рамку для слота, если нужно
-            // slot.lineStyle(2, this.config.borderColor, 1);
-            // slot.strokeRoundedRect(
-            //     center.x - scaledSlotWidth / 2,
-            //     center.y - scaledSlotHeight / 2,
-            //     scaledSlotWidth,
-            //     scaledSlotHeight,
-            //     10
-            // );
-            slot.setDepth(2);
+            const slot = this.add.graphics();
+            slot.lineStyle(2, 0xffd700, 0.8);
+            slot.strokeRoundedRect(
+                center.x - slotWidth / 2,
+                center.y - slotHeight / 2,
+                slotWidth,
+                slotHeight,
+                10
+            );
+            slot.setDepth(1001);
+            slot.setVisible(false); // показываем только вместе с инвентарём
 
-            this.slots.push({
+            this.inventory.slots.push({
                 graphics: slot,
                 item: null,
                 index: i,
                 center: center
             });
         });
+
+        // Кнопка открытия/закрытия инвентаря
+        this.inventory.toggleButton = this.add.sprite(
+            inventoryX + bgWidth / 2, 
+            inventoryY - 40, 
+            'inventory-btn'
+        )
+        .setScrollFactor(0)
+        .setDepth(1002)
+        .setScale(0.7)
+        .setInteractive()
+        .on('pointerdown', () => this.toggleInventory());
     }
 
     // Добавление предмета в инвентарь
@@ -1633,82 +1656,82 @@ class EnergySystem {
 class GameScene extends Phaser.Scene { 
     constructor() {
         super({ key: 'GameScene' });
-        
-        // Инициализация переменных для игровых систем
-        this.currentLocation = null;    // текущая локация
-        this.journalSystem = null;      // система дневника
-        this.popupSystem = null;        // система попапов
-        this.energySystem = null;       // система энергии
-        this.hintSystem = null;         // система подсказок
-        
-        // Флаги состояния игры
-        this.isTransitioning = false;   // флаг перехода между локациями
-        this.canInteract = true;        // флаг возможности взаимодействия
-        
-        // Системные таймеры и счетчики
-        this.idleTimer = 0;             // таймер бездействия
-        this.lastInteractionTime = 0;   // время последнего взаимодействия
-        this.lastHintTime = 0;          // время последней подсказки
-        this.hintCooldown = 30000;      // задержка между подсказками (30 секунд)
-        
-        // Настройки взаимодействия
-        this.transitionZones = [];       // зоны перехода между локациями
-        this.interactiveObjects = [];    // интерактивные объекты
-        this.highlightedObject = null;  // подсвеченный объект
-        
-        // Состояние игры
+
+        // Инициализация игровых систем и переменных
+        this.currentLocation = null;
+        this.journalSystem = null;
+        this.popupSystem = null;
+        this.energySystem = null;
+        this.hintSystem = null;
+
+        this.isTransitioning = false;
+        this.canInteract = true;
+
+        this.idleTimer = 0;
+        this.lastInteractionTime = 0;
+        this.lastHintTime = 0;
+        this.hintCooldown = 30000;
+
+        this.transitionZones = [];
+        this.interactiveObjects = [];
+        this.highlightedObject = null;
+
         this.state = {
-            visitedLocations: new Set(),  // посещенные локации
-            collectedItems: new Set(),    // собранные предметы
-            solvedPuzzles: new Set(),     // решенные головоломки
-            triggers: new Map(),          // игровые триггеры
-            selectedDigits: ["0", "0", "0", "0"], // код сейфа
-            foundObjects: [],            // найденные объекты
-            remainingObjects: [],        // оставшиеся объекты
-            ringFound: false,            // найдено ли кольцо
-            inventory: []                // инвентарь (теперь дублируется в this.inventory)
+            visitedLocations: new Set(),
+            collectedItems: new Set(),
+            solvedPuzzles: new Set(),
+            triggers: new Map(),
+            selectedDigits: ["0", "0", "0", "0"],
+            foundObjects: [],
+            remainingObjects: [],
+            ringFound: false,
+            inventory: []
         };
-        
-        // Система инвентаря (новая реализация)
+
+        // Инвентарь (новый/правильный вариант: фон масштабируется, слоты - как в старой сцене)
         this.inventory = {
-            items: [],                  // Phaser-объекты предметов
-            slots: [],                  // данные о слотах
-            background: null,           // фон инвентаря
-            toggleButton: null,         // кнопка открытия
-            isVisible: false,           // флаг видимости
-            config: {                   // конфигурация
-                bgOffsetX: 80,          // позиция фона по X
-                bgOffsetY: 300,         // позиция фона по Y
-                slotSize: 150,          // размер слотов
-                maxSlots: 5             // максимальное количество слотов
+            items: [],
+            slots: [],
+            background: null,
+            toggleButton: null,
+            isVisible: false,
+            config: {
+                originalBgWidth: 249,
+                originalBgHeight: 1093,
+                bgWidth: 100,     // желаемая ширина на экране
+                bgHeight: 440,    // желаемая высота на экране
+                bgOffsetX: 30,
+                bgOffsetY: 300,
+                slotSize: 60,     // размер предмета в слоте (для масштабирования)
+                maxSlots: 5
             }
         };
-        
-        // UI элементы
-        this.itemList = null;           // список предметов
-        this.itemTextObjects = [];      // текстовые объекты предметов
-        this.textBackground = null;     // фон для текста
-        this.hintButton = null;         // кнопка подсказки
-        this.hintButtonTween = null;    // анимация кнопки подсказки
-        this.codeInputGroup = null;     // группа элементов ввода кода
-        this.popupGroup = null;         // группа элементов попапа
-        
-        // Настройки отладки
-        this.debugMode = false;         // режим отладки
-        this.debugGraphics = null;      // графика для отладки
-        
-        // Инициализация конфигурации
+
+        // Прочие UI элементы
+        this.itemList = null;
+        this.itemTextObjects = [];
+        this.textBackground = null;
+        this.hintButton = null;
+        this.hintButtonTween = null;
+        this.codeInputGroup = null;
+        this.popupGroup = null;
+
+        // Отладка
+        this.debugMode = false;
+        this.debugGraphics = null;
+
+        // Основная конфигурация
         this.config = {
-            transitionDuration: 1000,     // длительность перехода между локациями
-            highlightTint: 0xffffcc,      // цвет подсветки объектов
-            idleTimeout: GAME_CONFIG.idleLimit * 1000, // таймаут бездействия
-            debugColor: 0xff0000,         // цвет отладочной графики
-            inventoryDepth: 1000          // глубина отрисовки инвентаря
+            transitionDuration: 1000,
+            highlightTint: 0xffffcc,
+            idleTimeout: GAME_CONFIG.idleLimit * 1000,
+            debugColor: 0xff0000,
+            inventoryDepth: 1000
         };
     }
 
     create() {
-        // Инициализация систем
+        // Инициализация игровых систем
         this.popupSystem = new PopupSystem(this);
         this.cameras.main.fadeIn(1000);
         this.createBackground();
@@ -1725,122 +1748,118 @@ class GameScene extends Phaser.Scene {
         // Система дневника
         this.journalSystem = new JournalSystem(this);
 
-        // Создаем UI элементы
+        // Создание UI
         this.menuButton = this.createMenuButton();
         this.createHintButton();
-        this.createInventoryUI(); // Создаем инвентарь внутри GameScene
+        this.createInventoryUI();
 
-        // Обработчик кликов для промахов
+        // Обработчик промахов
         this.input.on('pointerdown', (pointer) => {
             if (!pointer.gameObject) {
                 this.energySystem.handleMiss();
             }
         });
 
-        // Создаем объекты только в определенной локации
+        // Локация
         if (this.location === 'leftroom') {
             this.createObjects();
             this.createUI();
         }
 
-        // Создаем зоны навигации
+        // Навигация
         NavigationUtils.createNavigationZones(this);
 
-        // Восстанавливаем предметы в инвентаре при загрузке сцены
+        // Восстановление предметов в инвентаре при загрузке
         this.restoreInventoryItems();
     }
 
     createInventoryUI() {
+        const cfg = this.inventory.config;
+        const scaleX = cfg.bgWidth / cfg.originalBgWidth;
+        const scaleY = cfg.bgHeight / cfg.originalBgHeight;
+
         // Фон инвентаря
         this.inventory.background = this.add.image(
-            this.inventory.config.bgOffsetX, 
-            this.inventory.config.bgOffsetY, 
+            cfg.bgOffsetX,
+            cfg.bgOffsetY,
             'inventory-bg'
         )
-        .setOrigin(0)
+        .setOrigin(0, 0)
+        .setDisplaySize(cfg.bgWidth, cfg.bgHeight)
         .setScrollFactor(0)
         .setDepth(this.config.inventoryDepth)
         .setVisible(true)
         .setInteractive();
 
-        // Позиции слотов (примерные координаты)
-        const slotPositions = [
-            { x: 130, y: 190 },
-            { x: 130, y: 365 },
-            { x: 130, y: 540 },
-            { x: 130, y: 720 },
-            { x: 130, y: 890 }
+        // Примерные центры слотов (масштабируются!)
+        const baseSlotCenters = [
+            { x: 65, y: 120 },
+            { x: 65, y: 220 },
+            { x: 65, y: 320 },
+            { x: 65, y: 420 },
+            { x: 65, y: 520 }
         ];
-
-        // Инициализируем слоты
-        this.inventory.slots = slotPositions.map(pos => ({
-            x: pos.x,
-            y: pos.y,
-            item: null
+        this.inventory.slots = baseSlotCenters.map((center, i) => ({
+            x: cfg.bgOffsetX + center.x * scaleX,
+            y: cfg.bgOffsetY + center.y * scaleY,
+            item: null,
+            index: i
         }));
     }
 
     restoreInventoryItems() {
         // Восстанавливаем предметы из state.inventory
         this.state.inventory.forEach(item => {
-            this.addToInventory(item.key, item.name);
+            this.addToInventory(item.key, item.name, true);
         });
     }
 
-    toggleInventory() {
-        this.inventory.isVisible = !this.inventory.isVisible;
-        this.inventory.background.setVisible(this.inventory.isVisible);
-        
-        // Показываем/скрываем все предметы
-        this.inventory.items.forEach(item => {
-            item.setVisible(this.inventory.isVisible);
-        });
-
-        // Блокируем взаимодействие с игрой при открытом инвентаре
-        this.canInteract = !this.inventory.isVisible;
-    }
-
-    addToInventory(key, name) {
+    addToInventory(key, name, restoring = false) {
         // Проверяем, есть ли уже такой предмет
-        if (this.state.inventory.some(item => item.key === key)) {
+        if (this.inventory.items.some(item => item.key === key)) {
             return false;
         }
-
         // Находим свободный слот
         const freeSlot = this.inventory.slots.find(slot => !slot.item);
         if (!freeSlot) return false;
 
-        // Создаем спрайт предмета
-        const item = this.add.sprite(
-            freeSlot.x, 
-            freeSlot.y, 
+        // Создаём предмет
+        const itemSprite = this.add.sprite(
+            freeSlot.x,
+            freeSlot.y,
             key
         )
         .setScrollFactor(0)
         .setDepth(this.config.inventoryDepth + 1)
-        .setVisible(true)
+        .setVisible(this.inventory.isVisible)
         .setInteractive();
 
-        // Масштабируем предмет
+        // Масштаб предмета (для гармоничного отображения)
+        const desiredSize = this.inventory.config.slotSize;
         const scale = Math.min(
-            0.8, 
-            this.inventory.config.slotSize / item.width,
-            this.inventory.config.slotSize / item.height
+            desiredSize / itemSprite.width,
+            desiredSize / itemSprite.height
         );
-        item.setScale(scale);
+        itemSprite.setScale(scale);
 
-        // Добавляем обработчик клика
-        item.on('pointerdown', () => {
+        itemSprite.key = key;
+        itemSprite.name = name;
+
+        // Клик по предмету — показать попап
+        itemSprite.on('pointerdown', () => {
             this.showItemPopup(key, name);
         });
 
-        // Сохраняем ссылки
-        freeSlot.item = { sprite: item, key, name };
-        this.inventory.items.push(item);
-        this.state.inventory.push({ key, name });
+        freeSlot.item = itemSprite;
+        this.inventory.items.push(itemSprite);
+
+        // Записываем в state.inventory только если это не восстановление
+        if (!restoring) {
+            this.state.inventory.push({ key, name });
+        }
 
         // Добавляем запись в дневник
-        if (this.journalSystem) {
+        if (this.journalSystem && !restoring) {
             this.journalSystem.addEntry(`Найден предмет: ${name}`);
         }
 
@@ -1849,7 +1868,6 @@ class GameScene extends Phaser.Scene {
 
     showItemPopup(key, name) {
         if (!this.popupSystem) return;
-        
         this.popupSystem.create('ITEM', {
             content: key,
             onClose: () => {
