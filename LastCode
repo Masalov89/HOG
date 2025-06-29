@@ -1,3 +1,76 @@
+class IntroScene extends Phaser.Scene {
+    constructor() { super({ key: 'IntroScene' }); }
+
+    preload() {
+        this.load.video('logo', './UI/Logo/corso-logo.mp4', 'loadeddata', false, true);
+        this.load.image('game-title', './UI/Backgrounds/game-title.png');
+    }
+
+    create() {
+        const w = this.scale.width, h = this.scale.height;
+        this.add.rectangle(w/2, h/2, w, h, 0x000000);
+
+        let started = false;
+        this.input.once('pointerdown', () => {
+            if (started) return;
+            started = true;
+
+            const video = this.add.video(w/2, h/2, 'logo');
+            video.setMute(false);
+            video.once('play', () => {
+                video.setDisplaySize(w, h);
+            });
+
+            video.play();
+
+            video.on('complete', () => this.showTitle());
+            video.on('error', () => this.showTitle());
+
+            // По повторному клику — досрочно показываем титул
+            this.input.once('pointerdown', () => {
+                video.stop();
+                this.showTitle();
+            });
+        });
+    }
+
+    showTitle() {
+        const w = this.scale.width, h = this.scale.height;
+        this.children.removeAll(); // убираем старые объекты (видео, фон)
+
+        this.add.rectangle(w/2, h/2, w, h, 0x000000);
+        const imgW = 1920, imgH = 1080;
+        const scale = Math.max(w / imgW, h / imgH);
+
+        const gameTitle = this.add.image(w / 2, h / 2, 'game-title')
+            .setOrigin(0.5)
+            .setScale(scale)
+            .setAlpha(0);
+
+        this.tweens.add({
+            targets: gameTitle,
+            alpha: 1,
+            duration: 1000,
+            ease: 'Power2'
+        });
+
+        // Через 3 секунды — автоматический переход в главное меню
+        this.time.delayedCall(3000, () => this.fadeToMenu());
+    }
+
+    fadeToMenu() {
+        const w = this.scale.width, h = this.scale.height;
+        const fadeOverlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000).setAlpha(0);
+        this.tweens.add({
+            targets: fadeOverlay,
+            alpha: 1,
+            duration: 500,
+            ease: 'Power2',
+            onComplete: () => this.scene.start('MainMenuScene')
+        });
+    }
+}
+
 // === LoadingScene ===
 // Сцена загрузки. Отвечает за загрузку всех ресурсов и отображение экрана загрузки.
 class LoadingScene extends Phaser.Scene {
@@ -193,7 +266,7 @@ class MainMenuScene extends Phaser.Scene {
                 .setDisplaySize(btnInfo.width, btnInfo.height)
                 .setInteractive({ useHandCursor: true });
 
-            btn.on('pointerover', () => btn.setScale(1.06));
+            btn.on('pointerover', () => btn.setScale(1.15));
             btn.on('pointerout', () => btn.setScale(1));
             btn.on('pointerdown', () => this.menuClick(i));
 
@@ -2915,15 +2988,14 @@ class GameScene extends Phaser.Scene {
 
 const config = {
     type: Phaser.AUTO,
-    width: GAME_CONFIG.width,
-    height: GAME_CONFIG.height,
+    parent: 'game-container',
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 1920,
         height: 1080
     },
-    scene: [LoadingScene, MainMenuScene, GameScene], // Добавили LoadingScene первой
+    scene: [IntroScene, MainMenuScene, LoadingScene, GameScene],
     physics: {
         default: 'arcade',
         arcade: {
