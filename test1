@@ -1,69 +1,50 @@
-class LogoScene extends Phaser.Scene {
-    constructor() { super({ key: 'LogoScene' }); }
+class IntroScene extends Phaser.Scene {
+    constructor() { super({ key: 'IntroScene' }); }
 
     preload() {
-        this.load.video('logo', './UI/Logo/corso-logo.mp4');
+        this.load.video('logo', './UI/Logo/corso-logo.mp4', 'loadeddata', false, true);
         this.load.image('game-title', './UI/Backgrounds/game-title.png');
+        // preload assets для меню, если нужно мгновенно перейти
+        this.load.image('main-bg', './UI/Backgrounds/main-bg.jpg');
+        this.load.image('play-btn', './UI/ApprovedUI/play-btn.png');
+        this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
+        this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
+        this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
     }
 
     create() {
         const w = this.scale.width, h = this.scale.height;
-        // Чёрный фон
         this.add.rectangle(w/2, h/2, w, h, 0x000000);
-
-        // Показать заглушку "Tap to start", если хочешь (по желанию)
-        // const tapText = this.add.text(w/2, h/2, 'Tap to start', { font: '32px Arial', fill: '#fff' }).setOrigin(0.5);
 
         let started = false;
         this.input.once('pointerdown', () => {
             if (started) return;
             started = true;
 
-            // Если есть tapText — убери его
-            // tapText.destroy();
-
             const video = this.add.video(w/2, h/2, 'logo');
-            video.setDisplaySize(w, h);
-            video.setMute(false); // звук нужен
-            video.play(true); // только теперь!
-
-            // Fade к концу ролика
-            const fadeOverlay = this.add.rectangle(w/2, h/2, w, h, 0x000000).setAlpha(0);
-            const videoDuration = (video.getDuration && video.getDuration() > 0) ? (video.getDuration() * 1000) : 5000;
-            this.time.delayedCall(Math.max(0, videoDuration - 1000), () => {
-                this.tweens.add({
-                    targets: fadeOverlay,
-                    alpha: 1,
-                    duration: 1000,
-                    ease: 'Linear'
-                });
+            video.setMute(false);
+            video.once('play', () => {
+                video.setDisplaySize(w, h);
             });
 
-            // По окончанию — переход
-            video.on('complete', () => this.scene.start('GameTitleScene'));
-            video.on('error', () => this.scene.start('GameTitleScene'));
+            video.play(true);
 
-            // По повторному клику — переход досрочно
+            video.on('complete', () => this.showTitle());
+            video.on('error', () => this.showTitle());
+
+            // По повторному клику — досрочно показываем титул
             this.input.once('pointerdown', () => {
                 video.stop();
-                this.scene.start('GameTitleScene');
+                this.showTitle();
             });
         });
     }
-}
 
-class GameTitleScene extends Phaser.Scene {
-    constructor() { super({ key: 'GameTitleScene' }); }
-    preload() {
-        if (!this.textures.exists('game-title')) {
-            this.load.image('game-title', './UI/Backgrounds/game-title.png');
-        }
-    }
-    create() {
+    showTitle() {
         const w = this.scale.width, h = this.scale.height;
-        this.add.rectangle(w / 2, h / 2, w, h, 0x000000);
+        this.children.removeAll(); // убираем старые объекты (видео, фон)
 
-        // cover-режим
+        this.add.rectangle(w/2, h/2, w, h, 0x000000);
         const imgW = 1920, imgH = 1080;
         const scale = Math.max(w / imgW, h / imgH);
 
@@ -79,15 +60,10 @@ class GameTitleScene extends Phaser.Scene {
             ease: 'Power2'
         });
 
-        let canClick = false;
-        this.time.delayedCall(1000, () => {
-            canClick = true;
-            this.input.once('pointerdown', () => this.fadeToMenu());
-        });
-        this.time.delayedCall(8000, () => {
-            if (canClick) this.fadeToMenu();
-        });
+        // Через 3 секунды — автоматический переход в главное меню
+        this.time.delayedCall(3000, () => this.fadeToMenu());
     }
+
     fadeToMenu() {
         const w = this.scale.width, h = this.scale.height;
         const fadeOverlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000).setAlpha(0);
@@ -3025,7 +3001,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [LogoScene, GameTitleScene, MainMenuScene, LoadingScene, GameScene], // Добавили LogoScene первой
+    scene: [IntroScene, MainMenuScene, LoadingScene, GameScene],
     physics: {
         default: 'arcade',
         arcade: {
