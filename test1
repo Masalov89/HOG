@@ -1,3 +1,186 @@
+// === LogoScene ===
+// Сцена с анимированным логотипом студии
+class LogoScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'LogoScene' });
+    }
+    
+    preload() {
+        this.load.video('logo', './UI/Logo/corso-logo.mp4');
+        // Предзагружаем изображение названия игры для следующей сцены
+        this.load.image('game-title', './UI/Backgrounds/game-title.png');
+    }
+    
+    create() {
+        // Адаптивный размер под экран
+        const video = this.add.video(
+            this.scale.width / 2, 
+            this.scale.height / 2, 
+            'logo'
+        );
+        
+        // Масштабирование для разных экранов
+        const scaleX = this.scale.width / 1920;  // Full HD ширина
+        const scaleY = this.scale.height / 1080; // Full HD высота
+        const scale = Math.min(scaleX, scaleY);
+        video.setScale(scale);
+        
+        video.play();
+        
+        // Создаем черный прямоугольник для затемнения (изначально прозрачный)
+        const fadeOverlay = this.add.rectangle(
+            this.scale.width / 2, 
+            this.scale.height / 2, 
+            this.scale.width, 
+            this.scale.height, 
+            0x000000
+        );
+        fadeOverlay.setAlpha(0);
+        
+        // Затемнение за 1 секунду до конца (на 4-й секунде)
+        this.time.delayedCall(4000, () => {
+            this.tweens.add({
+                targets: fadeOverlay,
+                alpha: 1,
+                duration: 1000,
+                ease: 'Linear'
+            });
+        });
+        
+        // Переход к названию игры после окончания видео
+        video.on('complete', () => {
+            this.scene.start('GameTitleScene');
+        });
+        
+        // Пропуск по клику/тапу
+        this.input.once('pointerdown', () => {
+            video.stop();
+            this.scene.start('GameTitleScene');
+        });
+    }
+}
+
+// === GameTitleScene ===
+// Сцена с названием игры
+class GameTitleScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'GameTitleScene' });
+    }
+    
+    preload() {
+        // Если не загружено в предыдущей сцене
+        if (!this.textures.exists('game-title')) {
+            this.load.image('game-title', './UI/Backgrounds/game-title.png');
+        }
+    }
+    
+    create() {
+        // Черный фон
+        this.add.rectangle(
+            this.scale.width / 2, 
+            this.scale.height / 2, 
+            this.scale.width, 
+            this.scale.height, 
+            0x000000
+        );
+        
+        // Изображение названия игры (изначально прозрачное)
+        const gameTitle = this.add.image(
+            this.scale.width / 2, 
+            this.scale.height / 2, 
+            'game-title'
+        );
+        
+        // Адаптивное масштабирование
+        const scaleX = (this.scale.width * 0.8) / gameTitle.width;
+        const scaleY = (this.scale.height * 0.6) / gameTitle.height;
+        const scale = Math.min(scaleX, scaleY);
+        gameTitle.setScale(scale);
+        gameTitle.setAlpha(0);
+        
+        // Анимация появления названия
+        this.tweens.add({
+            targets: gameTitle,
+            alpha: 1,
+            duration: 1500,
+            ease: 'Power2'
+        });
+        
+        // Мерцающий эффект "Нажмите для продолжения"
+        const continueText = this.add.text(
+            this.scale.width / 2,
+            this.scale.height * 0.85,
+            'Нажмите для продолжения',
+            {
+                fontSize: Math.floor(this.scale.width * 0.025) + 'px',
+                fill: '#ffffff',
+                fontFamily: 'Arial, sans-serif'
+            }
+        );
+        continueText.setOrigin(0.5);
+        continueText.setAlpha(0);
+        
+        // Показать текст через 2 секунды и добавить мерцание
+        this.time.delayedCall(2000, () => {
+            this.tweens.add({
+                targets: continueText,
+                alpha: { from: 0, to: 1 },
+                duration: 500,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        });
+        
+        // Переход в главное меню по клику/тапу (активируется через 1.5 сек)
+        this.time.delayedCall(1500, () => {
+            this.input.once('pointerdown', () => {
+                // Затемнение перед переходом
+                const fadeOverlay = this.add.rectangle(
+                    this.scale.width / 2, 
+                    this.scale.height / 2, 
+                    this.scale.width, 
+                    this.scale.height, 
+                    0x000000
+                );
+                fadeOverlay.setAlpha(0);
+                
+                this.tweens.add({
+                    targets: fadeOverlay,
+                    alpha: 1,
+                    duration: 500,
+                    ease: 'Power2',
+                    onComplete: () => {
+                        this.scene.start('MainMenuScene');
+                    }
+                });
+            });
+        });
+        
+        // Автоматический переход через 8 секунд
+        this.time.delayedCall(8000, () => {
+            const fadeOverlay = this.add.rectangle(
+                this.scale.width / 2, 
+                this.scale.height / 2, 
+                this.scale.width, 
+                this.scale.height, 
+                0x000000
+            );
+            fadeOverlay.setAlpha(0);
+            
+            this.tweens.add({
+                targets: fadeOverlay,
+                alpha: 1,
+                duration: 500,
+                ease: 'Power2',
+                onComplete: () => {
+                    this.scene.start('MainMenuScene');
+                }
+            });
+        });
+    }
+}
+
 // === LoadingScene ===
 // Сцена загрузки. Отвечает за загрузку всех ресурсов и отображение экрана загрузки.
 class LoadingScene extends Phaser.Scene {
@@ -1727,17 +1910,18 @@ class GameScene extends Phaser.Scene {
         .setVisible(true)
         .setInteractive();
 
-        // Примерные центры слотов (масштабируются!)
-        const baseSlotCenters = [
-            { x: 65, y: 120 },
-            { x: 65, y: 220 },
-            { x: 65, y: 320 },
-            { x: 65, y: 420 },
-            { x: 65, y: 520 }
+        // Центры слотов (масштабируются!)
+        const slotPositions = [
+            { x: 130, y: 190 },
+            { x: 130, y: 365 },
+            { x: 130, y: 540 },
+            { x: 130, y: 720 },
+            { x: 130, y: 890 }
         ];
-        this.inventory.slots = baseSlotCenters.map((center, i) => ({
-            x: cfg.bgOffsetX + center.x * scaleX,
-            y: cfg.bgOffsetY + center.y * scaleY,
+
+        this.inventory.slots = slotPositions.map((pos, i) => ({
+            x: cfg.bgOffsetX + pos.x * scaleX,
+            y: cfg.bgOffsetY + pos.y * scaleY,
             item: null,
             index: i
         }));
@@ -2914,15 +3098,14 @@ class GameScene extends Phaser.Scene {
 
 const config = {
     type: Phaser.AUTO,
-    width: GAME_CONFIG.width,
-    height: GAME_CONFIG.height,
+    parent: 'game-container',
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width: 1920,
         height: 1080
     },
-    scene: [LoadingScene, MainMenuScene, GameScene], // Добавили LoadingScene первой
+    scene: [LogoScene, GameTitleScene, MainMenuScene, LoadingScene, GameScene], // Добавили LogoScene первой
     physics: {
         default: 'arcade',
         arcade: {
