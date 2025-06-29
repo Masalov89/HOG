@@ -4,12 +4,6 @@ class IntroScene extends Phaser.Scene {
     preload() {
         this.load.video('logo', './UI/Logo/corso-logo.mp4', 'loadeddata', false, true);
         this.load.image('game-title', './UI/Backgrounds/game-title.png');
-        // preload assets для меню, если нужно мгновенно перейти
-        this.load.image('main-bg', './UI/Backgrounds/main-bg.jpg');
-        this.load.image('play-btn', './UI/ApprovedUI/play-btn.png');
-        this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
-        this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
-        this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
     }
 
     create() {
