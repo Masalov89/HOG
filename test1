@@ -1,182 +1,102 @@
-// === LogoScene ===
-// Сцена с анимированным логотипом студии
 class LogoScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'LogoScene' });
-    }
-    
+    constructor() { super({ key: 'LogoScene' }); }
+
     preload() {
         this.load.video('logo', './UI/Logo/corso-logo.mp4');
-        // Предзагружаем изображение названия игры для следующей сцены
         this.load.image('game-title', './UI/Backgrounds/game-title.png');
     }
-    
+
     create() {
-        // Адаптивный размер под экран
-        const video = this.add.video(
-            this.scale.width / 2, 
-            this.scale.height / 2, 
-            'logo'
-        );
-        
-        // Масштабирование для разных экранов
-        const scaleX = this.scale.width / 1920;  // Full HD ширина
-        const scaleY = this.scale.height / 1080; // Full HD высота
-        const scale = Math.min(scaleX, scaleY);
-        video.setScale(scale);
-        
-        video.play();
-        
-        // Создаем черный прямоугольник для затемнения (изначально прозрачный)
-        const fadeOverlay = this.add.rectangle(
-            this.scale.width / 2, 
-            this.scale.height / 2, 
-            this.scale.width, 
-            this.scale.height, 
-            0x000000
-        );
-        fadeOverlay.setAlpha(0);
-        
-        // Затемнение за 1 секунду до конца (на 4-й секунде)
-        this.time.delayedCall(4000, () => {
-            this.tweens.add({
-                targets: fadeOverlay,
-                alpha: 1,
-                duration: 1000,
-                ease: 'Linear'
-            });
-        });
-        
-        // Переход к названию игры после окончания видео
-        video.on('complete', () => {
-            this.scene.start('GameTitleScene');
-        });
-        
-        // Пропуск по клику/тапу
+        const w = this.scale.width, h = this.scale.height;
+        // Чёрный фон
+        this.add.rectangle(w/2, h/2, w, h, 0x000000);
+
+        // Показать заглушку "Tap to start", если хочешь (по желанию)
+        // const tapText = this.add.text(w/2, h/2, 'Tap to start', { font: '32px Arial', fill: '#fff' }).setOrigin(0.5);
+
+        let started = false;
         this.input.once('pointerdown', () => {
-            video.stop();
-            this.scene.start('GameTitleScene');
+            if (started) return;
+            started = true;
+
+            // Если есть tapText — убери его
+            // tapText.destroy();
+
+            const video = this.add.video(w/2, h/2, 'logo');
+            video.setDisplaySize(w, h);
+            video.setMute(false); // звук нужен
+            video.play(true); // только теперь!
+
+            // Fade к концу ролика
+            const fadeOverlay = this.add.rectangle(w/2, h/2, w, h, 0x000000).setAlpha(0);
+            const videoDuration = (video.getDuration && video.getDuration() > 0) ? (video.getDuration() * 1000) : 5000;
+            this.time.delayedCall(Math.max(0, videoDuration - 1000), () => {
+                this.tweens.add({
+                    targets: fadeOverlay,
+                    alpha: 1,
+                    duration: 1000,
+                    ease: 'Linear'
+                });
+            });
+
+            // По окончанию — переход
+            video.on('complete', () => this.scene.start('GameTitleScene'));
+            video.on('error', () => this.scene.start('GameTitleScene'));
+
+            // По повторному клику — переход досрочно
+            this.input.once('pointerdown', () => {
+                video.stop();
+                this.scene.start('GameTitleScene');
+            });
         });
     }
 }
 
-// === GameTitleScene ===
-// Сцена с названием игры
 class GameTitleScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'GameTitleScene' });
-    }
-    
+    constructor() { super({ key: 'GameTitleScene' }); }
     preload() {
-        // Если не загружено в предыдущей сцене
         if (!this.textures.exists('game-title')) {
             this.load.image('game-title', './UI/Backgrounds/game-title.png');
         }
     }
-    
     create() {
-        // Черный фон
-        this.add.rectangle(
-            this.scale.width / 2, 
-            this.scale.height / 2, 
-            this.scale.width, 
-            this.scale.height, 
-            0x000000
-        );
-        
-        // Изображение названия игры (изначально прозрачное)
-        const gameTitle = this.add.image(
-            this.scale.width / 2, 
-            this.scale.height / 2, 
-            'game-title'
-        );
-        
-        // Адаптивное масштабирование
-        const scaleX = (this.scale.width * 0.8) / gameTitle.width;
-        const scaleY = (this.scale.height * 0.6) / gameTitle.height;
-        const scale = Math.min(scaleX, scaleY);
-        gameTitle.setScale(scale);
-        gameTitle.setAlpha(0);
-        
-        // Анимация появления названия
+        const w = this.scale.width, h = this.scale.height;
+        this.add.rectangle(w / 2, h / 2, w, h, 0x000000);
+
+        // cover-режим
+        const imgW = 1920, imgH = 1080;
+        const scale = Math.max(w / imgW, h / imgH);
+
+        const gameTitle = this.add.image(w / 2, h / 2, 'game-title')
+            .setOrigin(0.5)
+            .setScale(scale)
+            .setAlpha(0);
+
         this.tweens.add({
             targets: gameTitle,
             alpha: 1,
-            duration: 1500,
+            duration: 1000,
             ease: 'Power2'
         });
-        
-        // Мерцающий эффект "Нажмите для продолжения"
-        const continueText = this.add.text(
-            this.scale.width / 2,
-            this.scale.height * 0.85,
-            'Нажмите для продолжения',
-            {
-                fontSize: Math.floor(this.scale.width * 0.025) + 'px',
-                fill: '#ffffff',
-                fontFamily: 'Arial, sans-serif'
-            }
-        );
-        continueText.setOrigin(0.5);
-        continueText.setAlpha(0);
-        
-        // Показать текст через 2 секунды и добавить мерцание
-        this.time.delayedCall(2000, () => {
-            this.tweens.add({
-                targets: continueText,
-                alpha: { from: 0, to: 1 },
-                duration: 500,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.easeInOut'
-            });
+
+        let canClick = false;
+        this.time.delayedCall(1000, () => {
+            canClick = true;
+            this.input.once('pointerdown', () => this.fadeToMenu());
         });
-        
-        // Переход в главное меню по клику/тапу (активируется через 1.5 сек)
-        this.time.delayedCall(1500, () => {
-            this.input.once('pointerdown', () => {
-                // Затемнение перед переходом
-                const fadeOverlay = this.add.rectangle(
-                    this.scale.width / 2, 
-                    this.scale.height / 2, 
-                    this.scale.width, 
-                    this.scale.height, 
-                    0x000000
-                );
-                fadeOverlay.setAlpha(0);
-                
-                this.tweens.add({
-                    targets: fadeOverlay,
-                    alpha: 1,
-                    duration: 500,
-                    ease: 'Power2',
-                    onComplete: () => {
-                        this.scene.start('MainMenuScene');
-                    }
-                });
-            });
-        });
-        
-        // Автоматический переход через 8 секунд
         this.time.delayedCall(8000, () => {
-            const fadeOverlay = this.add.rectangle(
-                this.scale.width / 2, 
-                this.scale.height / 2, 
-                this.scale.width, 
-                this.scale.height, 
-                0x000000
-            );
-            fadeOverlay.setAlpha(0);
-            
-            this.tweens.add({
-                targets: fadeOverlay,
-                alpha: 1,
-                duration: 500,
-                ease: 'Power2',
-                onComplete: () => {
-                    this.scene.start('MainMenuScene');
-                }
-            });
+            if (canClick) this.fadeToMenu();
+        });
+    }
+    fadeToMenu() {
+        const w = this.scale.width, h = this.scale.height;
+        const fadeOverlay = this.add.rectangle(w / 2, h / 2, w, h, 0x000000).setAlpha(0);
+        this.tweens.add({
+            targets: fadeOverlay,
+            alpha: 1,
+            duration: 500,
+            ease: 'Power2',
+            onComplete: () => this.scene.start('MainMenuScene')
         });
     }
 }
