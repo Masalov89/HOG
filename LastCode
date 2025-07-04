@@ -71,151 +71,38 @@ class IntroScene extends Phaser.Scene {
     }
 }
 
-// === LoadingScene ===
-// Сцена загрузки. Отвечает за загрузку всех ресурсов и отображение экрана загрузки.
-class LoadingScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'LoadingScene' }); // Указываем ключ для сцены.
-    }
-
-    preload() {
-        const width = this.cameras.main.width; // Ширина экрана.
-        const height = this.cameras.main.height; // Высота экрана.
-
-        // Создаем экземпляр ResourceLoader.
-        const resourceLoader = new ResourceLoader(this);
-
-        // Определяем список всех ресурсов.
-        const resources = {
-            locations: [
-                { key: 'front-house', path: 'front-house.jpg' },
-                { key: 'hall', path: 'hall.jpg' },
-                { key: 'leftroom', path: 'leftroom.jpg' },
-                { key: 'rightroom', path: 'rightroom.jpg' },
-                { key: 'drawer', path: 'drawer.jpg' },
-                { key: 'wardrobe', path: 'wardrobe.jpg' }
-            ],
-            ui: [
-                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
-                { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
-                { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
-                { key: 'menu-btn', path: './UI/ApprovedUI/menu-btn.png' },
-                { key: 'close', path: './UI/ApprovedUI/Close.png' },
-                { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
-                { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
-                { key: 'page', path: './UI/PopupBackgrounds/Page.png' },
-                { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
-                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },
-                { key: 'loading-bg', path: './UI/Backgrounds/loading-bg.jpg' },
-                { key: 'inventory-bg', path: './UI/ApprovedUI/inventory-bg.png' }
-            ],
-            objects: [
-                { key: 'object1', path: 'plate.png' },
-                { key: 'object2', path: 'candle.png' },
-                { key: 'object3', path: 'art.png' },
-                { key: 'object4', path: 'tea.png' },
-                { key: 'object5', path: 'list1.png' },
-                { key: 'object6', path: 'safe.png' },
-                { key: 'object7', path: 'sheet.png' },
-                { key: 'object8', path: 'ring.png' }
-            ],
-            additional: [
-                { key: 'list2', path: 'list2.png' },
-                { key: 'opensafe', path: 'opensafe.png' }
-            ]
-        };
-
-        // Загружаем ресурсы через ResourceLoader.
-        resourceLoader.loadResources(resources);
-
-        // Когда загрузка завершена, отображаем фон загрузки и запускаем основной процесс.
-        this.load.on('complete', () => {
-            const bg = this.add.image(width / 2, height / 2, 'loading-bg')
-                .setDisplaySize(width, height); // Устанавливаем размер фона.
-            this.startMainLoading(); // Запускаем основной процесс загрузки.
-        });
-
-        this.load.start(); // Начинаем загрузку.
-    }
-
-    startMainLoading() {
-        const width = this.cameras.main.width; // Ширина экрана.
-        const height = this.cameras.main.height; // Высота экрана.
-
-        // Создаем UI элементы загрузки.
-        const progressUI = this.createProgressUI(width, height);
-
-        // Загружаем оставшиеся ресурсы.
-        const resources = {
-            locations: [
-                { key: 'front-house', path: 'front-house.jpg' },
-                { key: 'hall', path: 'hall.jpg' }
-            ],
-            ui: [
-                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' }
-            ]
-        };
-
-        const resourceLoader = new ResourceLoader(this);
-        resourceLoader.loadResources(resources);
-
-        // Запускаем эмуляцию загрузки.
-        this.startFakeLoading(progressUI);
-    }
-
-    createProgressUI(width, height) {
-        // Создаем контейнер прогресс-бара.
-        const progressBox = this.add.graphics()
-            .lineStyle(1, 0x333333)
-            .strokeRect(
-                width / 2 - 500, // Позиция по X.
-                height / 2 + 200, // Позиция по Y.
-                1000, // Ширина прогресс-бара.
-                1 // Высота прогресс-бара.
-            );
-
-        // Создаем заполнение прогресс-бара.
-        const progressBar = this.add.graphics();
-
-        return { progressBox, progressBar }; // Возвращаем элементы UI.
-    }
-
-    startFakeLoading({ progressBox, progressBar }) {
-        let loadingProgress = 0; // Стартовое значение загрузки.
-        const width = this.cameras.main.width; // Ширина экрана.
-        const height = this.cameras.main.height; // Высота экрана.
-
-        const updateProgress = () => {
-            loadingProgress += 0.01; // Увеличиваем прогресс.
-            progressBar.clear()
-                .fillStyle(0xffffff, 1) // Устанавливаем цвет.
-                .fillRect(
-                    width / 2 - 500, // Позиция по X.
-                    height / 2 + 200, // Позиция по Y.
-                    1000 * loadingProgress, // Ширина прогресса.
-                    1 // Высота прогресса.
-                );
-
-            if (loadingProgress < 1) {
-                setTimeout(updateProgress, 50); // Продолжаем обновление.
-            } else {
-                this.finishLoading({ progressBox, progressBar }); // Завершаем загрузку.
+// Конфигурация историй и их глав
+const STORIES_CONFIG = {
+    'safe': {
+        name: 'Сейф',
+        chapters: [
+            {
+                id: 1,
+                name: 'Глава 1',
+                state: 'available', // доступна сразу
+                startLocation: 'front-house'
+            },
+            {
+                id: 2,
+                name: 'Глава 2',
+                state: 'locked', // заблокирована, пока не пройдена глава 1
+                startLocation: 'front-house'
             }
-        };
-
-        updateProgress(); // Запускаем обновление прогресса.
+        ]
+    },
+    'mansion': {
+        name: 'Особняк',
+        chapters: [
+            {
+                id: 1,
+                name: 'Глава 1',
+                state: 'locked', // будет доступна после прохождения истории "Сейф"
+                startLocation: 'mansion-entrance'
+            }
+        ]
     }
+};
 
-    finishLoading({ progressBox, progressBar }) {
-        setTimeout(() => {
-            progressBar.destroy(); // Удаляем графику прогресса.
-            progressBox.destroy(); // Удаляем графику контейнера.
-            this.scene.start('MainMenuScene'); // Переходим к следующей сцене.
-        }, 500); // Небольшая задержка перед переходом.
-    }
-}
-
-// === MainMenuScene ===
 class MainMenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MainMenuScene' });
@@ -224,9 +111,12 @@ class MainMenuScene extends Phaser.Scene {
         this.buttonLabels = {
             ua: ['ГРАТИ', 'ДОСЯГНЕННЯ', 'НАЛАШТУВАННЯ', 'ДОПОМОГА']
         };
+        // Инициализируем конфигурацию историй
+        this.stories = JSON.parse(JSON.stringify(STORIES_CONFIG)); // Создаем копию конфигурации
     }
 
     preload() {
+        // Загружаем только ресурсы для меню
         this.load.image('main-bg', './UI/Backgrounds/main-bg.jpg');
         this.load.image('play-btn', './UI/ApprovedUI/play-btn.png');
         this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
@@ -238,9 +128,23 @@ class MainMenuScene extends Phaser.Scene {
     create() {
         this.cameras.main.fadeIn(1000);
 
+        // Добавляем фон
         this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'main-bg')
             .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
 
+        this.createMainMenu();
+        this.storyBtnsGroup = this.add.group();
+
+        // Добавляем энергию
+        this.energy = 400;
+        this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
+        this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
+            font: '28px Arial',
+            color: '#FFD700'
+        }).setOrigin(0, 0.5);
+    }
+
+    createMainMenu() {
         // Размеры кнопок
         this.menuButtons = [
             { key: 'play-btn', width: 210, height: 75 },
@@ -249,14 +153,11 @@ class MainMenuScene extends Phaser.Scene {
             { key: 'help-btn', width: 223, height: 75 }
         ];
 
-        // Glow-овал: оригинал 430x120px
         const BASE_OVAL_WIDTH = 430;
         const BASE_OVAL_HEIGHT = 120;
         const BUTTON_HOVER_SCALE = 1.15;
-
         const spacing = 100;
-        const totalWidth =
-            this.menuButtons.reduce((sum, btn) => sum + btn.width, 0) +
+        const totalWidth = this.menuButtons.reduce((sum, btn) => sum + btn.width, 0) +
             spacing * (this.menuButtons.length - 1);
 
         let currentX = (GAME_CONFIG.width - totalWidth) / 2 + this.menuButtons[0].width / 2;
@@ -269,8 +170,6 @@ class MainMenuScene extends Phaser.Scene {
         const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : ['', '', '', ''];
 
         this.menuButtons.forEach((btnInfo, i) => {
-            // --- GLOW PNG ---
-            // Размер овала под увеличенную кнопку + отступы
             const glowWidth = btnInfo.width * BUTTON_HOVER_SCALE + 40;
             const glowHeight = btnInfo.height * BUTTON_HOVER_SCALE + 30;
             const scaleX = glowWidth / BASE_OVAL_WIDTH;
@@ -279,10 +178,9 @@ class MainMenuScene extends Phaser.Scene {
             const glow = this.add.image(currentX, y, 'btn-glow')
                 .setOrigin(0.5)
                 .setScale(scaleX, scaleY)
-                .setAlpha(0) // по умолчанию скрыт
+                .setAlpha(0)
                 .setDepth(0);
 
-            // --- КНОПКА ---
             const btn = this.add.sprite(currentX, y, btnInfo.key)
                 .setOrigin(0.5)
                 .setDisplaySize(btnInfo.width, btnInfo.height)
@@ -290,36 +188,7 @@ class MainMenuScene extends Phaser.Scene {
                 .setScale(1)
                 .setDepth(1);
 
-            // --- ЭФФЕКТЫ ПРИ НАВЕДЕНИИ ---
-            btn.on('pointerover', () => {
-                this.tweens.add({
-                    targets: glow,
-                    alpha: 1,
-                    duration: 160,
-                    ease: 'Cubic.easeOut'
-                });
-                this.tweens.add({
-                    targets: btn,
-                    scale: 1.10,
-                    duration: 160,
-                    ease: 'Cubic.easeOut'
-                });
-            });
-            btn.on('pointerout', () => {
-                this.tweens.add({
-                    targets: glow,
-                    alpha: 0,
-                    duration: 160,
-                    ease: 'Cubic.easeIn'
-                });
-                this.tweens.add({
-                    targets: btn,
-                    scale: 1,
-                    duration: 160,
-                    ease: 'Cubic.easeIn'
-                });
-            });
-            btn.on('pointerdown', () => this.menuClick(i));
+            this.setupButtonEffects(btn, glow);
 
             let label = null;
             if (labels[i]) {
@@ -337,15 +206,187 @@ class MainMenuScene extends Phaser.Scene {
                 currentX += (btnInfo.width / 2) + (this.menuButtons[i + 1].width / 2) + spacing;
             }
         });
+    }
 
-        this.storyBtnsGroup = this.add.group();
+    setupButtonEffects(btn, glow) {
+        btn.on('pointerover', () => {
+            this.tweens.add({
+                targets: glow,
+                alpha: 1,
+                duration: 160,
+                ease: 'Cubic.easeOut'
+            });
+            this.tweens.add({
+                targets: btn,
+                scale: 1.10,
+                duration: 160,
+                ease: 'Cubic.easeOut'
+            });
+        });
 
-        this.energy = 400;
-        this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
-        this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
-            font: '28px Arial',
+        btn.on('pointerout', () => {
+            this.tweens.add({
+                targets: glow,
+                alpha: 0,
+                duration: 160,
+                ease: 'Cubic.easeIn'
+            });
+            this.tweens.add({
+                targets: btn,
+                scale: 1,
+                duration: 160,
+                ease: 'Cubic.easeIn'
+            });
+        });
+
+        btn.on('pointerdown', () => this.menuClick(this.menuBtnObjs.indexOf(btn)));
+    }
+
+    showStoryMenu() {
+        this.clearStoryMenu();
+        const startX = 800;
+        const stepX = 220;
+        const y = 200;
+
+        // Используем данные из конфигурации историй
+        Object.entries(this.stories).forEach(([storyKey, story], i) => {
+            const btn = this.add.text(startX + i * stepX, y, story.name, {
+                font: '28px Arial',
+                color: '#FFD700',
+                backgroundColor: '#292929',
+                padding: { left: 20, right: 20, top: 8, bottom: 8 }
+            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+            btn.on('pointerover', () => btn.setColor('#FFF6A8'));
+            btn.on('pointerout', () => btn.setColor('#FFD700'));
+            btn.on('pointerdown', () => this.openChaptersModal(storyKey));
+            this.storyBtnsGroup.add(btn);
+        });
+    }
+
+    openChaptersModal(storyKey) {
+        this.closeChaptersModal();
+        const story = this.stories[storyKey];
+
+        const modalBg = this.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            700, 500,
+            0x181818, 0.95
+        ).setStrokeStyle(4, 0xffd700);
+
+        const closeBtn = this.add.text(
+            GAME_CONFIG.width / 2 + 320,
+            GAME_CONFIG.height / 2 - 220,
+            '×',
+            { font: '48px Arial', color: '#FFD700' }
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        closeBtn.on('pointerdown', () => this.closeChaptersModal());
+
+        this.chaptersModalGroup = this.add.group([modalBg, closeBtn]);
+
+        // Используем главы из конфигурации
+        story.chapters.forEach((chapter, i) => {
+            const color = chapter.state === 'completed' ? '#66ff66'
+                : chapter.state === 'locked' ? '#cccccc'
+                : '#FFD700';
+
+            const card = this.add.text(
+                GAME_CONFIG.width / 2,
+                GAME_CONFIG.height / 2 - 50 + i * 90,
+                chapter.name,
+                {
+                    font: '32px Arial',
+                    color,
+                    backgroundColor: '#333',
+                    padding: { left: 30, right: 30, top: 14, bottom: 14 }
+                }
+            ).setOrigin(0.5);
+
+            if (chapter.state === 'available') {
+                card.setInteractive();
+                card.on('pointerdown', () => {
+                    this.closeChaptersModal();
+                    this.cameras.main.fadeOut(1000);
+                    this.time.delayedCall(1000, () => {
+                        // Переходим в LoadingScene для загрузки ресурсов
+                        this.scene.start('LoadingScene', {
+                            storyKey,
+                            chapterId: chapter.id,
+                            nextScene: 'GameScene',
+                            gameData: {
+                                location: chapter.startLocation,
+                                history: []
+                            }
+                        });
+                    });
+                });
+            }
+
+            this.chaptersModalGroup.add(card);
+        });
+    }
+
+    // Остальные методы без изменений
+    menuClick(btnIndex) {
+        if (btnIndex === 0) {
+            this.showStoryMenu();
+        } else if (btnIndex === 2) {
+            this.showOptionsMenu();
+        } else {
+            this.clearStoryMenu();
+        }
+    }
+
+    clearStoryMenu() {
+        this.storyBtnsGroup.clear(true, true);
+    }
+
+    closeChaptersModal() {
+        if (this.chaptersModalGroup) {
+            this.chaptersModalGroup.clear(true, true);
+        }
+    }
+
+    showOptionsMenu() {
+        this.clearStoryMenu();
+        const x = GAME_CONFIG.width / 2;
+        const y = 350;
+        const group = this.add.group();
+
+        const optionsTitle = this.add.text(x, y, 'Мова / Language:', {
+            font: '32px Arial',
             color: '#FFD700'
-        }).setOrigin(0, 0.5);
+        }).setOrigin(0.5);
+        group.add(optionsTitle);
+
+        const enBtn = this.add.text(x - 70, y + 60, 'EN', {
+            font: '28px Arial',
+            color: this.currentLanguage === 'en' ? '#FFD700' : '#999'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        const uaBtn = this.add.text(x + 70, y + 60, 'UA', {
+            font: '28px Arial',
+            color: this.currentLanguage === 'ua' ? '#FFD700' : '#999'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        enBtn.on('pointerdown', () => {
+            this.switchLanguage('en');
+            enBtn.setColor('#FFD700');
+            uaBtn.setColor('#999');
+        });
+
+        uaBtn.on('pointerdown', () => {
+            this.switchLanguage('ua');
+            uaBtn.setColor('#FFD700');
+            enBtn.setColor('#999');
+        });
+
+        group.add(enBtn);
+        group.add(uaBtn);
+
+        this.storyBtnsGroup.addMultiple(group.getChildren());
     }
 
     switchLanguage(nextLang) {
@@ -368,132 +409,202 @@ class MainMenuScene extends Phaser.Scene {
             }
         });
     }
+}
 
-    menuClick(btnIndex) {
-        if (btnIndex === 0) {
-            this.showStoryMenu();
-        } else if (btnIndex === 2) {
-            this.showOptionsMenu();
-        } else {
-            this.clearStoryMenu();
-        }
+class LoadingScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'LoadingScene' });
+        this.loadedResources = new Set();
+        this.fakeLoadingComplete = false;
+        this.realLoadingComplete = false;
     }
 
-    showStoryMenu() {
-        this.clearStoryMenu();
-        const stories = ['Сейф', 'Особняк'];
-        const startX = 800;
-        const stepX = 220;
-        const y = 200;
+    init(data) {
+        this.sceneData = data || { 
+            storyKey: 'safe',
+            chapterId: 1,
+            nextScene: 'GameScene',
+            gameData: {
+                location: 'front-house',
+                history: []
+            }
+        };
+    }
 
-        stories.forEach((story, i) => {
-            const btn = this.add.text(startX + i * stepX, y, story, {
-                font: '28px Arial',
-                color: '#FFD700',
-                backgroundColor: '#292929',
-                padding: { left: 20, right: 20, top: 8, bottom: 8 }
-            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-            btn.on('pointerover', () => btn.setColor('#FFF6A8'));
-            btn.on('pointerout', () => btn.setColor('#FFD700'));
-            btn.on('pointerdown', () => this.openChaptersModal(story));
-            this.storyBtnsGroup.add(btn);
+    preload() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // 1. Загружаем только фон загрузки
+        this.load.image('loading-bg', './UI/Backgrounds/loading-bg.jpg');
+
+        // 2. Когда фон загрузился
+        this.load.once('filecomplete-image-loading-bg', () => {
+            // Показываем фон
+            this.add.image(width/2, height/2, 'loading-bg')
+                .setDisplaySize(width, height);
+
+            // 3. Создаем UI для фейковой загрузки
+            const progressUI = this.createProgressUI(width, height);
+            
+            // 4. Запускаем фейковую загрузку (как в старой версии)
+            this.startFakeLoading(progressUI);
+            
+            // 5. Параллельно начинаем реальную загрузку ресурсов
+            this.startRealLoading();
         });
     }
 
-    clearStoryMenu() {
-        this.storyBtnsGroup.clear(true, true);
+    createProgressUI(width, height) {
+        const progressBox = this.add.graphics()
+            .lineStyle(1, 0x333333)
+            .strokeRect(width/2 - 500, height/2 + 200, 1000, 1);
+
+        const progressBar = this.add.graphics();
+
+        return { progressBox, progressBar };
     }
 
-    showOptionsMenu() {
-        this.clearStoryMenu();
-        const x = GAME_CONFIG.width / 2;
-        const y = 350;
-        const group = this.add.group();
+    startFakeLoading({ progressBox, progressBar }) {
+        let fakeProgress = 0;
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
 
-        const optionsTitle = this.add.text(x, y, 'Мова / Language:', {
-            font: '32px Arial',
-            color: '#FFD700'
-        }).setOrigin(0.5);
-        group.add(optionsTitle);
+        const updateProgress = () => {
+            fakeProgress += 0.01;
+            
+            // Обновляем прогресс-бар
+            progressBar.clear()
+                .fillStyle(0xffffff, 1)
+                .fillRect(
+                    width/2 - 500,
+                    height/2 + 200,
+                    1000 * Math.min(fakeProgress, 1),
+                    1
+                );
 
-        const enBtn = this.add.text(x - 70, y + 60, 'EN', {
-            font: '28px Arial',
-            color: this.currentLanguage === 'en' ? '#FFD700' : '#999'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        enBtn.on('pointerdown', () => {
-            this.switchLanguage('en');
-            enBtn.setColor('#FFD700');
-            uaBtn.setColor('#999');
-        });
-        group.add(enBtn);
+            if (fakeProgress < 1) {
+                setTimeout(updateProgress, 50);
+            } else {
+                this.fakeLoadingComplete = true;
+                // Проверяем, завершена ли реальная загрузка
+                if (this.realLoadingComplete) {
+                    this.finishLoading();
+                }
+            }
+        };
 
-        const uaBtn = this.add.text(x + 70, y + 60, 'UA', {
-            font: '28px Arial',
-            color: this.currentLanguage === 'ua' ? '#FFD700' : '#999'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        uaBtn.on('pointerdown', () => {
-            this.switchLanguage('ua');
-            uaBtn.setColor('#FFD700');
-            enBtn.setColor('#999');
-        });
-        group.add(uaBtn);
-
-        this.storyBtnsGroup.addMultiple(group.getChildren());
+        updateProgress();
     }
 
-    openChaptersModal(storyName) {
-        this.closeChaptersModal();
+    startRealLoading() {
+        // Получаем нужные ресурсы для главы
+        const resources = this.getResourcesToLoad();
+        
+        // Загружаем через ResourceLoader
+        const resourceLoader = new ResourceLoader(this);
+        resourceLoader.loadResources(resources);
+        
+        // Отслеживаем завершение реальной загрузки
+        this.load.once('complete', () => {
+            // Сохраняем информацию о загруженных ресурсах
+            Object.values(resources).flat().forEach(resource => {
+                this.loadedResources.add(resource.key);
+            });
+            
+            this.realLoadingComplete = true;
+            
+            // Проверяем, завершена ли фейковая загрузка
+            if (this.fakeLoadingComplete) {
+                this.finishLoading();
+            }
+        });
+        
+        // Начинаем загрузку
+        this.load.start();
+    }
 
-        const modalBg = this.add.rectangle(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 700, 500, 0x181818, 0.95)
-            .setStrokeStyle(4, 0xffd700);
-        const closeBtn = this.add.text(GAME_CONFIG.width / 2 + 320, GAME_CONFIG.height / 2 - 220, '×', {
-            font: '48px Arial',
-            color: '#FFD700'
-        })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-        closeBtn.on('pointerdown', () => this.closeChaptersModal());
+    finishLoading() {
+        // Небольшая задержка для плавности
+        setTimeout(() => {
+            // Переходим к следующей сцене
+            const { nextScene, gameData } = this.sceneData;
+            this.scene.start(nextScene, gameData);
+        }, 500);
+    }
 
-        const chapters = [
-            { name: 'Глава 1', state: 'completed' },
-            { name: 'Глава 2', state: 'locked' },
-            { name: 'Глава 3', state: 'available' }
-        ];
+    getResourcesToLoad() {
+        const { storyKey, chapterId } = this.sceneData;
 
-        this.chaptersModalGroup = this.add.group([modalBg, closeBtn]);
+        // Базовые UI ресурсы
+        const resources = {
+            ui: [
+                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
+                { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
+                { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
+                { key: 'menu-btn', path: './UI/ApprovedUI/menu-btn.png' },
+                { key: 'close', path: './UI/ApprovedUI/Close.png' },
+                { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
+                { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
+                { key: 'page', path: './UI/PopupBackgrounds/Page.png' },
+                { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
+                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },
+                { key: 'inventory-bg', path: './UI/ApprovedUI/inventory-bg.png' }
+            ].filter(resource => !this.loadedResources.has(resource.key))
+        };
 
-        chapters.forEach((ch, i) => {
-            const color = ch.state === 'completed' ? '#66ff66'
-                : ch.state === 'locked' ? '#cccccc'
-                : '#FFD700';
-            const card = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 - 50 + i * 90, ch.name, {
-                font: '32px Arial',
-                color,
-                backgroundColor: '#333',
-                padding: { left: 30, right: 30, top: 14, bottom: 14 }
-            }).setOrigin(0.5).setInteractive();
+        // Ресурсы в зависимости от истории и главы
+        if (storyKey === 'safe') {
+            if (chapterId === 1) {
+                const chapter1Resources = {
+                    locations: [
+                        { key: 'front-house', path: 'front-house.jpg' },
+                        { key: 'hall', path: 'hall.jpg' },
+                        { key: 'leftroom', path: 'leftroom.jpg' },
+                        { key: 'rightroom', path: 'rightroom.jpg' },
+                        { key: 'drawer', path: 'drawer.jpg' },
+                        { key: 'wardrobe', path: 'wardrobe.jpg' }
+                    ],
+                    objects: [
+                        { key: 'object1', path: 'plate.png' },
+                        { key: 'object2', path: 'candle.png' },
+                        { key: 'object3', path: 'art.png' },
+                        { key: 'object4', path: 'tea.png' },
+                        { key: 'object5', path: 'list1.png' },
+                        { key: 'object6', path: 'safe.png' },
+                        { key: 'object7', path: 'sheet.png' },
+                        { key: 'object8', path: 'ring.png' }
+                    ],
+                    additional: [
+                        { key: 'list2', path: 'list2.png' },
+                        { key: 'opensafe', path: 'opensafe.png' }
+                    ]
+                };
 
-            // Изменяем условие, чтобы первая глава была доступна
-            if (i === 0) { // Если это первая глава
-                card.on('pointerdown', () => {
-                    this.closeChaptersModal();
-                    this.cameras.main.fadeOut(1000);
-                    this.time.delayedCall(1000, () => {
-                        this.scene.start('GameScene', {
-                            location: 'front-house',
-                            history: []
-                        });
-                    });
+                // Добавляем ресурсы главы 1, если они еще не загружены
+                Object.entries(chapter1Resources).forEach(([category, items]) => {
+                    resources[category] = items.filter(
+                        resource => !this.loadedResources.has(resource.key)
+                    );
                 });
             }
-            this.chaptersModalGroup.add(card);
-        });
-    }
+            else if (chapterId === 2) {
+                // Здесь будут ресурсы для второй главы
+                const chapter2Resources = {
+                    locations: [],
+                    objects: [],
+                    additional: []
+                };
 
-    closeChaptersModal() {
-        if (this.chaptersModalGroup) {
-            this.chaptersModalGroup.clear(true, true);
+                Object.entries(chapter2Resources).forEach(([category, items]) => {
+                    resources[category] = items.filter(
+                        resource => !this.loadedResources.has(resource.key)
+                    );
+                });
+            }
         }
+
+        return resources;
     }
 }
 
