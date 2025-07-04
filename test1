@@ -21,7 +21,7 @@ class IntroScene extends Phaser.Scene {
                 video.setDisplaySize(w, h);
             });
 
-            video.play(true);
+            video.play();
 
             video.on('complete', () => this.showTitle());
             video.on('error', () => this.showTitle());
@@ -54,8 +54,8 @@ class IntroScene extends Phaser.Scene {
             ease: 'Power2'
         });
 
-        // Через 3 секунды — автоматический переход в главное меню
-        this.time.delayedCall(3000, () => this.fadeToMenu());
+        // Через 5 секунд — автоматический переход в главное меню
+        this.time.delayedCall(5000, () => this.fadeToMenu());
     }
 
     fadeToMenu() {
@@ -232,6 +232,7 @@ class MainMenuScene extends Phaser.Scene {
         this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
         this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
         this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
+        this.load.image('btn-glow', './UI/ApprovedUI/btn-glow.png');
     }
 
     create() {
@@ -240,14 +241,20 @@ class MainMenuScene extends Phaser.Scene {
         this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'main-bg')
             .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
 
+        // Размеры кнопок
         this.menuButtons = [
             { key: 'play-btn', width: 210, height: 75 },
-            { key: 'achiev-btn', width: 472, height: 75 },
+            { key: 'achiev-btn', width: 296, height: 75 },
             { key: 'options-btn', width: 336, height: 75 },
             { key: 'help-btn', width: 223, height: 75 }
         ];
 
-        const spacing = 40;
+        // Glow-овал: оригинал 430x120px
+        const BASE_OVAL_WIDTH = 430;
+        const BASE_OVAL_HEIGHT = 120;
+        const BUTTON_HOVER_SCALE = 1.15;
+
+        const spacing = 100;
         const totalWidth =
             this.menuButtons.reduce((sum, btn) => sum + btn.width, 0) +
             spacing * (this.menuButtons.length - 1);
@@ -257,17 +264,61 @@ class MainMenuScene extends Phaser.Scene {
 
         this.menuBtnObjs = [];
         this.menuBtnLabels = [];
+        this.menuBtnGlows = [];
 
         const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : ['', '', '', ''];
 
         this.menuButtons.forEach((btnInfo, i) => {
+            // --- GLOW PNG ---
+            // Размер овала под увеличенную кнопку + отступы
+            const glowWidth = btnInfo.width * BUTTON_HOVER_SCALE + 40;
+            const glowHeight = btnInfo.height * BUTTON_HOVER_SCALE + 30;
+            const scaleX = glowWidth / BASE_OVAL_WIDTH;
+            const scaleY = glowHeight / BASE_OVAL_HEIGHT;
+
+            const glow = this.add.image(currentX, y, 'btn-glow')
+                .setOrigin(0.5)
+                .setScale(scaleX, scaleY)
+                .setAlpha(0) // по умолчанию скрыт
+                .setDepth(0);
+
+            // --- КНОПКА ---
             const btn = this.add.sprite(currentX, y, btnInfo.key)
                 .setOrigin(0.5)
                 .setDisplaySize(btnInfo.width, btnInfo.height)
-                .setInteractive({ useHandCursor: true });
+                .setInteractive({ useHandCursor: true })
+                .setScale(1)
+                .setDepth(1);
 
-            btn.on('pointerover', () => btn.setScale(1.06));
-            btn.on('pointerout', () => btn.setScale(1));
+            // --- ЭФФЕКТЫ ПРИ НАВЕДЕНИИ ---
+            btn.on('pointerover', () => {
+                this.tweens.add({
+                    targets: glow,
+                    alpha: 1,
+                    duration: 160,
+                    ease: 'Cubic.easeOut'
+                });
+                this.tweens.add({
+                    targets: btn,
+                    scale: 1.10,
+                    duration: 160,
+                    ease: 'Cubic.easeOut'
+                });
+            });
+            btn.on('pointerout', () => {
+                this.tweens.add({
+                    targets: glow,
+                    alpha: 0,
+                    duration: 160,
+                    ease: 'Cubic.easeIn'
+                });
+                this.tweens.add({
+                    targets: btn,
+                    scale: 1,
+                    duration: 160,
+                    ease: 'Cubic.easeIn'
+                });
+            });
             btn.on('pointerdown', () => this.menuClick(i));
 
             let label = null;
@@ -277,8 +328,10 @@ class MainMenuScene extends Phaser.Scene {
                     color: '#FFD700'
                 }).setOrigin(0.5);
             }
+
             this.menuBtnObjs.push(btn);
             this.menuBtnLabels.push(label);
+            this.menuBtnGlows.push(glow);
 
             if (i < this.menuButtons.length - 1) {
                 currentX += (btnInfo.width / 2) + (this.menuButtons[i + 1].width / 2) + spacing;
