@@ -142,9 +142,6 @@ class MainMenuScene extends Phaser.Scene {
             font: '28px Arial',
             color: '#FFD700'
         }).setOrigin(0, 0.5);
-
-        // Загружаем сохраненный прогресс
-        this.loadProgress();
     }
 
     createMainMenu() {
@@ -418,6 +415,8 @@ class LoadingScene extends Phaser.Scene {
     constructor() {
         super({ key: 'LoadingScene' });
         this.loadedResources = new Set();
+        this.fakeLoadingComplete = false;
+        this.realLoadingComplete = false;
     }
 
     init(data) {
@@ -433,78 +432,105 @@ class LoadingScene extends Phaser.Scene {
     }
 
     preload() {
-        // Загружаем только фон загрузки
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        // 1. Загружаем только фон загрузки
         this.load.image('loading-bg', './UI/Backgrounds/loading-bg.jpg');
 
-        // Как только загрузится фон, начинаем основную загрузку
-        this.load.once('complete', () => {
-            const width = this.cameras.main.width;
-            const height = this.cameras.main.height;
-
-            // Показываем фон загрузки
-            this.add.image(width / 2, height / 2, 'loading-bg')
+        // 2. Когда фон загрузился
+        this.load.once('filecomplete-image-loading-bg', () => {
+            // Показываем фон
+            this.add.image(width/2, height/2, 'loading-bg')
                 .setDisplaySize(width, height);
 
-            // Создаем UI загрузки
+            // 3. Создаем UI для фейковой загрузки
             const progressUI = this.createProgressUI(width, height);
-
-            // Получаем нужные ресурсы в зависимости от главы
-            const resources = this.getResourcesToLoad();
             
-            // Создаем загрузчик ресурсов
-            const resourceLoader = new ResourceLoader(this);
-
-            // Загружаем ресурсы через ResourceLoader
-            resourceLoader.loadResources(resources);
-
-            // Отслеживаем прогресс загрузки
-            this.load.on('progress', (value) => {
-                progressUI.progressBar.clear()
-                    .fillStyle(0xffffff, 1)
-                    .fillRect(
-                        width / 2 - 500,
-                        height / 2 + 200,
-                        1000 * value,
-                        1
-                    );
-            });
-
-            // Когда все загружено
-            this.load.on('complete', () => {
-                // Сохраняем информацию о загруженных ресурсах
-                Object.values(resources).flat().forEach(resource => {
-                    this.loadedResources.add(resource.key);
-                });
-
-                this.time.delayedCall(500, () => {
-                    progressUI.progressBar.destroy();
-                    progressUI.progressBox.destroy();
-                    
-                    this.cameras.main.fadeOut(1000);
-                    this.time.delayedCall(1000, () => {
-                        const { nextScene, gameData } = this.sceneData;
-                        this.scene.start(nextScene, gameData);
-                    });
-                });
-            });
+            // 4. Запускаем фейковую загрузку (как в старой версии)
+            this.startFakeLoading(progressUI);
+            
+            // 5. Параллельно начинаем реальную загрузку ресурсов
+            this.startRealLoading();
         });
-
-        this.load.start();
     }
 
     createProgressUI(width, height) {
         const progressBox = this.add.graphics()
             .lineStyle(1, 0x333333)
-            .strokeRect(
-                width / 2 - 500,
-                height / 2 + 200,
-                1000,
-                1
-            );
+            .strokeRect(width/2 - 500, height/2 + 200, 1000, 1);
 
         const progressBar = this.add.graphics();
 
         return { progressBox, progressBar };
+    }
+
+    startFakeLoading({ progressBox, progressBar }) {
+        let fakeProgress = 0;
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+
+        const updateProgress = () => {
+            fakeProgress += 0.01;
+            
+            // Обновляем прогресс-бар
+            progressBar.clear()
+                .fillStyle(0xffffff, 1)
+                .fillRect(
+                    width/2 - 500,
+                    height/2 + 200,
+                    1000 * Math.min(fakeProgress, 1),
+                    1
+                );
+
+            if (fakeProgress < 1) {
+                setTimeout(updateProgress, 50);
+            } else {
+                this.fakeLoadingComplete = true;
+                // Проверяем, завершена ли реальная загрузка
+                if (this.realLoadingComplete) {
+                    this.finishLoading();
+                }
+            }
+        };
+
+        updateProgress();
+    }
+
+    startRealLoading() {
+        // Получаем нужные ресурсы для главы
+        const resources = this.getResourcesToLoad();
+        
+        // Загружаем через ResourceLoader
+        const resourceLoader = new ResourceLoader(this);
+        resourceLoader.loadResources(resources);
+        
+        // Отслеживаем завершение реальной загрузки
+        this.load.once('complete', () => {
+            // Сохраняем информацию о загруженных ресурсах
+            Object.values(resources).flat().forEach(resource => {
+                this.loadedResources.add(resource.key);
+            });
+            
+            this.realLoadingComplete = true;
+            
+            // Проверяем, завершена ли фейковая загрузка
+            if (this.fakeLoadingComplete) {
+                this.finishLoading();
+            }
+        });
+        
+        // Начинаем загрузку
+        this.load.start();
+    }
+
+    finishLoading() {
+        // Небольшая задержка для плавности
+        setTimeout(() => {
+            // Переходим к следующей сцене
+            const { nextScene, gameData } = this.sceneData;
+            this.scene.start(nextScene, gameData);
+        }, 500);
     }
 
     getResourcesToLoad() {
@@ -517,6 +543,8 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
                 { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
                 { key: 'menu-btn', path: './UI/ApprovedUI/menu-btn.png' },
+                { key: 'resume-btn', path: './UI/ApprovedUI/resume-btn.png' },
+                { key: 'exit-btn', path: './UI/ApprovedUI/exit-btn.png' },
                 { key: 'close', path: './UI/ApprovedUI/Close.png' },
                 { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
                 { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
@@ -592,6 +620,124 @@ const GAME_CONFIG = {
         error: 0xff0000,        // Красный цвет для ошибок
         hint: 0xffd700,         // Золотой цвет для подсказок
         background: 0x000000    // Черный цвет для фона
+    }
+}
+
+class PauseMenuScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'PauseMenuScene' });
+    }
+
+    init(data) {
+        // Сохраняем ссылку на игровую сцену
+        this.gameScene = data.gameScene;
+    }
+
+    create() {
+        // Получаем размеры экрана
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        // Создаем затемнение фона
+        this.overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
+            .setOrigin(0)
+            .setDepth(0);
+        
+        // Кнопка "Продолжить" с оригинальным размером 325x75
+        this.resumeButton = this.add.sprite(centerX, centerY - 100, 'resume-btn')
+            .setInteractive({ useHandCursor: true })
+            .setDisplaySize(325, 75)
+            .setDepth(1);
+        
+        // Кнопка "Выход в меню" с оригинальным размером 183x75
+        this.exitButton = this.add.sprite(centerX, centerY + 100, 'exit-btn')
+            .setInteractive({ useHandCursor: true })
+            .setDisplaySize(183, 75)
+            .setDepth(1);
+        
+        // Обработчики для кнопки "Продолжить"
+        this.resumeButton.on('pointerover', () => {
+            this.tweens.add({
+                targets: this.resumeButton,
+                scale: 1.1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.resumeButton.on('pointerout', () => {
+            this.tweens.add({
+                targets: this.resumeButton,
+                scale: 1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.resumeButton.on('pointerdown', () => {
+            this.resumeButton.setTint(0xcccccc);
+        });
+        
+        this.resumeButton.on('pointerup', () => {
+            this.resumeButton.clearTint();
+            this.closeMenu();
+        });
+        
+        // Обработчики для кнопки "Выход"
+        this.exitButton.on('pointerover', () => {
+            this.tweens.add({
+                targets: this.exitButton,
+                scale: 1.1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.exitButton.on('pointerout', () => {
+            this.tweens.add({
+                targets: this.exitButton,
+                scale: 1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.exitButton.on('pointerdown', () => {
+            this.exitButton.setTint(0xcccccc);
+        });
+        
+        this.exitButton.on('pointerup', () => {
+            this.exitButton.clearTint();
+            this.exitToMainMenu();
+        });
+        
+        // Обработчик клавиши ESC - также закрывает меню паузы
+        this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.escKey.on('down', () => this.closeMenu());
+    }
+
+    closeMenu() {
+        // ВАЖНОЕ ИЗМЕНЕНИЕ: Проверяем, приостановлена ли игровая сцена
+        if (this.scene.isPaused('GameScene')) {
+            this.scene.resume('GameScene'); // Возобновляем только если приостановлена
+        }
+        
+        // Останавливаем сцену паузы в любом случае
+        this.scene.stop();
+    }
+
+    exitToMainMenu() {
+        // ВАЖНОЕ ИЗМЕНЕНИЕ: Проверяем состояние игровой сцены
+        if (this.scene.isActive('GameScene')) {
+            this.scene.stop('GameScene'); // Останавливаем только если активна
+        } else if (this.scene.isPaused('GameScene')) {
+            this.scene.stop('GameScene'); // Останавливаем если приостановлена
+        }
+        
+        // Запускаем главное меню
+        this.scene.start('MainMenuScene');
     }
 }
 
@@ -1878,16 +2024,21 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
-        this.initInventory();        // сбрасываем inventory
-        this.createInventoryUI();    // делаем фон и слоты
-        this.restoreInventoryItems();// восстанавливаем предметы
+        // Инициализация инвентаря
+        this.initInventory();
+        this.createInventoryUI();
+        this.restoreInventoryItems();
 
         // Инициализация игровых систем
         this.popupSystem = new PopupSystem(this);
+        
+        // Плавное появление сцены
         this.cameras.main.fadeIn(1000);
+        
+        // Создание фона текущей локации
         this.createBackground();
 
-        // Система энергии
+        // Инициализация системы энергии
         if (!globalEnergySystem) {
             globalEnergySystem = new EnergySystem(this);
         } else {
@@ -1896,28 +2047,80 @@ class GameScene extends Phaser.Scene {
         }
         this.energySystem = globalEnergySystem;
 
-        // Система дневника
+        // Инициализация системы дневника
         this.journalSystem = new JournalSystem(this);
 
-        // Создание UI
-        this.menuButton = this.createMenuButton();
+        // Создание UI элементов
+        this.createPauseButton();  // Заменяем меню-кнопку на кнопку паузы
         this.createHintButton();
 
-        // Обработчик промахов
+        // Обработчик промахов (кликов по пустому месту)
         this.input.on('pointerdown', (pointer) => {
             if (!pointer.gameObject) {
                 this.energySystem.handleMiss();
             }
         });
 
-        // Локация
+        // Создание игровых объектов для локации "leftroom"
         if (this.location === 'leftroom') {
             this.createObjects();
             this.createUI();
         }
 
-        // Навигация
+        // Создание зон навигации
         NavigationUtils.createNavigationZones(this);
+        
+        // Инициализация времени последнего взаимодействия
+        this.lastInteractionTime = this.time.now;
+    }
+
+    createPauseButton() {
+        const buttonSize = 96;
+        const buttonX = 75;
+        const buttonY = 70;
+
+        this.pauseButton = this.add.sprite(buttonX, buttonY, 'menu-btn')
+            .setInteractive({ useHandCursor: true })
+            .setDisplaySize(buttonSize, buttonSize)
+            .setDepth(1000);
+
+        // Эффект при наведении
+        this.pauseButton.on('pointerover', () => {
+            this.tweens.add({
+                targets: this.pauseButton,
+                scale: 1.1,
+                duration: 200,
+                ease: 'Power2'
+            });
+        });
+
+        this.pauseButton.on('pointerout', () => {
+            this.tweens.add({
+                targets: this.pauseButton,
+                scale: 1,
+                duration: 200,
+                ease: 'Power2'
+            });
+        });
+
+        this.pauseButton.on('pointerdown', () => {
+            this.pauseButton.setTint(0xcccccc);
+        });
+
+        this.pauseButton.on('pointerup', () => {
+            this.pauseButton.clearTint();
+            this.openPauseMenu();
+        });
+    }
+
+    openPauseMenu() {
+        // Приостанавливаем текущую сцену
+        this.scene.pause();
+        
+        // Запускаем сцену паузы
+        this.scene.launch('PauseMenuScene', { 
+            gameScene: this 
+        });
     }
 
     createInventoryUI() {
@@ -3133,7 +3336,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [IntroScene, MainMenuScene, LoadingScene, GameScene],
+    scene: [IntroScene, MainMenuScene, LoadingScene, GameScene, PauseMenuScene],
     physics: {
         default: 'arcade',
         arcade: {
