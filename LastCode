@@ -113,6 +113,9 @@ class MainMenuScene extends Phaser.Scene {
         };
         // Инициализируем конфигурацию историй
         this.stories = JSON.parse(JSON.stringify(STORIES_CONFIG)); // Создаем копию конфигурации
+        
+        // Настройки звука
+        this.musicVolume = 0.5; // Значение от 0 до 1
     }
 
     preload() {
@@ -123,6 +126,9 @@ class MainMenuScene extends Phaser.Scene {
         this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
         this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
         this.load.image('btn-glow', './UI/ApprovedUI/btn-glow.png');
+        
+        // Загружаем фоновую музыку
+        this.load.audio('main-music', './UI/Backgrounds/Audio/main-menu-music.mp3');
     }
 
     create() {
@@ -131,6 +137,13 @@ class MainMenuScene extends Phaser.Scene {
         // Добавляем фон
         this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'main-bg')
             .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
+
+        // Запускаем фоновую музыку
+        this.backgroundMusic = this.sound.add('main-music', { 
+            loop: true, 
+            volume: this.musicVolume 
+        });
+        this.backgroundMusic.play();
 
         this.createMainMenu();
         this.storyBtnsGroup = this.add.group();
@@ -328,45 +341,46 @@ class MainMenuScene extends Phaser.Scene {
         });
     }
 
-    // Остальные методы без изменений
-    menuClick(btnIndex) {
-        if (btnIndex === 0) {
-            this.showStoryMenu();
-        } else if (btnIndex === 2) {
-            this.showOptionsMenu();
-        } else {
-            this.clearStoryMenu();
-        }
-    }
-
-    clearStoryMenu() {
-        this.storyBtnsGroup.clear(true, true);
-    }
-
-    closeChaptersModal() {
-        if (this.chaptersModalGroup) {
-            this.chaptersModalGroup.clear(true, true);
-        }
-    }
-
     showOptionsMenu() {
         this.clearStoryMenu();
-        const x = GAME_CONFIG.width / 2;
-        const y = 350;
-        const group = this.add.group();
+        this.closeOptionsModal();
 
-        const optionsTitle = this.add.text(x, y, 'Мова / Language:', {
+        // Создаем модальное окно в том же стиле что и окно глав
+        const modalBg = this.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            700, 400,
+            0x181818, 0.95
+        ).setStrokeStyle(4, 0xffd700);
+
+        const closeBtn = this.add.text(
+            GAME_CONFIG.width / 2 + 320,
+            GAME_CONFIG.height / 2 - 170,
+            '×',
+            { font: '48px Arial', color: '#FFD700' }
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        closeBtn.on('pointerdown', () => this.closeOptionsModal());
+
+        this.optionsModalGroup = this.add.group([modalBg, closeBtn]);
+
+        const centerX = GAME_CONFIG.width / 2;
+        const centerY = GAME_CONFIG.height / 2;
+
+        // Заголовок языка
+        const langTitle = this.add.text(centerX, centerY - 100, 'Мова / Language:', {
             font: '32px Arial',
             color: '#FFD700'
         }).setOrigin(0.5);
-        group.add(optionsTitle);
+        this.optionsModalGroup.add(langTitle);
 
-        const enBtn = this.add.text(x - 70, y + 60, 'EN', {
+        // Кнопки языка
+        const enBtn = this.add.text(centerX - 70, centerY - 40, 'EN', {
             font: '28px Arial',
             color: this.currentLanguage === 'en' ? '#FFD700' : '#999'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-        const uaBtn = this.add.text(x + 70, y + 60, 'UA', {
+        const uaBtn = this.add.text(centerX + 70, centerY - 40, 'UA', {
             font: '28px Arial',
             color: this.currentLanguage === 'ua' ? '#FFD700' : '#999'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -383,10 +397,131 @@ class MainMenuScene extends Phaser.Scene {
             enBtn.setColor('#999');
         });
 
-        group.add(enBtn);
-        group.add(uaBtn);
+        this.optionsModalGroup.add(enBtn);
+        this.optionsModalGroup.add(uaBtn);
 
-        this.storyBtnsGroup.addMultiple(group.getChildren());
+        // Заголовок громкости
+        const volumeTitle = this.add.text(centerX, centerY + 30, 'Гучність музики / Music Volume:', {
+            font: '32px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5);
+        this.optionsModalGroup.add(volumeTitle);
+
+        // Слайдер громкости
+        this.createVolumeSlider(centerX, centerY + 80);
+    }
+
+    createVolumeSlider(x, y) {
+        const sliderWidth = 300;
+        const sliderHeight = 10;
+        
+        // Фон слайдера
+        const sliderBg = this.add.rectangle(x, y, sliderWidth, sliderHeight, 0x555555)
+            .setStrokeStyle(2, 0xffd700);
+        this.optionsModalGroup.add(sliderBg);
+
+        // Заполнение слайдера
+        const fillWidth = sliderWidth * this.musicVolume;
+        const sliderFill = this.add.rectangle(
+            x - sliderWidth/2 + fillWidth/2, 
+            y, 
+            fillWidth, 
+            sliderHeight, 
+            0xffd700
+        );
+        this.optionsModalGroup.add(sliderFill);
+
+        // Ползунок
+        const knobX = x - sliderWidth/2 + sliderWidth * this.musicVolume;
+        const sliderKnob = this.add.circle(knobX, y, 15, 0xffd700)
+            .setStrokeStyle(3, 0xffffff)
+            .setInteractive({ useHandCursor: true, draggable: true });
+        this.optionsModalGroup.add(sliderKnob);
+
+        // Текст с процентами
+        const volumePercent = this.add.text(x, y + 40, `${Math.round(this.musicVolume * 100)}%`, {
+            font: '24px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5);
+        this.optionsModalGroup.add(volumePercent);
+
+        // Обработка перетаскивания
+        sliderKnob.on('drag', (pointer, dragX, dragY) => {
+            const minX = x - sliderWidth/2;
+            const maxX = x + sliderWidth/2;
+            const clampedX = Phaser.Math.Clamp(dragX, minX, maxX);
+            
+            sliderKnob.x = clampedX;
+            
+            // Обновляем значение громкости
+            this.musicVolume = (clampedX - minX) / sliderWidth;
+            
+            // Обновляем заполнение
+            const newFillWidth = sliderWidth * this.musicVolume;
+            sliderFill.setSize(newFillWidth, sliderHeight);
+            sliderFill.x = x - sliderWidth/2 + newFillWidth/2;
+            
+            // Обновляем текст
+            volumePercent.setText(`${Math.round(this.musicVolume * 100)}%`);
+            
+            // Применяем громкость к музыке
+            if (this.backgroundMusic) {
+                this.backgroundMusic.setVolume(this.musicVolume);
+            }
+        });
+
+        // Клик по фону слайдера
+        sliderBg.setInteractive().on('pointerdown', (pointer) => {
+            const localX = pointer.x;
+            const minX = x - sliderWidth/2;
+            const maxX = x + sliderWidth/2;
+            const clampedX = Phaser.Math.Clamp(localX, minX, maxX);
+            
+            sliderKnob.x = clampedX;
+            
+            // Обновляем значение громкости
+            this.musicVolume = (clampedX - minX) / sliderWidth;
+            
+            // Обновляем заполнение
+            const newFillWidth = sliderWidth * this.musicVolume;
+            sliderFill.setSize(newFillWidth, sliderHeight);
+            sliderFill.x = x - sliderWidth/2 + newFillWidth/2;
+            
+            // Обновляем текст
+            volumePercent.setText(`${Math.round(this.musicVolume * 100)}%`);
+            
+            // Применяем громкость к музыке
+            if (this.backgroundMusic) {
+                this.backgroundMusic.setVolume(this.musicVolume);
+            }
+        });
+    }
+
+    closeOptionsModal() {
+        if (this.optionsModalGroup) {
+            this.optionsModalGroup.clear(true, true);
+        }
+    }
+
+    menuClick(btnIndex) {
+        if (btnIndex === 0) {
+            this.showStoryMenu();
+        } else if (btnIndex === 2) {
+            this.showOptionsMenu();
+        } else {
+            this.clearStoryMenu();
+        }
+    }
+
+    clearStoryMenu() {
+        this.storyBtnsGroup.clear(true, true);
+        this.closeOptionsModal();
+    }
+
+    closeChaptersModal() {
+        if (this.chaptersModalGroup) {
+            this.chaptersModalGroup.clear(true, true);
+        }
     }
 
     switchLanguage(nextLang) {
@@ -543,6 +678,8 @@ class LoadingScene extends Phaser.Scene {
                 { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
                 { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
                 { key: 'menu-btn', path: './UI/ApprovedUI/menu-btn.png' },
+                { key: 'resume-btn', path: './UI/ApprovedUI/resume-btn.png' },
+                { key: 'exit-btn', path: './UI/ApprovedUI/exit-btn.png' },
                 { key: 'close', path: './UI/ApprovedUI/Close.png' },
                 { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
                 { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
@@ -618,6 +755,124 @@ const GAME_CONFIG = {
         error: 0xff0000,        // Красный цвет для ошибок
         hint: 0xffd700,         // Золотой цвет для подсказок
         background: 0x000000    // Черный цвет для фона
+    }
+}
+
+class PauseMenuScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'PauseMenuScene' });
+    }
+
+    init(data) {
+        // Сохраняем ссылку на игровую сцену
+        this.gameScene = data.gameScene;
+    }
+
+    create() {
+        // Получаем размеры экрана
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        // Создаем затемнение фона
+        this.overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
+            .setOrigin(0)
+            .setDepth(0);
+        
+        // Кнопка "Продолжить" с оригинальным размером 325x75
+        this.resumeButton = this.add.sprite(centerX, centerY - 100, 'resume-btn')
+            .setInteractive({ useHandCursor: true })
+            .setDisplaySize(325, 75)
+            .setDepth(1);
+        
+        // Кнопка "Выход в меню" с оригинальным размером 183x75
+        this.exitButton = this.add.sprite(centerX, centerY + 100, 'exit-btn')
+            .setInteractive({ useHandCursor: true })
+            .setDisplaySize(183, 75)
+            .setDepth(1);
+        
+        // Обработчики для кнопки "Продолжить"
+        this.resumeButton.on('pointerover', () => {
+            this.tweens.add({
+                targets: this.resumeButton,
+                scale: 1.1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.resumeButton.on('pointerout', () => {
+            this.tweens.add({
+                targets: this.resumeButton,
+                scale: 1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.resumeButton.on('pointerdown', () => {
+            this.resumeButton.setTint(0xcccccc);
+        });
+        
+        this.resumeButton.on('pointerup', () => {
+            this.resumeButton.clearTint();
+            this.closeMenu();
+        });
+        
+        // Обработчики для кнопки "Выход"
+        this.exitButton.on('pointerover', () => {
+            this.tweens.add({
+                targets: this.exitButton,
+                scale: 1.1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.exitButton.on('pointerout', () => {
+            this.tweens.add({
+                targets: this.exitButton,
+                scale: 1,
+                duration: 150,
+                ease: 'Power2'
+            });
+        });
+        
+        this.exitButton.on('pointerdown', () => {
+            this.exitButton.setTint(0xcccccc);
+        });
+        
+        this.exitButton.on('pointerup', () => {
+            this.exitButton.clearTint();
+            this.exitToMainMenu();
+        });
+        
+        // Обработчик клавиши ESC - также закрывает меню паузы
+        this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.escKey.on('down', () => this.closeMenu());
+    }
+
+    closeMenu() {
+        // ВАЖНОЕ ИЗМЕНЕНИЕ: Проверяем, приостановлена ли игровая сцена
+        if (this.scene.isPaused('GameScene')) {
+            this.scene.resume('GameScene'); // Возобновляем только если приостановлена
+        }
+        
+        // Останавливаем сцену паузы в любом случае
+        this.scene.stop();
+    }
+
+    exitToMainMenu() {
+        // ВАЖНОЕ ИЗМЕНЕНИЕ: Проверяем состояние игровой сцены
+        if (this.scene.isActive('GameScene')) {
+            this.scene.stop('GameScene'); // Останавливаем только если активна
+        } else if (this.scene.isPaused('GameScene')) {
+            this.scene.stop('GameScene'); // Останавливаем если приостановлена
+        }
+        
+        // Запускаем главное меню
+        this.scene.start('MainMenuScene');
     }
 }
 
@@ -1904,16 +2159,21 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
-        this.initInventory();        // сбрасываем inventory
-        this.createInventoryUI();    // делаем фон и слоты
-        this.restoreInventoryItems();// восстанавливаем предметы
+        // Инициализация инвентаря
+        this.initInventory();
+        this.createInventoryUI();
+        this.restoreInventoryItems();
 
         // Инициализация игровых систем
         this.popupSystem = new PopupSystem(this);
+        
+        // Плавное появление сцены
         this.cameras.main.fadeIn(1000);
+        
+        // Создание фона текущей локации
         this.createBackground();
 
-        // Система энергии
+        // Инициализация системы энергии
         if (!globalEnergySystem) {
             globalEnergySystem = new EnergySystem(this);
         } else {
@@ -1922,28 +2182,80 @@ class GameScene extends Phaser.Scene {
         }
         this.energySystem = globalEnergySystem;
 
-        // Система дневника
+        // Инициализация системы дневника
         this.journalSystem = new JournalSystem(this);
 
-        // Создание UI
-        this.menuButton = this.createMenuButton();
+        // Создание UI элементов
+        this.createPauseButton();  // Заменяем меню-кнопку на кнопку паузы
         this.createHintButton();
 
-        // Обработчик промахов
+        // Обработчик промахов (кликов по пустому месту)
         this.input.on('pointerdown', (pointer) => {
             if (!pointer.gameObject) {
                 this.energySystem.handleMiss();
             }
         });
 
-        // Локация
+        // Создание игровых объектов для локации "leftroom"
         if (this.location === 'leftroom') {
             this.createObjects();
             this.createUI();
         }
 
-        // Навигация
+        // Создание зон навигации
         NavigationUtils.createNavigationZones(this);
+        
+        // Инициализация времени последнего взаимодействия
+        this.lastInteractionTime = this.time.now;
+    }
+
+    createPauseButton() {
+        const buttonSize = 96;
+        const buttonX = 75;
+        const buttonY = 70;
+
+        this.pauseButton = this.add.sprite(buttonX, buttonY, 'menu-btn')
+            .setInteractive({ useHandCursor: true })
+            .setDisplaySize(buttonSize, buttonSize)
+            .setDepth(1000);
+
+        // Эффект при наведении
+        this.pauseButton.on('pointerover', () => {
+            this.tweens.add({
+                targets: this.pauseButton,
+                scale: 1.1,
+                duration: 200,
+                ease: 'Power2'
+            });
+        });
+
+        this.pauseButton.on('pointerout', () => {
+            this.tweens.add({
+                targets: this.pauseButton,
+                scale: 1,
+                duration: 200,
+                ease: 'Power2'
+            });
+        });
+
+        this.pauseButton.on('pointerdown', () => {
+            this.pauseButton.setTint(0xcccccc);
+        });
+
+        this.pauseButton.on('pointerup', () => {
+            this.pauseButton.clearTint();
+            this.openPauseMenu();
+        });
+    }
+
+    openPauseMenu() {
+        // Приостанавливаем текущую сцену
+        this.scene.pause();
+        
+        // Запускаем сцену паузы
+        this.scene.launch('PauseMenuScene', { 
+            gameScene: this 
+        });
     }
 
     createInventoryUI() {
@@ -3159,7 +3471,7 @@ const config = {
         width: 1920,
         height: 1080
     },
-    scene: [IntroScene, MainMenuScene, LoadingScene, GameScene],
+    scene: [IntroScene, MainMenuScene, LoadingScene, GameScene, PauseMenuScene],
     physics: {
         default: 'arcade',
         arcade: {
