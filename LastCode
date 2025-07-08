@@ -116,6 +116,9 @@ class MainMenuScene extends Phaser.Scene {
         
         // Настройки звука
         this.musicVolume = 0.5; // Значение от 0 до 1
+        
+        // Система состояний меню
+        this.currentMenuState = 'main'; // 'main', 'story', 'achievements', 'options', 'help'
     }
 
     preload() {
@@ -255,6 +258,42 @@ class MainMenuScene extends Phaser.Scene {
         btn.on('pointerdown', () => this.menuClick(this.menuBtnObjs.indexOf(btn)));
     }
 
+    // ИЗМЕНЕННЫЙ МЕТОД - теперь с системой состояний
+    menuClick(btnIndex) {
+        // Всегда закрываем все открытые меню перед открытием нового
+        this.clearAllMenus();
+        
+        switch(btnIndex) {
+            case 0: // Play
+                this.currentMenuState = 'story';
+                this.showStoryMenu();
+                break;
+            case 1: // Achievements
+                this.currentMenuState = 'achievements';
+                this.showAchievementsMenu();
+                break;
+            case 2: // Options
+                this.currentMenuState = 'options';
+                this.showOptionsMenu();
+                break;
+            case 3: // Help
+                this.currentMenuState = 'help';
+                this.showHelpMenu();
+                break;
+        }
+    }
+
+    // НОВЫЙ МЕТОД - закрывает все меню
+    clearAllMenus() {
+        // Закрываем все возможные меню
+        this.clearStoryMenu();
+        this.closeOptionsModal();
+        this.closeAchievementsMenu();
+        this.closeHelpMenu();
+        this.closeChaptersModal();
+        this.currentMenuState = 'main';
+    }
+
     showStoryMenu() {
         this.clearStoryMenu();
         const startX = 800;
@@ -275,6 +314,63 @@ class MainMenuScene extends Phaser.Scene {
             btn.on('pointerdown', () => this.openChaptersModal(storyKey));
             this.storyBtnsGroup.add(btn);
         });
+    }
+
+    // НОВЫЙ МЕТОД - меню достижений
+    showAchievementsMenu() {
+        this.achievementsGroup = this.add.group();
+        
+        const achievementTitle = this.add.text(GAME_CONFIG.width / 2, 200, 'ДОСТИЖЕНИЯ', {
+            font: '36px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5);
+        
+        this.achievementsGroup.add(achievementTitle);
+        
+        // Пример достижений
+        const achievements = [
+            'Первая история завершена',
+            'Собрано 10 предметов',
+            'Найдено 5 секретов'
+        ];
+        
+        achievements.forEach((achievement, i) => {
+            const achievementText = this.add.text(GAME_CONFIG.width / 2, 300 + i * 60, achievement, {
+                font: '24px Arial',
+                color: '#CCCCCC',
+                backgroundColor: '#333333',
+                padding: { left: 20, right: 20, top: 10, bottom: 10 }
+            }).setOrigin(0.5);
+            
+            this.achievementsGroup.add(achievementText);
+        });
+    }
+
+    // НОВЫЙ МЕТОД - меню помощи
+    showHelpMenu() {
+        this.helpGroup = this.add.group();
+        
+        const helpTitle = this.add.text(GAME_CONFIG.width / 2, 200, 'ПОМОЩЬ', {
+            font: '36px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5);
+        
+        this.helpGroup.add(helpTitle);
+        
+        const helpText = this.add.text(GAME_CONFIG.width / 2, 300, 
+            'Добро пожаловать в игру!\n\n' +
+            'Используйте кнопки меню для навигации.\n' +
+            'Выберите историю и главу для начала игры.\n' +
+            'Настройте звук в разделе "Настройки".',
+            {
+                font: '24px Arial',
+                color: '#CCCCCC',
+                align: 'center',
+                wordWrap: { width: 600 }
+            }
+        ).setOrigin(0.5);
+        
+        this.helpGroup.add(helpText);
     }
 
     openChaptersModal(storyKey) {
@@ -342,7 +438,6 @@ class MainMenuScene extends Phaser.Scene {
     }
 
     showOptionsMenu() {
-        this.clearStoryMenu();
         this.closeOptionsModal();
 
         // Создаем модальное окно в том же стиле что и окно глав
@@ -503,19 +598,23 @@ class MainMenuScene extends Phaser.Scene {
         }
     }
 
-    menuClick(btnIndex) {
-        if (btnIndex === 0) {
-            this.showStoryMenu();
-        } else if (btnIndex === 2) {
-            this.showOptionsMenu();
-        } else {
-            this.clearStoryMenu();
+    // НОВЫЙ МЕТОД - закрытие меню достижений
+    closeAchievementsMenu() {
+        if (this.achievementsGroup) {
+            this.achievementsGroup.clear(true, true);
         }
     }
 
+    // НОВЫЙ МЕТОД - закрытие меню помощи
+    closeHelpMenu() {
+        if (this.helpGroup) {
+            this.helpGroup.clear(true, true);
+        }
+    }
+
+    // ИЗМЕНЕННЫЙ МЕТОД - убрал clearStoryMenu() отсюда, так как теперь это делает clearAllMenus()
     clearStoryMenu() {
         this.storyBtnsGroup.clear(true, true);
-        this.closeOptionsModal();
     }
 
     closeChaptersModal() {
