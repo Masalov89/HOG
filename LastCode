@@ -2,8 +2,8 @@ class IntroScene extends Phaser.Scene {
     constructor() { super({ key: 'IntroScene' }); }
 
     preload() {
-        this.load.video('logo', './UI/Logo/corso-logo.mp4', 'loadeddata', false, true);
-        this.load.image('game-title', './UI/Backgrounds/game-title.png');
+        this.load.video('logo', './Assets/Backgrounds/Intro/corso-logo.mp4', 'loadeddata', false, true);
+        this.load.image('game-title', './Assets/Backgrounds/MainMenu/game-title.png');
     }
 
     create() {
@@ -54,8 +54,8 @@ class IntroScene extends Phaser.Scene {
             ease: 'Power2'
         });
 
-        // Через 5 секунд — автоматический переход в главное меню
-        this.time.delayedCall(5000, () => this.fadeToMenu());
+        // Через 3 секунды — автоматический переход в главное меню
+        this.time.delayedCall(3000, () => this.fadeToMenu());
     }
 
     fadeToMenu() {
@@ -111,47 +111,73 @@ class MainMenuScene extends Phaser.Scene {
         this.buttonLabels = {
             ua: ['ГРАТИ', 'ДОСЯГНЕННЯ', 'НАЛАШТУВАННЯ', 'ДОПОМОГА']
         };
-        // Инициализируем конфигурацию историй
-        this.stories = JSON.parse(JSON.stringify(STORIES_CONFIG)); // Создаем копию конфигурации
-        
-        // Настройки звука
-        this.musicVolume = 0.5; // Значение от 0 до 1
-        
-        // Система состояний меню
-        this.currentMenuState = 'main'; // 'main', 'story', 'achievements', 'options', 'help'
+        this.stories = JSON.parse(JSON.stringify(STORIES_CONFIG));
+        this.musicVolume = 0.5;
+        this.currentMenuState = 'main';
+        this.selectedStory = null;
     }
 
     preload() {
-        // Загружаем только ресурсы для меню
-        this.load.image('main-bg', './UI/Backgrounds/main-bg.jpg');
-        this.load.image('play-btn', './UI/ApprovedUI/play-btn.png');
-        this.load.image('achiev-btn', './UI/ApprovedUI/achiev-btn.png');
-        this.load.image('options-btn', './UI/ApprovedUI/options-btn.png');
-        this.load.image('help-btn', './UI/ApprovedUI/help-btn.png');
-        this.load.image('btn-glow', './UI/ApprovedUI/btn-glow.png');
-        
-        // Загружаем фоновую музыку
-        this.load.audio('main-music', './UI/Backgrounds/Audio/main-menu-music.mp3');
+        this.load.image('main-bg', './Assets/Backgrounds/MainMenu/main-bg.jpg');
+        this.load.image('play-btn', './Assets/ApprovedUI/play-btn.png');
+        this.load.image('achiev-btn', './Assets/ApprovedUI/achiev-btn.png');
+        this.load.image('options-btn', './Assets/ApprovedUI/options-btn.png');
+        this.load.image('help-btn', './Assets/ApprovedUI/help-btn.png');
+        this.load.image('btn-glow', './Assets/ApprovedUI/btn-glow.png');
+        this.load.audio('main-music', './Assets/Backgrounds/MainMenu/Audio/main-menu-music.mp3');
     }
 
     create() {
         this.cameras.main.fadeIn(1000);
-
-        // Добавляем фон
         this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'main-bg')
             .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
 
-        // Запускаем фоновую музыку
         this.backgroundMusic = this.sound.add('main-music', { 
             loop: true, 
             volume: this.musicVolume 
         });
         this.backgroundMusic.play();
 
-        this.createMainMenu();
-        this.storyBtnsGroup = this.add.group();
+        // Создаем контейнер для модальных окон
+        this.modalContainer = this.add.container(0, 0).setDepth(100).setVisible(false);
+        
+        // Основная панель модального окна
+        this.modalPanel = this.add.rectangle(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2,
+            800, 600,
+            0x181818, 0.95
+        ).setStrokeStyle(4, 0xffd700);
+        this.modalContainer.add(this.modalPanel);
 
-        // Добавляем энергию
+        // Заголовок модального окна
+        this.modalTitle = this.add.text(
+            GAME_CONFIG.width / 2,
+            GAME_CONFIG.height / 2 - 250,
+            '',
+            { font: '36px Arial', color: '#FFD700' }
+        ).setOrigin(0.5);
+        this.modalContainer.add(this.modalTitle);
+
+        // Кнопка закрытия
+        this.modalCloseBtn = this.add.text(
+            GAME_CONFIG.width / 2 + 350,
+            GAME_CONFIG.height / 2 - 280,
+            '×',
+            { font: '48px Arial', color: '#FFD700' }
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true })
+         .on('pointerdown', () => this.closeModal());
+        this.modalContainer.add(this.modalCloseBtn);
+
+        // Контейнер для контента
+        this.modalContent = this.add.container(0, 0);
+        this.modalContainer.add(this.modalContent);
+
+        this.createMainMenu();
+        this.createEnergyDisplay();
+    }
+
+    createEnergyDisplay() {
         this.energy = 400;
         this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
         this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
@@ -161,7 +187,6 @@ class MainMenuScene extends Phaser.Scene {
     }
 
     createMainMenu() {
-        // Размеры кнопок
         this.menuButtons = [
             { key: 'play-btn', width: 210, height: 75 },
             { key: 'achiev-btn', width: 296, height: 75 },
@@ -207,7 +232,7 @@ class MainMenuScene extends Phaser.Scene {
             this.setupButtonEffects(btn, glow);
 
             let label = null;
-            if (labels[i]) {
+            if (labels[i] && this.currentLanguage === 'ua') {
                 label = this.add.text(currentX, y + btnInfo.height / 2 + 30, labels[i], {
                     font: '28px Arial',
                     color: '#FFD700'
@@ -258,314 +283,248 @@ class MainMenuScene extends Phaser.Scene {
         btn.on('pointerdown', () => this.menuClick(this.menuBtnObjs.indexOf(btn)));
     }
 
-    // ИЗМЕНЕННЫЙ МЕТОД - теперь с системой состояний
     menuClick(btnIndex) {
-        // Всегда закрываем все открытые меню перед открытием нового
-        this.clearAllMenus();
+        this.closeModal();
         
         switch(btnIndex) {
-            case 0: // Play
-                this.currentMenuState = 'story';
-                this.showStoryMenu();
-                break;
-            case 1: // Achievements
-                this.currentMenuState = 'achievements';
-                this.showAchievementsMenu();
-                break;
-            case 2: // Options
-                this.currentMenuState = 'options';
-                this.showOptionsMenu();
-                break;
-            case 3: // Help
-                this.currentMenuState = 'help';
-                this.showHelpMenu();
-                break;
+            case 0: this.showPlayModal(); break;
+            case 1: this.showAchievementsModal(); break;
+            case 2: this.showOptionsModal(); break;
+            case 3: this.showHelpModal(); break;
         }
     }
 
-    // НОВЫЙ МЕТОД - закрывает все меню
-    clearAllMenus() {
-        // Закрываем все возможные меню
-        this.clearStoryMenu();
-        this.closeOptionsModal();
-        this.closeAchievementsMenu();
-        this.closeHelpMenu();
-        this.closeChaptersModal();
-        this.currentMenuState = 'main';
+    // Открытие модального окна
+    openModal(title) {
+        this.modalTitle.setText(title);
+        this.modalContainer.setVisible(true);
+        return this.modalContent;
     }
 
-    showStoryMenu() {
-        this.clearStoryMenu();
-        const startX = 800;
-        const stepX = 220;
-        const y = 200;
+    // Закрытие модального окна
+    closeModal() {
+        this.modalContainer.setVisible(false);
+        this.modalContent.removeAll(true);
+        this.selectedStory = null;
+    }
 
-        // Используем данные из конфигурации историй
+    showPlayModal() {
+        const content = this.openModal('ВЫБОР ИСТОРИИ');
+        
+        if (!this.selectedStory) {
+            this.showStoriesList(content);
+        } else {
+            this.showChaptersList(content);
+        }
+    }
+
+    showStoriesList(content) {
+        const startY = GAME_CONFIG.height / 2 - 150;
+        const stepY = 120;
+        
         Object.entries(this.stories).forEach(([storyKey, story], i) => {
-            const btn = this.add.text(startX + i * stepX, y, story.name, {
-                font: '28px Arial',
-                color: '#FFD700',
-                backgroundColor: '#292929',
-                padding: { left: 20, right: 20, top: 8, bottom: 8 }
-            }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-            btn.on('pointerover', () => btn.setColor('#FFF6A8'));
-            btn.on('pointerout', () => btn.setColor('#FFD700'));
-            btn.on('pointerdown', () => this.openChaptersModal(storyKey));
-            this.storyBtnsGroup.add(btn);
-        });
-    }
-
-    // НОВЫЙ МЕТОД - меню достижений
-    showAchievementsMenu() {
-        this.achievementsGroup = this.add.group();
-        
-        const achievementTitle = this.add.text(GAME_CONFIG.width / 2, 200, 'ДОСТИЖЕНИЯ', {
-            font: '36px Arial',
-            color: '#FFD700'
-        }).setOrigin(0.5);
-        
-        this.achievementsGroup.add(achievementTitle);
-        
-        // Пример достижений
-        const achievements = [
-            'Первая история завершена',
-            'Собрано 10 предметов',
-            'Найдено 5 секретов'
-        ];
-        
-        achievements.forEach((achievement, i) => {
-            const achievementText = this.add.text(GAME_CONFIG.width / 2, 300 + i * 60, achievement, {
-                font: '24px Arial',
-                color: '#CCCCCC',
-                backgroundColor: '#333333',
-                padding: { left: 20, right: 20, top: 10, bottom: 10 }
-            }).setOrigin(0.5);
-            
-            this.achievementsGroup.add(achievementText);
-        });
-    }
-
-    // НОВЫЙ МЕТОД - меню помощи
-    showHelpMenu() {
-        this.helpGroup = this.add.group();
-        
-        const helpTitle = this.add.text(GAME_CONFIG.width / 2, 200, 'ПОМОЩЬ', {
-            font: '36px Arial',
-            color: '#FFD700'
-        }).setOrigin(0.5);
-        
-        this.helpGroup.add(helpTitle);
-        
-        const helpText = this.add.text(GAME_CONFIG.width / 2, 300, 
-            'Добро пожаловать в игру!\n\n' +
-            'Используйте кнопки меню для навигации.\n' +
-            'Выберите историю и главу для начала игры.\n' +
-            'Настройте звук в разделе "Настройки".',
-            {
-                font: '24px Arial',
-                color: '#CCCCCC',
-                align: 'center',
-                wordWrap: { width: 600 }
-            }
-        ).setOrigin(0.5);
-        
-        this.helpGroup.add(helpText);
-    }
-
-    openChaptersModal(storyKey) {
-        this.closeChaptersModal();
-        const story = this.stories[storyKey];
-
-        const modalBg = this.add.rectangle(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            700, 500,
-            0x181818, 0.95
-        ).setStrokeStyle(4, 0xffd700);
-
-        const closeBtn = this.add.text(
-            GAME_CONFIG.width / 2 + 320,
-            GAME_CONFIG.height / 2 - 220,
-            '×',
-            { font: '48px Arial', color: '#FFD700' }
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        closeBtn.on('pointerdown', () => this.closeChaptersModal());
-
-        this.chaptersModalGroup = this.add.group([modalBg, closeBtn]);
-
-        // Используем главы из конфигурации
-        story.chapters.forEach((chapter, i) => {
-            const color = chapter.state === 'completed' ? '#66ff66'
-                : chapter.state === 'locked' ? '#cccccc'
-                : '#FFD700';
-
-            const card = this.add.text(
+            const storyBtn = this.add.text(
                 GAME_CONFIG.width / 2,
-                GAME_CONFIG.height / 2 - 50 + i * 90,
-                chapter.name,
+                startY + i * stepY,
+                story.name,
                 {
                     font: '32px Arial',
-                    color,
-                    backgroundColor: '#333',
-                    padding: { left: 30, right: 30, top: 14, bottom: 14 }
+                    color: '#FFD700',
+                    backgroundColor: '#333333',
+                    padding: { left: 30, right: 30, top: 15, bottom: 15 }
+                }
+            ).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+            storyBtn.on('pointerover', () => storyBtn.setColor('#FFF6A8').setScale(1.05));
+            storyBtn.on('pointerout', () => storyBtn.setColor('#FFD700').setScale(1));
+            storyBtn.on('pointerdown', () => {
+                this.selectedStory = storyKey;
+                content.removeAll(true);
+                this.showChaptersList(content);
+            });
+
+            content.add(storyBtn);
+        });
+    }
+
+    showChaptersList(content) {
+        const story = this.stories[this.selectedStory];
+        this.modalTitle.setText(story.name);
+        
+        const backBtn = this.add.text(
+            GAME_CONFIG.width / 2 - 350,
+            GAME_CONFIG.height / 2 - 280,
+            '← Назад',
+            { font: '24px Arial', color: '#FFD700' }
+        ).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+
+        backBtn.on('pointerdown', () => {
+            this.selectedStory = null;
+            content.removeAll(true);
+            this.showStoriesList(content);
+        });
+        content.add(backBtn);
+
+        const startY = GAME_CONFIG.height / 2 - 100;
+        const stepY = 80;
+
+        story.chapters.forEach((chapter, i) => {
+            let color, bgColor, interactive;
+            switch (chapter.state) {
+                case 'completed':
+                    color = '#66ff66'; bgColor = '#2a5f2a'; interactive = false; break;
+                case 'locked':
+                    color = '#666666'; bgColor = '#222222'; interactive = false; break;
+                default:
+                    color = '#FFD700'; bgColor = '#333333'; interactive = true; break;
+            }
+
+            const chapterBtn = this.add.text(
+                GAME_CONFIG.width / 2,
+                startY + i * stepY,
+                chapter.name,
+                {
+                    font: '28px Arial',
+                    color: color,
+                    backgroundColor: bgColor,
+                    padding: { left: 25, right: 25, top: 12, bottom: 12 }
                 }
             ).setOrigin(0.5);
 
-            if (chapter.state === 'available') {
-                card.setInteractive();
-                card.on('pointerdown', () => {
-                    this.closeChaptersModal();
-                    this.cameras.main.fadeOut(1000);
-                    this.time.delayedCall(1000, () => {
-                        // Переходим в LoadingScene для загрузки ресурсов
-                        this.scene.start('LoadingScene', {
-                            storyKey,
-                            chapterId: chapter.id,
-                            nextScene: 'GameScene',
-                            gameData: {
-                                location: chapter.startLocation,
-                                history: []
-                            }
-                        });
-                    });
-                });
+            if (interactive) {
+                chapterBtn.setInteractive({ useHandCursor: true })
+                    .on('pointerover', () => chapterBtn.setColor('#FFF6A8').setScale(1.05))
+                    .on('pointerout', () => chapterBtn.setColor('#FFD700').setScale(1))
+                    .on('pointerdown', () => this.startChapter(chapter));
             }
 
-            this.chaptersModalGroup.add(card);
+            content.add(chapterBtn);
         });
     }
 
-    showOptionsMenu() {
-        this.closeOptionsModal();
-
-        // Создаем модальное окно в том же стиле что и окно глав
-        const modalBg = this.add.rectangle(
-            GAME_CONFIG.width / 2,
-            GAME_CONFIG.height / 2,
-            700, 400,
-            0x181818, 0.95
-        ).setStrokeStyle(4, 0xffd700);
-
-        const closeBtn = this.add.text(
-            GAME_CONFIG.width / 2 + 320,
-            GAME_CONFIG.height / 2 - 170,
-            '×',
-            { font: '48px Arial', color: '#FFD700' }
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        closeBtn.on('pointerdown', () => this.closeOptionsModal());
-
-        this.optionsModalGroup = this.add.group([modalBg, closeBtn]);
-
-        const centerX = GAME_CONFIG.width / 2;
-        const centerY = GAME_CONFIG.height / 2;
-
-        // Заголовок языка
-        const langTitle = this.add.text(centerX, centerY - 100, 'Мова / Language:', {
-            font: '32px Arial',
-            color: '#FFD700'
-        }).setOrigin(0.5);
-        this.optionsModalGroup.add(langTitle);
-
-        // Кнопки языка
-        const enBtn = this.add.text(centerX - 70, centerY - 40, 'EN', {
-            font: '28px Arial',
-            color: this.currentLanguage === 'en' ? '#FFD700' : '#999'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        const uaBtn = this.add.text(centerX + 70, centerY - 40, 'UA', {
-            font: '28px Arial',
-            color: this.currentLanguage === 'ua' ? '#FFD700' : '#999'
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        enBtn.on('pointerdown', () => {
-            this.switchLanguage('en');
-            enBtn.setColor('#FFD700');
-            uaBtn.setColor('#999');
+    startChapter(chapter) {
+        this.scene.start('LoadingScene', {
+            storyKey: this.selectedStory,
+            chapterId: chapter.id,
+            nextScene: 'GameScene',
+            gameData: {
+                location: chapter.startLocation,
+                history: []
+            }
         });
-
-        uaBtn.on('pointerdown', () => {
-            this.switchLanguage('ua');
-            uaBtn.setColor('#FFD700');
-            enBtn.setColor('#999');
-        });
-
-        this.optionsModalGroup.add(enBtn);
-        this.optionsModalGroup.add(uaBtn);
-
-        // Заголовок громкости
-        const volumeTitle = this.add.text(centerX, centerY + 30, 'Гучність музики / Music Volume:', {
-            font: '32px Arial',
-            color: '#FFD700'
-        }).setOrigin(0.5);
-        this.optionsModalGroup.add(volumeTitle);
-
-        // Слайдер громкости
-        this.createVolumeSlider(centerX, centerY + 80);
     }
 
-    createVolumeSlider(x, y) {
-        const sliderWidth = 300;
-        const sliderHeight = 10;
+    showAchievementsModal() {
+        const content = this.openModal('ДОСТИЖЕНИЯ');
         
-        // Фон слайдера
-        const sliderBg = this.add.rectangle(x, y, sliderWidth, sliderHeight, 0x555555)
-            .setStrokeStyle(2, 0xffd700);
-        this.optionsModalGroup.add(sliderBg);
+        const achievements = [
+            { name: 'Первые шаги', description: 'Завершите первую главу', unlocked: true, icon: '🏆' },
+            { name: 'Коллекционер', description: 'Соберите 10 предметов', unlocked: true, icon: '📦' },
+            { name: 'Исследователь', description: 'Найдите 5 секретов', unlocked: false, icon: '🔍' }
+        ];
 
-        // Заполнение слайдера
+        const startY = GAME_CONFIG.height / 2 - 200;
+        achievements.forEach((achievement, i) => {
+            const y = startY + i * 90;
+            const bgColor = achievement.unlocked ? 0x2a5f2a : 0x333333;
+            const textColor = achievement.unlocked ? '#90EE90' : '#888888';
+
+            const achievementBg = this.add.rectangle(GAME_CONFIG.width / 2, y, 700, 70, bgColor)
+                .setStrokeStyle(2, achievement.unlocked ? 0xffd700 : 0x555555);
+            
+            const achievementIcon = this.add.text(GAME_CONFIG.width / 2 - 300, y, achievement.icon, {
+                font: '36px Arial'
+            }).setOrigin(0.5);
+
+            const achievementName = this.add.text(GAME_CONFIG.width / 2 - 200, y - 15, achievement.name, {
+                font: '24px Arial',
+                color: textColor
+            }).setOrigin(0, 0.5);
+
+            const achievementDesc = this.add.text(GAME_CONFIG.width / 2 - 200, y + 15, achievement.description, {
+                font: '18px Arial',
+                color: '#CCCCCC'
+            }).setOrigin(0, 0.5);
+
+            content.add([achievementBg, achievementIcon, achievementName, achievementDesc]);
+        });
+    }
+
+    showOptionsModal() {
+        const content = this.openModal('НАСТРОЙКИ');
+        
+        // Language selection
+        const langTitle = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 - 120, 'Мова / Language:', {
+            font: '28px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5);
+        content.add(langTitle);
+
+        this.enBtn = this.add.text(GAME_CONFIG.width / 2 - 70, GAME_CONFIG.height / 2 - 70, 'EN', {
+            font: '24px Arial',
+            color: this.currentLanguage === 'en' ? '#FFD700' : '#999',
+            backgroundColor: '#333333',
+            padding: { left: 20, right: 20, top: 10, bottom: 10 }
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        this.uaBtn = this.add.text(GAME_CONFIG.width / 2 + 70, GAME_CONFIG.height / 2 - 70, 'UA', {
+            font: '24px Arial',
+            color: this.currentLanguage === 'ua' ? '#FFD700' : '#999',
+            backgroundColor: '#333333',
+            padding: { left: 20, right: 20, top: 10, bottom: 10 }
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        this.enBtn.on('pointerdown', () => this.switchLanguage('en'));
+        this.uaBtn.on('pointerdown', () => this.switchLanguage('ua'));
+        content.add([this.enBtn, this.uaBtn]);
+
+        // Volume control
+        const volumeTitle = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 + 20, 'Гучність музики / Music Volume:', {
+            font: '28px Arial',
+            color: '#FFD700'
+        }).setOrigin(0.5);
+        content.add(volumeTitle);
+
+        this.createVolumeSlider(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 + 70, content);
+    }
+
+    createVolumeSlider(x, y, content) {
+        const sliderWidth = 300;
+        const sliderBg = this.add.rectangle(x, y, sliderWidth, 10, 0x555555)
+            .setStrokeStyle(2, 0xffd700);
+        
         const fillWidth = sliderWidth * this.musicVolume;
         const sliderFill = this.add.rectangle(
-            x - sliderWidth/2 + fillWidth/2, 
-            y, 
-            fillWidth, 
-            sliderHeight, 
-            0xffd700
+            x - sliderWidth/2 + fillWidth/2, y, fillWidth, 10, 0xffd700
         );
-        this.optionsModalGroup.add(sliderFill);
-
-        // Ползунок
+        
         const knobX = x - sliderWidth/2 + sliderWidth * this.musicVolume;
         const sliderKnob = this.add.circle(knobX, y, 15, 0xffd700)
             .setStrokeStyle(3, 0xffffff)
             .setInteractive({ useHandCursor: true, draggable: true });
-        this.optionsModalGroup.add(sliderKnob);
-
-        // Текст с процентами
+        
         const volumePercent = this.add.text(x, y + 40, `${Math.round(this.musicVolume * 100)}%`, {
             font: '24px Arial',
             color: '#FFD700'
         }).setOrigin(0.5);
-        this.optionsModalGroup.add(volumePercent);
 
-        // Обработка перетаскивания
-        sliderKnob.on('drag', (pointer, dragX, dragY) => {
+        content.add([sliderBg, sliderFill, sliderKnob, volumePercent]);
+
+        sliderKnob.on('drag', (pointer, dragX) => {
             const minX = x - sliderWidth/2;
             const maxX = x + sliderWidth/2;
             const clampedX = Phaser.Math.Clamp(dragX, minX, maxX);
             
             sliderKnob.x = clampedX;
-            
-            // Обновляем значение громкости
             this.musicVolume = (clampedX - minX) / sliderWidth;
             
-            // Обновляем заполнение
-            const newFillWidth = sliderWidth * this.musicVolume;
-            sliderFill.setSize(newFillWidth, sliderHeight);
-            sliderFill.x = x - sliderWidth/2 + newFillWidth/2;
-            
-            // Обновляем текст
+            sliderFill.setSize(sliderWidth * this.musicVolume, 10);
+            sliderFill.x = x - sliderWidth/2 + (sliderWidth * this.musicVolume)/2;
             volumePercent.setText(`${Math.round(this.musicVolume * 100)}%`);
             
-            // Применяем громкость к музыке
-            if (this.backgroundMusic) {
-                this.backgroundMusic.setVolume(this.musicVolume);
-            }
+            this.backgroundMusic.setVolume(this.musicVolume);
         });
 
-        // Клик по фону слайдера
         sliderBg.setInteractive().on('pointerdown', (pointer) => {
             const localX = pointer.x;
             const minX = x - sliderWidth/2;
@@ -573,64 +532,61 @@ class MainMenuScene extends Phaser.Scene {
             const clampedX = Phaser.Math.Clamp(localX, minX, maxX);
             
             sliderKnob.x = clampedX;
-            
-            // Обновляем значение громкости
             this.musicVolume = (clampedX - minX) / sliderWidth;
             
-            // Обновляем заполнение
-            const newFillWidth = sliderWidth * this.musicVolume;
-            sliderFill.setSize(newFillWidth, sliderHeight);
-            sliderFill.x = x - sliderWidth/2 + newFillWidth/2;
-            
-            // Обновляем текст
+            sliderFill.setSize(sliderWidth * this.musicVolume, 10);
+            sliderFill.x = x - sliderWidth/2 + (sliderWidth * this.musicVolume)/2;
             volumePercent.setText(`${Math.round(this.musicVolume * 100)}%`);
             
-            // Применяем громкость к музыке
-            if (this.backgroundMusic) {
-                this.backgroundMusic.setVolume(this.musicVolume);
-            }
+            this.backgroundMusic.setVolume(this.musicVolume);
         });
     }
 
-    closeOptionsModal() {
-        if (this.optionsModalGroup) {
-            this.optionsModalGroup.clear(true, true);
-        }
+    showHelpModal() {
+        const content = this.openModal('ПОМОЩЬ');
+        
+        const helpSections = [
+            {
+                title: 'Как играть:',
+                content: 'Выберите историю и главу для начала приключения.\nСледуйте сюжету и принимайте решения.'
+            },
+            {
+                title: 'Навигация:',
+                content: 'Используйте кнопки меню для перемещения по разделам.'
+            }
+        ];
+
+        const startY = GAME_CONFIG.height / 2 - 180;
+        helpSections.forEach((section, i) => {
+            const y = startY + i * 120;
+
+            const sectionTitle = this.add.text(GAME_CONFIG.width / 2, y, section.title, {
+                font: '24px Arial',
+                color: '#FFD700'
+            }).setOrigin(0.5);
+
+            const sectionContent = this.add.text(GAME_CONFIG.width / 2, y + 35, section.content, {
+                font: '18px Arial',
+                color: '#CCCCCC',
+                align: 'center',
+                wordWrap: { width: 650 }
+            }).setOrigin(0.5);
+
+            content.add([sectionTitle, sectionContent]);
+        });
     }
 
-    // НОВЫЙ МЕТОД - закрытие меню достижений
-    closeAchievementsMenu() {
-        if (this.achievementsGroup) {
-            this.achievementsGroup.clear(true, true);
-        }
-    }
+    switchLanguage(lang) {
+        if (!this.languages.includes(lang)) return;
+        this.currentLanguage = lang;
 
-    // НОВЫЙ МЕТОД - закрытие меню помощи
-    closeHelpMenu() {
-        if (this.helpGroup) {
-            this.helpGroup.clear(true, true);
-        }
-    }
-
-    // ИЗМЕНЕННЫЙ МЕТОД - убрал clearStoryMenu() отсюда, так как теперь это делает clearAllMenus()
-    clearStoryMenu() {
-        this.storyBtnsGroup.clear(true, true);
-    }
-
-    closeChaptersModal() {
-        if (this.chaptersModalGroup) {
-            this.chaptersModalGroup.clear(true, true);
-        }
-    }
-
-    switchLanguage(nextLang) {
-        if (!this.languages.includes(nextLang)) return;
-        this.currentLanguage = nextLang;
-
+        // Обновляем подписи кнопок главного меню
         const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : ['', '', '', ''];
+        
         this.menuBtnLabels.forEach((labelObj, i) => {
             if (labelObj) labelObj.destroy();
-            if (labels[i]) {
+            
+            if (labels[i] && this.currentLanguage === 'ua') {
                 const btn = this.menuBtnObjs[i];
                 this.menuBtnLabels[i] = this.add.text(
                     btn.x,
@@ -642,6 +598,12 @@ class MainMenuScene extends Phaser.Scene {
                 this.menuBtnLabels[i] = null;
             }
         });
+
+        // Обновляем кнопки языка в настройках
+        if (this.enBtn && this.uaBtn) {
+            this.enBtn.setColor(this.currentLanguage === 'en' ? '#FFD700' : '#999');
+            this.uaBtn.setColor(this.currentLanguage === 'ua' ? '#FFD700' : '#999');
+        }
     }
 }
 
@@ -649,8 +611,9 @@ class LoadingScene extends Phaser.Scene {
     constructor() {
         super({ key: 'LoadingScene' });
         this.loadedResources = new Set();
-        this.fakeLoadingComplete = false;
-        this.realLoadingComplete = false;
+        this.loadStartTime = 0;
+        this.width = 0;
+        this.height = 0;
     }
 
     init(data) {
@@ -666,181 +629,155 @@ class LoadingScene extends Phaser.Scene {
     }
 
     preload() {
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
+        this.width = this.cameras.main.width;
+        this.height = this.cameras.main.height;
 
         // 1. Загружаем только фон загрузки
-        this.load.image('loading-bg', './UI/Backgrounds/loading-bg.jpg');
+        this.load.image('loading-bg', './Assets/Backgrounds/MainMenu/loading-bg.jpg');
 
-        // 2. Когда фон загрузился
+        // 2. После загрузки фона ждем 1 секунду, затем создаем UI
         this.load.once('filecomplete-image-loading-bg', () => {
-            // Показываем фон
-            this.add.image(width/2, height/2, 'loading-bg')
-                .setDisplaySize(width, height);
-
-            // 3. Создаем UI для фейковой загрузки
-            const progressUI = this.createProgressUI(width, height);
+            this.add.image(this.width/2, this.height/2, 'loading-bg')
+                .setDisplaySize(this.width, this.height);
             
-            // 4. Запускаем фейковую загрузку (как в старой версии)
-            this.startFakeLoading(progressUI);
-            
-            // 5. Параллельно начинаем реальную загрузку ресурсов
-            this.startRealLoading();
+            // Пауза 1 секунда перед созданием полосы
+            this.time.delayedCall(1000, () => {
+                this.createLoadingBar();
+                this.loadGameAssets();
+            });
         });
     }
 
-    createProgressUI(width, height) {
-        const progressBox = this.add.graphics()
+    createLoadingBar() {
+        // Полоса фона (серая, 1px)
+        this.progressBox = this.add.graphics()
             .lineStyle(1, 0x333333)
-            .strokeRect(width/2 - 500, height/2 + 200, 1000, 1);
+            .strokeRect(
+                this.width/2 - 500,
+                this.height/2 + 200,
+                1000,
+                1
+            );
 
-        const progressBar = this.add.graphics();
-
-        return { progressBox, progressBar };
+        // Активная полоса (белая, 1px)
+        this.progressBar = this.add.graphics()
+            .fillStyle(0xffffff, 1)
+            .fillRect(
+                this.width/2 - 500,
+                this.height/2 + 200,
+                0,
+                1
+            );
     }
 
-    startFakeLoading({ progressBox, progressBar }) {
-        let fakeProgress = 0;
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
-
-        const updateProgress = () => {
-            fakeProgress += 0.01;
+    loadGameAssets() {
+        const resources = this.getRequiredResources();
+        let loadedCount = 0;
+        const totalCount = Object.values(resources).flat().length;
+        
+        // Обработчик прогресса для каждого файла
+        this.load.on('filecomplete', () => {
+            loadedCount++;
+            const progress = Math.min(loadedCount / totalCount, 0.99); // Максимум 99% до полной загрузки
             
-            // Обновляем прогресс-бар
-            progressBar.clear()
+            this.progressBar.clear()
                 .fillStyle(0xffffff, 1)
                 .fillRect(
-                    width/2 - 500,
-                    height/2 + 200,
-                    1000 * Math.min(fakeProgress, 1),
+                    this.width/2 - 500,
+                    this.height/2 + 200,
+                    1000 * progress,
                     1
                 );
+        });
 
-            if (fakeProgress < 1) {
-                setTimeout(updateProgress, 50);
-            } else {
-                this.fakeLoadingComplete = true;
-                // Проверяем, завершена ли реальная загрузка
-                if (this.realLoadingComplete) {
-                    this.finishLoading();
+        // Загрузка всех ресурсов
+        this.loadResources(resources);
+        
+        // По завершении загрузки
+        this.load.once('complete', () => {
+            // Гарантированное заполнение до 100%
+            this.progressBar.clear()
+                .fillStyle(0xffffff, 1)
+                .fillRect(
+                    this.width/2 - 500,
+                    this.height/2 + 200,
+                    1000,
+                    1
+                );
+            
+            // Плавный переход через 0.3 секунды
+            this.time.delayedCall(300, () => {
+                this.scene.start(this.sceneData.nextScene, this.sceneData.gameData);
+            });
+        });
+        
+        this.load.start();
+    }
+
+    getRequiredResources() {
+        const { storyKey, chapterId } = this.sceneData;
+        
+        const baseUI = [
+            { key: 'hint-button', path: './Assets/ApprovedUI/Hint.png' },
+            { key: 'energy-icon', path: './Assets/ApprovedUI/Energy.png' },
+            { key: 'resume-btn', path: './Assets/ApprovedUI/resume-btn.png' },
+            { key: 'exit-btn', path: './Assets/ApprovedUI/exit-btn.png' },
+            { key: 'close', path: './Assets/ApprovedUI/Close.png' },
+            { key: 'popup-bg-item', path: './Assets/PopupBackgrounds/ItemPopup.png' },
+            { key: 'popup-bg-journal', path: './Assets/PopupBackgrounds/JournalPopup.png' },
+            { key: 'page', path: './Assets/PopupBackgrounds/Page.png' },
+            { key: 'popup-bg-small', path: './Assets/PopupBackgrounds/SmallPopup.png' },
+            { key: 'arrow', path: './Assets/ApprovedUI/Arrow.png' },
+            { key: 'inventory-bg', path: './Assets/ApprovedUI/inventory-bg.png' },
+            { key: 'JournalButton', path: './Assets/ApprovedUI/JournalButton.png' },
+            { key: 'menu-btn', path: './Assets/ApprovedUI/menu-btn.png' }
+        ].filter(item => !this.loadedResources.has(item.key));
+
+        const storyResources = {
+            safe: {
+                1: {
+                    locations: [
+                        { key: 'front-house', path: './Assets/Locations/Story1/Chapter1/front-house.jpg' },
+                        { key: 'hall', path: './Assets/Locations/Story1/Chapter1/hall.jpg' },
+                        { key: 'leftroom', path: './Assets/Locations/Story1/Chapter1/leftroom.jpg' },
+                        { key: 'rightroom', path: './Assets/Locations/Story1/Chapter1/rightroom.jpg' },
+                        { key: 'drawer', path: './Assets/Locations/Story1/Chapter1/drawer.jpg' },
+                        { key: 'wardrobe', path: './Assets/Locations/Story1/Chapter1/wardrobe.jpg' }
+                    ],
+                    objects: [
+                        { key: 'object1', path: './Assets/Locations/Story1/Chapter1/plate.png' },
+                        { key: 'object2', path: './Assets/Locations/Story1/Chapter1/candle.png' },
+                        { key: 'object3', path: './Assets/Locations/Story1/Chapter1/art.png' },
+                        { key: 'object4', path: './Assets/Locations/Story1/Chapter1/tea.png' },
+                        { key: 'object5', path: './Assets/Locations/Story1/Chapter1/list1.png' },
+                        { key: 'object6', path: './Assets/Locations/Story1/Chapter1/safe.png' },
+                        { key: 'object7', path: './Assets/Locations/Story1/Chapter1/sheet.png' },
+                        { key: 'object8', path: './Assets/Locations/Story1/Chapter1/ring.png' }
+                    ],
+                    additional: [
+                        { key: 'list2', path: './Assets/Locations/Story1/Chapter1/list2.png' },
+                        { key: 'opensafe', path: './Assets/Locations/Story1/Chapter1/opensafe.png' }
+                    ]
                 }
             }
         };
 
-        updateProgress();
-    }
-
-    startRealLoading() {
-        // Получаем нужные ресурсы для главы
-        const resources = this.getResourcesToLoad();
+        const chapterRes = storyResources[storyKey]?.[chapterId] || {};
         
-        // Загружаем через ResourceLoader
-        const resourceLoader = new ResourceLoader(this);
-        resourceLoader.loadResources(resources);
-        
-        // Отслеживаем завершение реальной загрузки
-        this.load.once('complete', () => {
-            // Сохраняем информацию о загруженных ресурсах
-            Object.values(resources).flat().forEach(resource => {
-                this.loadedResources.add(resource.key);
-            });
-            
-            this.realLoadingComplete = true;
-            
-            // Проверяем, завершена ли фейковая загрузка
-            if (this.fakeLoadingComplete) {
-                this.finishLoading();
-            }
-        });
-        
-        // Начинаем загрузку
-        this.load.start();
-    }
-
-    finishLoading() {
-        // Небольшая задержка для плавности
-        setTimeout(() => {
-            // Переходим к следующей сцене
-            const { nextScene, gameData } = this.sceneData;
-            this.scene.start(nextScene, gameData);
-        }, 500);
-    }
-
-    getResourcesToLoad() {
-        const { storyKey, chapterId } = this.sceneData;
-
-        // Базовые UI ресурсы
-        const resources = {
-            ui: [
-                { key: 'hint-button', path: './UI/ApprovedUI/Hint.png' },
-                { key: 'energy-icon', path: './UI/ApprovedUI/Energy.png' },
-                { key: 'JournalButton', path: './UI/ApprovedUI/JournalButton.png' },
-                { key: 'menu-btn', path: './UI/ApprovedUI/menu-btn.png' },
-                { key: 'resume-btn', path: './UI/ApprovedUI/resume-btn.png' },
-                { key: 'exit-btn', path: './UI/ApprovedUI/exit-btn.png' },
-                { key: 'close', path: './UI/ApprovedUI/Close.png' },
-                { key: 'popup-bg-item', path: './UI/PopupBackgrounds/ItemPopup.png' },
-                { key: 'popup-bg-journal', path: './UI/PopupBackgrounds/JournalPopup.png' },
-                { key: 'page', path: './UI/PopupBackgrounds/Page.png' },
-                { key: 'popup-bg-small', path: './UI/PopupBackgrounds/SmallPopup.png' },
-                { key: 'arrow', path: './UI/ApprovedUI/Arrow.png' },
-                { key: 'inventory-bg', path: './UI/ApprovedUI/inventory-bg.png' }
-            ].filter(resource => !this.loadedResources.has(resource.key))
+        return {
+            ui: baseUI,
+            locations: chapterRes.locations?.filter(x => !this.loadedResources.has(x.key)) || [],
+            objects: chapterRes.objects?.filter(x => !this.loadedResources.has(x.key)) || [],
+            additional: chapterRes.additional?.filter(x => !this.loadedResources.has(x.key)) || []
         };
+    }
 
-        // Ресурсы в зависимости от истории и главы
-        if (storyKey === 'safe') {
-            if (chapterId === 1) {
-                const chapter1Resources = {
-                    locations: [
-                        { key: 'front-house', path: 'front-house.jpg' },
-                        { key: 'hall', path: 'hall.jpg' },
-                        { key: 'leftroom', path: 'leftroom.jpg' },
-                        { key: 'rightroom', path: 'rightroom.jpg' },
-                        { key: 'drawer', path: 'drawer.jpg' },
-                        { key: 'wardrobe', path: 'wardrobe.jpg' }
-                    ],
-                    objects: [
-                        { key: 'object1', path: 'plate.png' },
-                        { key: 'object2', path: 'candle.png' },
-                        { key: 'object3', path: 'art.png' },
-                        { key: 'object4', path: 'tea.png' },
-                        { key: 'object5', path: 'list1.png' },
-                        { key: 'object6', path: 'safe.png' },
-                        { key: 'object7', path: 'sheet.png' },
-                        { key: 'object8', path: 'ring.png' }
-                    ],
-                    additional: [
-                        { key: 'list2', path: 'list2.png' },
-                        { key: 'opensafe', path: 'opensafe.png' }
-                    ]
-                };
-
-                // Добавляем ресурсы главы 1, если они еще не загружены
-                Object.entries(chapter1Resources).forEach(([category, items]) => {
-                    resources[category] = items.filter(
-                        resource => !this.loadedResources.has(resource.key)
-                    );
-                });
-            }
-            else if (chapterId === 2) {
-                // Здесь будут ресурсы для второй главы
-                const chapter2Resources = {
-                    locations: [],
-                    objects: [],
-                    additional: []
-                };
-
-                Object.entries(chapter2Resources).forEach(([category, items]) => {
-                    resources[category] = items.filter(
-                        resource => !this.loadedResources.has(resource.key)
-                    );
-                });
-            }
-        }
-
-        return resources;
+    loadResources(resources) {
+        Object.entries(resources).forEach(([type, items]) => {
+            items.forEach(item => {
+                this.load.image(item.key, item.path);
+            });
+        });
     }
 }
 
@@ -2046,7 +1983,7 @@ class EnergySystem {
         if ("Notification" in window && Notification.permission === "granted") {
             new Notification("Энергия восстановлена!", {
                 body: "Ваша энергия полностью восстановлена!",
-                icon: "./UI/ApprovedUI/Energy.png"
+                icon: "./Assets/ApprovedUI/Energy.png"
             });
         }
     }
