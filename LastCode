@@ -87,6 +87,12 @@ const STORIES_CONFIG = {
                 name: 'Глава 2',
                 state: 'locked', // заблокирована, пока не пройдена глава 1
                 startLocation: 'front-house'
+            },
+            {
+                id: 3,
+                name: 'Глава 3',
+                state: 'locked', // заблокирована, пока не пройдена глава 2
+                startLocation: 'front-house'
             }
         ]
     },
@@ -115,7 +121,8 @@ class MainMenuScene extends Phaser.Scene {
         this.musicVolume = 0.5;
         this.currentMenuState = 'main';
         this.selectedStory = null;
-        this.activeButtonIndex = -1; // Индекс активной кнопки (-1 означает нет активной)
+        this.activeButtonIndex = -1;
+        this.storyButtons = [];
     }
 
     preload() {
@@ -125,6 +132,11 @@ class MainMenuScene extends Phaser.Scene {
         this.load.image('options-btn', './Assets/ApprovedUI/options-btn.png');
         this.load.image('help-btn', './Assets/ApprovedUI/help-btn.png');
         this.load.image('btn-glow', './Assets/ApprovedUI/btn-glow.png');
+        this.load.image('story-bg', './Assets/Backgrounds/MainMenu/story-bg.png');
+        this.load.image('letter-bg', './Assets/Backgrounds/MainMenu/letter-bg.png');
+        this.load.image('letter-bg-2', './Assets/Backgrounds/MainMenu/letter-bg-2.png');
+        this.load.image('chapter-card', './Assets/Backgrounds/MainMenu/chapter-card.png');
+        this.load.image('close-btn', './Assets/ApprovedUI/Close.png');
         this.load.audio('main-music', './Assets/Backgrounds/MainMenu/Audio/main-menu-music.mp3');
     }
 
@@ -139,10 +151,16 @@ class MainMenuScene extends Phaser.Scene {
         });
         this.backgroundMusic.play();
 
-        // Создаем контейнер для модальных окон
+        this.createModalContainer();
+        this.createChaptersContainer();
+        this.createMainMenu();
+        this.createStoryButtons();
+        this.createEnergyDisplay();
+    }
+
+    createModalContainer() {
         this.modalContainer = this.add.container(0, 0).setDepth(100).setVisible(false);
         
-        // Основная панель модального окна
         this.modalPanel = this.add.rectangle(
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height / 2,
@@ -151,7 +169,6 @@ class MainMenuScene extends Phaser.Scene {
         ).setStrokeStyle(4, 0xffd700);
         this.modalContainer.add(this.modalPanel);
 
-        // Заголовок модального окна
         this.modalTitle = this.add.text(
             GAME_CONFIG.width / 2,
             GAME_CONFIG.height / 2 - 250,
@@ -160,34 +177,92 @@ class MainMenuScene extends Phaser.Scene {
         ).setOrigin(0.5);
         this.modalContainer.add(this.modalTitle);
 
-        // Кнопка закрытия
         this.createCloseButton();
-
-        // Контейнер для контента
         this.modalContent = this.add.container(0, 0);
         this.modalContainer.add(this.modalContent);
-
-        this.createMainMenu();
-        this.createEnergyDisplay();
     }
 
-    createCloseButton() {
-        this.modalCloseBtn = this.add.text(
-            GAME_CONFIG.width / 2 + 350,
-            GAME_CONFIG.height / 2 - 280,
-            '×',
-            { font: '48px Arial', color: '#FFD700' }
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true })
-         .on('pointerdown', () => {
-             this.closeModal();
-         });
-        this.modalContainer.add(this.modalCloseBtn);
+    createChaptersContainer() {
+        this.chaptersContainer = this.add.container(420, 160);
+        this.chaptersContainer.setVisible(false);
+        
+        this.storyBackground = this.add.image(0, 0, 'story-bg')
+            .setOrigin(0, 0)
+            .setDisplaySize(1220, 880)
+            .setVisible(false);
+        
+        this.closeBtn = this.add.image(1170, 30, 'close-btn')
+            .setDisplaySize(50, 50)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.closeStoryView())
+            .setVisible(false);
+            
+        this.letterBg = this.add.image(610, 440, 'letter-bg')
+            .setDisplaySize(622, 858)
+            .setVisible(false);
+            
+        this.chaptersContent = this.add.container(0, 0);
+        
+        this.chaptersContainer.add([this.storyBackground, this.closeBtn, this.letterBg, this.chaptersContent]);
+    }
+
+    createStoryButtons() {
+        const startY = GAME_CONFIG.height / 2;
+        const spacing = 100;
+        
+        Object.entries(this.stories).forEach(([storyKey, story], i) => {
+            const buttonGlow = this.add.image(150, startY + (i - 0.5) * spacing, 'btn-glow')
+                .setScale(0.8, 0.4)
+                .setAlpha(0)
+                .setVisible(false);
+
+            const storyBtn = this.add.text(
+                150,
+                startY + (i - 0.5) * spacing,
+                story.name,
+                {
+                    font: '32px Arial',
+                    color: '#FFD700',
+                    backgroundColor: '#333333',
+                    padding: { left: 30, right: 30, top: 15, bottom: 15 }
+                }
+            ).setOrigin(0.5)
+             .setInteractive({ useHandCursor: true })
+             .setVisible(false);
+
+            storyBtn.on('pointerdown', () => {
+                if (this.activeStoryButton) {
+                    const prevGlow = this.activeStoryButton.glow;
+                    this.tweens.killTweensOf(prevGlow);
+                    this.tweens.add({
+                        targets: prevGlow,
+                        alpha: 0,
+                        duration: 200
+                    });
+                }
+                
+                this.activeStoryButton = storyBtn;
+                this.selectedStory = storyKey;
+                
+                this.tweens.add({
+                    targets: buttonGlow,
+                    alpha: 1,
+                    duration: 200
+                });
+                
+                this.letterBg.setVisible(true);
+                this.showChaptersList();
+            });
+
+            storyBtn.glow = buttonGlow;
+            this.storyButtons.push({button: storyBtn, glow: buttonGlow});
+        });
     }
 
     createEnergyDisplay() {
         this.energy = 400;
-        this.energyBar = this.add.rectangle(150, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
-        this.energyText = this.add.text(570, 1030, `${this.energy}/400`, {
+        this.energyBar = this.add.rectangle(50, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
+        this.energyText = this.add.text(470, 1030, `${this.energy}/400`, {
             font: '28px Arial',
             color: '#FFD700'
         }).setOrigin(0, 0.5);
@@ -258,7 +333,6 @@ class MainMenuScene extends Phaser.Scene {
 
     setupButtonEffects(btn, glow, btnIndex) {
         btn.on('pointerover', () => {
-            // Показываем эффекты при наведении только если кнопка не активна
             if (this.activeButtonIndex !== btnIndex) {
                 this.tweens.add({
                     targets: glow,
@@ -276,7 +350,6 @@ class MainMenuScene extends Phaser.Scene {
         });
 
         btn.on('pointerout', () => {
-            // Убираем эффекты при уходе курсора только если кнопка НЕ активна
             if (this.activeButtonIndex !== btnIndex) {
                 this.tweens.add({
                     targets: glow,
@@ -296,16 +369,13 @@ class MainMenuScene extends Phaser.Scene {
         btn.on('pointerdown', () => this.menuClick(btnIndex));
     }
 
-    // Функция для сброса активного состояния всех кнопок
     resetActiveButton() {
         if (this.activeButtonIndex >= 0) {
             const prevBtn = this.menuBtnObjs[this.activeButtonIndex];
             const prevGlow = this.menuBtnGlows[this.activeButtonIndex];
             
-            // Останавливаем все текущие твины для этой кнопки
             this.tweens.killTweensOf([prevBtn, prevGlow]);
             
-            // Анимируем возврат к обычному состоянию
             this.tweens.add({
                 targets: prevGlow,
                 alpha: 0,
@@ -322,17 +392,14 @@ class MainMenuScene extends Phaser.Scene {
         this.activeButtonIndex = -1;
     }
 
-    // Функция для установки активного состояния кнопки
     setActiveButton(btnIndex) {
         if (btnIndex >= 0 && btnIndex < this.menuBtnObjs.length) {
             this.activeButtonIndex = btnIndex;
             const btn = this.menuBtnObjs[btnIndex];
             const glow = this.menuBtnGlows[btnIndex];
             
-            // Останавливаем все текущие твины для этой кнопки
             this.tweens.killTweensOf([btn, glow]);
             
-            // Устанавливаем активное состояние (такое же как при hover)
             this.tweens.add({
                 targets: glow,
                 alpha: 1,
@@ -348,146 +415,109 @@ class MainMenuScene extends Phaser.Scene {
         }
     }
 
-    menuClick(btnIndex) {
-        // Сначала сбрасываем предыдущую активную кнопку
-        this.resetActiveButton();
+    showChaptersList() {
+        this.chaptersContent.removeAll(true);
         
-        // Устанавливаем новую активную кнопку
-        this.setActiveButton(btnIndex);
-        
-        // Открываем соответствующее модальное окно
-        switch(btnIndex) {
-            case 0: this.showPlayModal(); break;
-            case 1: this.showAchievementsModal(); break;
-            case 2: this.showOptionsModal(); break;
-            case 3: this.showHelpModal(); break;
-        }
-    }
-
-    // Открытие модального окна
-    openModal(title) {
-        // Сначала очищаем предыдущий контент
-        this.modalContent.removeAll(true);
-        
-        this.modalTitle.setText(title);
-        this.modalContainer.setVisible(true);
-        return this.modalContent;
-    }
-
-    // Закрытие модального окна
-    closeModal() {
-        this.modalContainer.setVisible(false);
-        this.modalContent.removeAll(true);
-        this.selectedStory = null;
-        
-        // Сбрасываем активное состояние всех кнопок при закрытии модального окна
-        this.resetActiveButton();
-    }
-
-    showPlayModal() {
-        const content = this.openModal('ВЫБОР ИСТОРИИ');
-        
-        if (!this.selectedStory) {
-            this.showStoriesList(content);
-        } else {
-            this.showChaptersList(content);
-        }
-    }
-
-    showStoriesList(content) {
-        const startY = GAME_CONFIG.height / 2 - 150;
-        const stepY = 120;
-        
-        Object.entries(this.stories).forEach(([storyKey, story], i) => {
-            const storyBtn = this.add.text(
-                GAME_CONFIG.width / 2,
-                startY + i * stepY,
-                story.name,
-                {
-                    font: '32px Arial',
-                    color: '#FFD700',
-                    backgroundColor: '#333333',
-                    padding: { left: 30, right: 30, top: 15, bottom: 15 }
-                }
-            ).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-            storyBtn.on('pointerover', () => storyBtn.setColor('#FFF6A8').setScale(1.05));
-            storyBtn.on('pointerout', () => storyBtn.setColor('#FFD700').setScale(1));
-            storyBtn.on('pointerdown', () => {
-                this.selectedStory = storyKey;
-                content.removeAll(true);
-                this.showChaptersList(content);
-            });
-
-            content.add(storyBtn);
-        });
-    }
-
-    showChaptersList(content) {
         const story = this.stories[this.selectedStory];
-        this.modalTitle.setText(story.name);
-        
-        const backBtn = this.add.text(
-            GAME_CONFIG.width / 2 - 350,
-            GAME_CONFIG.height / 2 - 280,
-            '← Назад',
-            { font: '24px Arial', color: '#FFD700' }
-        ).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
 
-        backBtn.on('pointerdown', () => {
-            this.selectedStory = null;
-            content.removeAll(true);
-            this.showStoriesList(content);
-        });
-        content.add(backBtn);
+        // Выбираем фон листа в зависимости от истории
+        const letterBgKey = this.selectedStory === 'safe' ? 'letter-bg' : 'letter-bg-2';
+        this.letterBg.setTexture(letterBgKey);
+        this.letterBg.setVisible(true);
 
-        const startY = GAME_CONFIG.height / 2 - 100;
-        const stepY = 80;
+        const startY = this.letterBg.y - this.letterBg.displayHeight/2 + 225;
+        const cardSpacing = 270;
 
         story.chapters.forEach((chapter, i) => {
-            let color, bgColor, interactive;
+            const chapterCard = this.add.image(
+                this.letterBg.x,
+                startY + i * cardSpacing,
+                'chapter-card'
+            )
+            .setDisplaySize(525, 250);
+
+            let color, interactive;
             switch (chapter.state) {
                 case 'completed':
-                    color = '#66ff66'; bgColor = '#2a5f2a'; interactive = false; break;
+                    color = '#66ff66'; interactive = false; break;
                 case 'locked':
-                    color = '#666666'; bgColor = '#222222'; interactive = false; break;
+                    color = '#666666'; interactive = false; break;
                 default:
-                    color = '#FFD700'; bgColor = '#333333'; interactive = true; break;
+                    color = '#FFD700'; interactive = true; break;
             }
 
-            const chapterBtn = this.add.text(
-                GAME_CONFIG.width / 2,
-                startY + i * stepY,
+            const chapterTitle = this.add.text(
+                this.letterBg.x,
+                startY + i * cardSpacing,
                 chapter.name,
                 {
                     font: '28px Arial',
                     color: color,
-                    backgroundColor: bgColor,
-                    padding: { left: 25, right: 25, top: 12, bottom: 12 }
+                    align: 'center'
                 }
             ).setOrigin(0.5);
 
             if (interactive) {
-                chapterBtn.setInteractive({ useHandCursor: true })
-                    .on('pointerover', () => chapterBtn.setColor('#FFF6A8').setScale(1.05))
-                    .on('pointerout', () => chapterBtn.setColor('#FFD700').setScale(1))
+                chapterCard.setInteractive({ useHandCursor: true })
                     .on('pointerdown', () => this.startChapter(chapter));
             }
 
-            content.add(chapterBtn);
+            this.chaptersContent.add([chapterCard, chapterTitle]);
         });
     }
 
-    startChapter(chapter) {
-        this.scene.start('LoadingScene', {
-            storyKey: this.selectedStory,
-            chapterId: chapter.id,
-            nextScene: 'GameScene',
-            gameData: {
-                location: chapter.startLocation,
-                history: []
-            }
+    closeStoryView() {
+        this.chaptersContainer.setVisible(false);
+        this.storyBackground.setVisible(false);
+        this.closeBtn.setVisible(false);
+        this.letterBg.setVisible(false);
+        this.chaptersContent.removeAll(true);
+        
+        this.storyButtons.forEach(({button, glow}) => {
+            button.setVisible(false);
+            glow.setVisible(false);
         });
+
+        if (this.activeStoryButton) {
+            const buttonGlow = this.activeStoryButton.glow;
+            this.tweens.add({
+                targets: buttonGlow,
+                alpha: 0,
+                duration: 200
+            });
+            this.activeStoryButton = null;
+        }
+
+        this.resetActiveButton();
+    }
+
+    menuClick(btnIndex) {
+        this.resetActiveButton();
+        this.setActiveButton(btnIndex);
+        
+        switch(btnIndex) {
+            case 0: 
+                this.chaptersContainer.setVisible(true);
+                this.storyBackground.setVisible(true);
+                this.closeBtn.setVisible(true);
+                this.storyButtons.forEach(({button, glow}) => {
+                    button.setVisible(true);
+                    glow.setVisible(true);
+                });
+                break;
+            case 1: 
+                this.closeStoryView();
+                this.showAchievementsModal(); 
+                break;
+            case 2: 
+                this.closeStoryView();
+                this.showOptionsModal(); 
+                break;
+            case 3: 
+                this.closeStoryView();
+                this.showHelpModal(); 
+                break;
+        }
     }
 
     showAchievementsModal() {
@@ -529,7 +559,6 @@ class MainMenuScene extends Phaser.Scene {
     showOptionsModal() {
         const content = this.openModal('НАСТРОЙКИ');
         
-        // Language selection
         const langTitle = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 - 120, 'Мова / Language:', {
             font: '28px Arial',
             color: '#FFD700'
@@ -554,7 +583,6 @@ class MainMenuScene extends Phaser.Scene {
         this.uaBtn.on('pointerdown', () => this.switchLanguage('ua'));
         content.add([this.enBtn, this.uaBtn]);
 
-        // Volume control
         const volumeTitle = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 + 20, 'Гучність музики / Music Volume:', {
             font: '28px Arial',
             color: '#FFD700'
@@ -562,6 +590,68 @@ class MainMenuScene extends Phaser.Scene {
         content.add(volumeTitle);
 
         this.createVolumeSlider(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 + 70, content);
+    }
+
+    showHelpModal() {
+        const content = this.openModal('ПОМОЩЬ');
+        
+        const helpSections = [
+            {
+                title: 'Как играть:',
+                content: 'Выберите историю и главу для начала приключения.\nСледуйте сюжету и принимайте решения.'
+            },
+            {
+                title: 'Навигация:',
+                content: 'Используйте кнопки меню для перемещения по разделам.'
+            }
+        ];
+
+        const startY = GAME_CONFIG.height / 2 - 180;
+        helpSections.forEach((section, i) => {
+            const y = startY + i * 120;
+
+            const sectionTitle = this.add.text(GAME_CONFIG.width / 2, y, section.title, {
+                font: '24px Arial',
+                color: '#FFD700'
+            }).setOrigin(0.5);
+
+            const sectionContent = this.add.text(GAME_CONFIG.width / 2, y + 35, section.content, {
+                font: '18px Arial',
+                color: '#CCCCCC',
+                align: 'center',
+                wordWrap: { width: 650 }
+            }).setOrigin(0.5);
+
+            content.add([sectionTitle, sectionContent]);
+        });
+    }
+
+    openModal(title) {
+        this.modalContent.removeAll(true);
+        this.modalTitle.setText(title);
+        this.modalContainer.setVisible(true);
+        return this.modalContent;
+    }
+
+    closeModal() {
+        this.modalContainer.setVisible(false);
+        this.modalContent.removeAll(true);
+        this.selectedStory = null;
+        this.resetActiveButton();
+    }
+
+    createCloseButton() {
+        this.modalCloseBtn = this.add.text(
+            GAME_CONFIG.width / 2 + 350,
+            GAME_CONFIG.height / 2 - 280,
+            '×',
+            { font: '48px Arial', color: '#FFD700' }
+        ).setOrigin(0.5)
+         .setInteractive({ useHandCursor: true })
+         .on('pointerdown', () => {
+             this.closeModal();
+         });
+        this.modalContainer.add(this.modalCloseBtn);
     }
 
     createVolumeSlider(x, y, content) {
@@ -618,45 +708,10 @@ class MainMenuScene extends Phaser.Scene {
         });
     }
 
-    showHelpModal() {
-        const content = this.openModal('ПОМОЩЬ');
-        
-        const helpSections = [
-            {
-                title: 'Как играть:',
-                content: 'Выберите историю и главу для начала приключения.\nСледуйте сюжету и принимайте решения.'
-            },
-            {
-                title: 'Навигация:',
-                content: 'Используйте кнопки меню для перемещения по разделам.'
-            }
-        ];
-
-        const startY = GAME_CONFIG.height / 2 - 180;
-        helpSections.forEach((section, i) => {
-            const y = startY + i * 120;
-
-            const sectionTitle = this.add.text(GAME_CONFIG.width / 2, y, section.title, {
-                font: '24px Arial',
-                color: '#FFD700'
-            }).setOrigin(0.5);
-
-            const sectionContent = this.add.text(GAME_CONFIG.width / 2, y + 35, section.content, {
-                font: '18px Arial',
-                color: '#CCCCCC',
-                align: 'center',
-                wordWrap: { width: 650 }
-            }).setOrigin(0.5);
-
-            content.add([sectionTitle, sectionContent]);
-        });
-    }
-
     switchLanguage(lang) {
         if (!this.languages.includes(lang)) return;
         this.currentLanguage = lang;
 
-        // Обновляем подписи кнопок главного меню
         const labels = this.currentLanguage === 'ua' ? this.buttonLabels.ua : ['', '', '', ''];
         
         this.menuBtnLabels.forEach((labelObj, i) => {
@@ -675,11 +730,22 @@ class MainMenuScene extends Phaser.Scene {
             }
         });
 
-        // Обновляем кнопки языка в настройках
         if (this.enBtn && this.uaBtn) {
             this.enBtn.setColor(this.currentLanguage === 'en' ? '#FFD700' : '#999');
             this.uaBtn.setColor(this.currentLanguage === 'ua' ? '#FFD700' : '#999');
         }
+    }
+
+    startChapter(chapter) {
+        this.scene.start('LoadingScene', {
+            storyKey: this.selectedStory,
+            chapterId: chapter.id,
+            nextScene: 'GameScene',
+            gameData: {
+                location: chapter.startLocation,
+                history: []
+            }
+        });
     }
 }
 
