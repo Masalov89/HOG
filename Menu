@@ -11,7 +11,7 @@ class MainMenuScene extends Phaser.Scene {
         this.currentMenuState = 'main';
         this.selectedStory = null;
         this.activeButtonIndex = -1;
-        this.storyButtons = []; // Добавляем массив для хранения кнопок историй
+        this.storyButtons = [];
     }
 
     preload() {
@@ -22,6 +22,9 @@ class MainMenuScene extends Phaser.Scene {
         this.load.image('help-btn', './Assets/ApprovedUI/help-btn.png');
         this.load.image('btn-glow', './Assets/ApprovedUI/btn-glow.png');
         this.load.image('story-bg', './Assets/Backgrounds/MainMenu/story-bg.png');
+        this.load.image('letter-bg', './Assets/Backgrounds/MainMenu/letter-bg.png');
+        this.load.image('chapter-card', './Assets/Backgrounds/MainMenu/chapter-card.png');
+        this.load.image('close-btn', './Assets/ApprovedUI/Close.png');
         this.load.audio('main-music', './Assets/Backgrounds/MainMenu/Audio/main-menu-music.mp3');
     }
 
@@ -30,26 +33,16 @@ class MainMenuScene extends Phaser.Scene {
         this.add.image(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2, 'main-bg')
             .setDisplaySize(GAME_CONFIG.width, GAME_CONFIG.height);
 
-        // Фоновая музыка
         this.backgroundMusic = this.sound.add('main-music', { 
             loop: true, 
             volume: this.musicVolume 
         });
         this.backgroundMusic.play();
 
-        // Создаем контейнер для модальных окон (для остальных кнопок кроме Play)
         this.createModalContainer();
-        
-        // Создаем контейнер для отображения глав (на новом фоне)
         this.createChaptersContainer();
-        
-        // Создаем основное меню
         this.createMainMenu();
-        
-        // Создаем кнопки историй
         this.createStoryButtons();
-        
-        // Создаем индикатор энергии
         this.createEnergyDisplay();
     }
 
@@ -73,25 +66,32 @@ class MainMenuScene extends Phaser.Scene {
         this.modalContainer.add(this.modalTitle);
 
         this.createCloseButton();
-
         this.modalContent = this.add.container(0, 0);
         this.modalContainer.add(this.modalContent);
     }
 
     createChaptersContainer() {
-        // Создаем контейнер для отображения глав
-        this.chaptersContainer = this.add.container(420, 170);
+        this.chaptersContainer = this.add.container(420, 160);
         this.chaptersContainer.setVisible(false);
         
-        // Добавляем новый фон
         this.storyBackground = this.add.image(0, 0, 'story-bg')
             .setOrigin(0, 0)
-            .setDisplaySize(1220, 880);
-        this.chaptersContainer.add(this.storyBackground);
+            .setDisplaySize(1220, 880)
+            .setVisible(false);
         
-        // Контейнер для содержимого (глав)
+        this.closeBtn = this.add.image(1170, 30, 'close-btn')
+            .setDisplaySize(50, 50)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.closeStoryView())
+            .setVisible(false);
+            
+        this.letterBg = this.add.image(610, 440, 'letter-bg')
+            .setDisplaySize(622, 858)
+            .setVisible(false);
+            
         this.chaptersContent = this.add.container(0, 0);
-        this.chaptersContainer.add(this.chaptersContent);
+        
+        this.chaptersContainer.add([this.storyBackground, this.closeBtn, this.letterBg, this.chaptersContent]);
     }
 
     createStoryButtons() {
@@ -99,9 +99,14 @@ class MainMenuScene extends Phaser.Scene {
         const spacing = 100;
         
         Object.entries(this.stories).forEach(([storyKey, story], i) => {
+            const buttonGlow = this.add.image(150, startY + (i - 0.5) * spacing, 'btn-glow')
+                .setScale(0.8, 0.4)
+                .setAlpha(0)
+                .setVisible(false);
+
             const storyBtn = this.add.text(
-                150, // X координата для всех кнопок историй
-                startY + (i - 0.5) * spacing, // Y координата с учетом spacing
+                150,
+                startY + (i - 0.5) * spacing,
                 story.name,
                 {
                     font: '32px Arial',
@@ -110,28 +115,41 @@ class MainMenuScene extends Phaser.Scene {
                     padding: { left: 30, right: 30, top: 15, bottom: 15 }
                 }
             ).setOrigin(0.5)
-             .setInteractive({ useHandCursor: true });
-
-            storyBtn.on('pointerover', () => {
-                storyBtn.setColor('#FFF6A8').setScale(1.05);
-            });
-
-            storyBtn.on('pointerout', () => {
-                storyBtn.setColor('#FFD700').setScale(1);
-            });
+             .setInteractive({ useHandCursor: true })
+             .setVisible(false);
 
             storyBtn.on('pointerdown', () => {
+                if (this.activeStoryButton) {
+                    const prevGlow = this.activeStoryButton.glow;
+                    this.tweens.killTweensOf(prevGlow);
+                    this.tweens.add({
+                        targets: prevGlow,
+                        alpha: 0,
+                        duration: 200
+                    });
+                }
+                
+                this.activeStoryButton = storyBtn;
                 this.selectedStory = storyKey;
+                
+                this.tweens.add({
+                    targets: buttonGlow,
+                    alpha: 1,
+                    duration: 200
+                });
+                
+                // Показываем письмо только при выборе истории
+                this.letterBg.setVisible(true);
                 this.showChaptersList();
             });
 
-            this.storyButtons.push(storyBtn);
+            storyBtn.glow = buttonGlow;
+            this.storyButtons.push({button: storyBtn, glow: buttonGlow});
         });
     }
 
     createEnergyDisplay() {
         this.energy = 400;
-        // Сдвигаем энергию левее
         this.energyBar = this.add.rectangle(50, 1030, 400, 30, 0xffd700).setOrigin(0, 0.5);
         this.energyText = this.add.text(470, 1030, `${this.energy}/400`, {
             font: '28px Arial',
@@ -286,99 +304,108 @@ class MainMenuScene extends Phaser.Scene {
         }
     }
 
+    showChaptersList() {
+        this.chaptersContent.removeAll(true);
+        
+        const story = this.stories[this.selectedStory];
+
+        const startY = this.letterBg.y - this.letterBg.displayHeight/2 + 100;
+        const cardSpacing = 270;
+
+        story.chapters.forEach((chapter, i) => {
+            const chapterCard = this.add.image(
+                this.letterBg.x,
+                startY + i * cardSpacing,
+                'chapter-card'
+            )
+            .setDisplaySize(575, 250);
+
+            let color, interactive;
+            switch (chapter.state) {
+                case 'completed':
+                    color = '#66ff66'; interactive = false; break;
+                case 'locked':
+                    color = '#666666'; interactive = false; break;
+                default:
+                    color = '#FFD700'; interactive = true; break;
+            }
+
+            const chapterTitle = this.add.text(
+                this.letterBg.x,
+                startY + i * cardSpacing,
+                chapter.name,
+                {
+                    font: '28px Arial',
+                    color: color,
+                    align: 'center'
+                }
+            ).setOrigin(0.5);
+
+            if (interactive) {
+                chapterCard.setInteractive({ useHandCursor: true })
+                    .on('pointerover', () => {
+                        chapterCard.setScale(1.05);
+                    })
+                    .on('pointerout', () => {
+                        chapterCard.setScale(1);
+                    })
+                    .on('pointerdown', () => this.startChapter(chapter));
+            }
+
+            this.chaptersContent.add([chapterCard, chapterTitle]);
+        });
+    }
+
+    closeStoryView() {
+        this.storyBackground.setVisible(false);
+        this.closeBtn.setVisible(false);
+        this.letterBg.setVisible(false);
+        this.chaptersContent.removeAll(true);
+        
+        this.storyButtons.forEach(({button, glow}) => {
+            button.setVisible(false);
+            glow.setVisible(false);
+        });
+
+        if (this.activeStoryButton) {
+            const buttonGlow = this.activeStoryButton.glow;
+            this.tweens.add({
+                targets: buttonGlow,
+                alpha: 0,
+                duration: 200
+            });
+            this.activeStoryButton = null;
+        }
+    }
+
     menuClick(btnIndex) {
         this.resetActiveButton();
         this.setActiveButton(btnIndex);
         
         switch(btnIndex) {
             case 0: 
-                // Для кнопки Play ничего не делаем, так как истории теперь видны всегда
+                // Показываем фон стола и кнопки историй при нажатии Play
+                this.chaptersContainer.setVisible(true); // Добавляем эту строку
+                this.storyBackground.setVisible(true);
+                this.closeBtn.setVisible(true);
+                this.storyButtons.forEach(({button, glow}) => {
+                    button.setVisible(true);
+                    glow.setVisible(true);
+                });
                 break;
-            case 1: this.showAchievementsModal(); break;
-            case 2: this.showOptionsModal(); break;
-            case 3: this.showHelpModal(); break;
+            case 1: 
+                this.closeStoryView();
+                this.showAchievementsModal(); 
+                break;
+            case 2: 
+                this.closeStoryView();
+                this.showOptionsModal(); 
+                break;
+            case 3: 
+                this.closeStoryView();
+                this.showHelpModal(); 
+                break;
         }
-    }
-
-    showChaptersList() {
-        // Очищаем контейнер с главами
-        this.chaptersContent.removeAll(true);
-        
-        const story = this.stories[this.selectedStory];
-        
-        // Добавляем кнопку "Назад"
-        const backBtn = this.add.text(
-            50, 50,
-            '← Назад',
-            { font: '24px Arial', color: '#FFD700' }
-        ).setOrigin(0, 0.5)
-         .setInteractive({ useHandCursor: true });
-
-        backBtn.on('pointerdown', () => {
-            this.chaptersContainer.setVisible(false);
-            this.selectedStory = null;
-        });
-        this.chaptersContent.add(backBtn);
-
-        // Добавляем заголовок
-        const title = this.add.text(
-            580, 50,
-            story.name,
-            { font: '36px Arial', color: '#FFD700' }
-        ).setOrigin(0.5);
-        this.chaptersContent.add(title);
-
-        // Отображаем главы
-        const startY = 200;
-        const stepY = 80;
-
-        story.chapters.forEach((chapter, i) => {
-            let color, bgColor, interactive;
-            switch (chapter.state) {
-                case 'completed':
-                    color = '#66ff66'; bgColor = '#2a5f2a'; interactive = false; break;
-                case 'locked':
-                    color = '#666666'; bgColor = '#222222'; interactive = false; break;
-                default:
-                    color = '#FFD700'; bgColor = '#333333'; interactive = true; break;
-            }
-
-            const chapterBtn = this.add.text(
-                580,
-                startY + i * stepY,
-                chapter.name,
-                {
-                    font: '28px Arial',
-                    color: color,
-                    backgroundColor: bgColor,
-                    padding: { left: 25, right: 25, top: 12, bottom: 12 }
-                }
-            ).setOrigin(0.5);
-
-            if (interactive) {
-                chapterBtn.setInteractive({ useHandCursor: true })
-                    .on('pointerover', () => chapterBtn.setColor('#FFF6A8').setScale(1.05))
-                    .on('pointerout', () => chapterBtn.setColor('#FFD700').setScale(1))
-                    .on('pointerdown', () => this.startChapter(chapter));
-            }
-
-            this.chaptersContent.add(chapterBtn);
-        });
-
-        // Показываем контейнер с главами
-        this.chaptersContainer.setVisible(true);
-    }
-
-    startChapter(chapter) {
-        this.scene.start('LoadingScene', {
-            storyKey: this.selectedStory,
-            chapterId: chapter.id,
-            nextScene: 'GameScene',
-            gameData: {
-                location: chapter.startLocation,
-                history: []
-            }
-        });
     }
 
     showAchievementsModal() {
@@ -420,7 +447,6 @@ class MainMenuScene extends Phaser.Scene {
     showOptionsModal() {
         const content = this.openModal('НАСТРОЙКИ');
         
-        // Language selection
         const langTitle = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 - 120, 'Мова / Language:', {
             font: '28px Arial',
             color: '#FFD700'
@@ -445,7 +471,6 @@ class MainMenuScene extends Phaser.Scene {
         this.uaBtn.on('pointerdown', () => this.switchLanguage('ua'));
         content.add([this.enBtn, this.uaBtn]);
 
-        // Volume control
         const volumeTitle = this.add.text(GAME_CONFIG.width / 2, GAME_CONFIG.height / 2 + 20, 'Гучність музики / Music Volume:', {
             font: '28px Arial',
             color: '#FFD700'
@@ -499,7 +524,6 @@ class MainMenuScene extends Phaser.Scene {
     closeModal() {
         this.modalContainer.setVisible(false);
         this.modalContent.removeAll(true);
-        this.chaptersContainer.setVisible(false);
         this.selectedStory = null;
         this.resetActiveButton();
     }
@@ -598,5 +622,17 @@ class MainMenuScene extends Phaser.Scene {
             this.enBtn.setColor(this.currentLanguage === 'en' ? '#FFD700' : '#999');
             this.uaBtn.setColor(this.currentLanguage === 'ua' ? '#FFD700' : '#999');
         }
+    }
+
+    startChapter(chapter) {
+        this.scene.start('LoadingScene', {
+            storyKey: this.selectedStory,
+            chapterId: chapter.id,
+            nextScene: 'GameScene',
+            gameData: {
+                location: chapter.startLocation,
+                history: []
+            }
+        });
     }
 }
