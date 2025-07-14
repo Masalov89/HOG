@@ -115,6 +115,7 @@ class MainMenuScene extends Phaser.Scene {
         this.musicVolume = 0.5;
         this.currentMenuState = 'main';
         this.selectedStory = null;
+        this.activeButtonIndex = -1; // Индекс активной кнопки (-1 означает нет активной)
     }
 
     preload() {
@@ -160,14 +161,7 @@ class MainMenuScene extends Phaser.Scene {
         this.modalContainer.add(this.modalTitle);
 
         // Кнопка закрытия
-        this.modalCloseBtn = this.add.text(
-            GAME_CONFIG.width / 2 + 350,
-            GAME_CONFIG.height / 2 - 280,
-            '×',
-            { font: '48px Arial', color: '#FFD700' }
-        ).setOrigin(0.5).setInteractive({ useHandCursor: true })
-         .on('pointerdown', () => this.closeModal());
-        this.modalContainer.add(this.modalCloseBtn);
+        this.createCloseButton();
 
         // Контейнер для контента
         this.modalContent = this.add.container(0, 0);
@@ -175,6 +169,19 @@ class MainMenuScene extends Phaser.Scene {
 
         this.createMainMenu();
         this.createEnergyDisplay();
+    }
+
+    createCloseButton() {
+        this.modalCloseBtn = this.add.text(
+            GAME_CONFIG.width / 2 + 350,
+            GAME_CONFIG.height / 2 - 280,
+            '×',
+            { font: '48px Arial', color: '#FFD700' }
+        ).setOrigin(0.5).setInteractive({ useHandCursor: true })
+         .on('pointerdown', () => {
+             this.closeModal();
+         });
+        this.modalContainer.add(this.modalCloseBtn);
     }
 
     createEnergyDisplay() {
@@ -229,7 +236,7 @@ class MainMenuScene extends Phaser.Scene {
                 .setScale(1)
                 .setDepth(1);
 
-            this.setupButtonEffects(btn, glow);
+            this.setupButtonEffects(btn, glow, i);
 
             let label = null;
             if (labels[i] && this.currentLanguage === 'ua') {
@@ -249,8 +256,83 @@ class MainMenuScene extends Phaser.Scene {
         });
     }
 
-    setupButtonEffects(btn, glow) {
+    setupButtonEffects(btn, glow, btnIndex) {
         btn.on('pointerover', () => {
+            // Показываем эффекты при наведении только если кнопка не активна
+            if (this.activeButtonIndex !== btnIndex) {
+                this.tweens.add({
+                    targets: glow,
+                    alpha: 1,
+                    duration: 160,
+                    ease: 'Cubic.easeOut'
+                });
+                this.tweens.add({
+                    targets: btn,
+                    scale: 1.10,
+                    duration: 160,
+                    ease: 'Cubic.easeOut'
+                });
+            }
+        });
+
+        btn.on('pointerout', () => {
+            // Убираем эффекты при уходе курсора только если кнопка НЕ активна
+            if (this.activeButtonIndex !== btnIndex) {
+                this.tweens.add({
+                    targets: glow,
+                    alpha: 0,
+                    duration: 160,
+                    ease: 'Cubic.easeIn'
+                });
+                this.tweens.add({
+                    targets: btn,
+                    scale: 1,
+                    duration: 160,
+                    ease: 'Cubic.easeIn'
+                });
+            }
+        });
+
+        btn.on('pointerdown', () => this.menuClick(btnIndex));
+    }
+
+    // Функция для сброса активного состояния всех кнопок
+    resetActiveButton() {
+        if (this.activeButtonIndex >= 0) {
+            const prevBtn = this.menuBtnObjs[this.activeButtonIndex];
+            const prevGlow = this.menuBtnGlows[this.activeButtonIndex];
+            
+            // Останавливаем все текущие твины для этой кнопки
+            this.tweens.killTweensOf([prevBtn, prevGlow]);
+            
+            // Анимируем возврат к обычному состоянию
+            this.tweens.add({
+                targets: prevGlow,
+                alpha: 0,
+                duration: 160,
+                ease: 'Cubic.easeIn'
+            });
+            this.tweens.add({
+                targets: prevBtn,
+                scale: 1,
+                duration: 160,
+                ease: 'Cubic.easeIn'
+            });
+        }
+        this.activeButtonIndex = -1;
+    }
+
+    // Функция для установки активного состояния кнопки
+    setActiveButton(btnIndex) {
+        if (btnIndex >= 0 && btnIndex < this.menuBtnObjs.length) {
+            this.activeButtonIndex = btnIndex;
+            const btn = this.menuBtnObjs[btnIndex];
+            const glow = this.menuBtnGlows[btnIndex];
+            
+            // Останавливаем все текущие твины для этой кнопки
+            this.tweens.killTweensOf([btn, glow]);
+            
+            // Устанавливаем активное состояние (такое же как при hover)
             this.tweens.add({
                 targets: glow,
                 alpha: 1,
@@ -263,29 +345,17 @@ class MainMenuScene extends Phaser.Scene {
                 duration: 160,
                 ease: 'Cubic.easeOut'
             });
-        });
-
-        btn.on('pointerout', () => {
-            this.tweens.add({
-                targets: glow,
-                alpha: 0,
-                duration: 160,
-                ease: 'Cubic.easeIn'
-            });
-            this.tweens.add({
-                targets: btn,
-                scale: 1,
-                duration: 160,
-                ease: 'Cubic.easeIn'
-            });
-        });
-
-        btn.on('pointerdown', () => this.menuClick(this.menuBtnObjs.indexOf(btn)));
+        }
     }
 
     menuClick(btnIndex) {
-        this.closeModal();
+        // Сначала сбрасываем предыдущую активную кнопку
+        this.resetActiveButton();
         
+        // Устанавливаем новую активную кнопку
+        this.setActiveButton(btnIndex);
+        
+        // Открываем соответствующее модальное окно
         switch(btnIndex) {
             case 0: this.showPlayModal(); break;
             case 1: this.showAchievementsModal(); break;
@@ -296,6 +366,9 @@ class MainMenuScene extends Phaser.Scene {
 
     // Открытие модального окна
     openModal(title) {
+        // Сначала очищаем предыдущий контент
+        this.modalContent.removeAll(true);
+        
         this.modalTitle.setText(title);
         this.modalContainer.setVisible(true);
         return this.modalContent;
@@ -306,6 +379,9 @@ class MainMenuScene extends Phaser.Scene {
         this.modalContainer.setVisible(false);
         this.modalContent.removeAll(true);
         this.selectedStory = null;
+        
+        // Сбрасываем активное состояние всех кнопок при закрытии модального окна
+        this.resetActiveButton();
     }
 
     showPlayModal() {
