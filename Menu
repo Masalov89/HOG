@@ -23,6 +23,7 @@ class MainMenuScene extends Phaser.Scene {
         this.load.image('btn-glow', './Assets/ApprovedUI/btn-glow.png');
         this.load.image('story-bg', './Assets/Backgrounds/MainMenu/story-bg.png');
         this.load.image('letter-bg', './Assets/Backgrounds/MainMenu/letter-bg.png');
+        this.load.image('letter-bg-2', './Assets/Backgrounds/MainMenu/letter-bg-2.png');
         this.load.image('chapter-card', './Assets/Backgrounds/MainMenu/chapter-card.png');
         this.load.image('close-btn', './Assets/ApprovedUI/Close.png');
         this.load.audio('main-music', './Assets/Backgrounds/MainMenu/Audio/main-menu-music.mp3');
@@ -307,6 +308,11 @@ class MainMenuScene extends Phaser.Scene {
         this.chaptersContent.removeAll(true);
         
         const story = this.stories[this.selectedStory];
+
+        // Выбираем фон листа в зависимости от истории
+        const letterBgKey = this.selectedStory === 'safe' ? 'letter-bg' : 'letter-bg-2';
+        this.letterBg.setTexture(letterBgKey);
+        this.letterBg.setVisible(true);
 
         const startY = this.letterBg.y - this.letterBg.displayHeight/2 + 225;
         const cardSpacing = 270;
