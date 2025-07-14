@@ -138,7 +138,6 @@ class MainMenuScene extends Phaser.Scene {
                     duration: 200
                 });
                 
-                // Показываем письмо только при выборе истории
                 this.letterBg.setVisible(true);
                 this.showChaptersList();
             });
@@ -309,7 +308,7 @@ class MainMenuScene extends Phaser.Scene {
         
         const story = this.stories[this.selectedStory];
 
-        const startY = this.letterBg.y - this.letterBg.displayHeight/2 + 100;
+        const startY = this.letterBg.y - this.letterBg.displayHeight/2 + 225;
         const cardSpacing = 270;
 
         story.chapters.forEach((chapter, i) => {
@@ -318,7 +317,7 @@ class MainMenuScene extends Phaser.Scene {
                 startY + i * cardSpacing,
                 'chapter-card'
             )
-            .setDisplaySize(575, 250);
+            .setDisplaySize(525, 250);
 
             let color, interactive;
             switch (chapter.state) {
@@ -343,12 +342,6 @@ class MainMenuScene extends Phaser.Scene {
 
             if (interactive) {
                 chapterCard.setInteractive({ useHandCursor: true })
-                    .on('pointerover', () => {
-                        chapterCard.setScale(1.05);
-                    })
-                    .on('pointerout', () => {
-                        chapterCard.setScale(1);
-                    })
                     .on('pointerdown', () => this.startChapter(chapter));
             }
 
@@ -357,6 +350,7 @@ class MainMenuScene extends Phaser.Scene {
     }
 
     closeStoryView() {
+        this.chaptersContainer.setVisible(false);
         this.storyBackground.setVisible(false);
         this.closeBtn.setVisible(false);
         this.letterBg.setVisible(false);
@@ -376,6 +370,8 @@ class MainMenuScene extends Phaser.Scene {
             });
             this.activeStoryButton = null;
         }
+
+        this.resetActiveButton();
     }
 
     menuClick(btnIndex) {
@@ -384,8 +380,7 @@ class MainMenuScene extends Phaser.Scene {
         
         switch(btnIndex) {
             case 0: 
-                // Показываем фон стола и кнопки историй при нажатии Play
-                this.chaptersContainer.setVisible(true); // Добавляем эту строку
+                this.chaptersContainer.setVisible(true);
                 this.storyBackground.setVisible(true);
                 this.closeBtn.setVisible(true);
                 this.storyButtons.forEach(({button, glow}) => {
